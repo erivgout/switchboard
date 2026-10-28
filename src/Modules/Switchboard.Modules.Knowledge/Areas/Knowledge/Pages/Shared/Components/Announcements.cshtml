@@ -1,0 +1,34 @@
+@model KbAnnouncementsModel
+@if (Model.Items.Count > 0 || Model.CanManage)
+{
+    <link rel="stylesheet" href="@Url.Content(KbUi.Css)" asp-append-version="true">
+    <section class="sb-pane kb-announcements-pane" aria-labelledby="kbAnnouncementsTitle">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="kbAnnouncementsTitle">Announcements</h2>
+            @if (Model.CanManage)
+            {
+                <a class="btn btn-sm btn-ghost ms-auto" href="/kb/announcements">Manage</a>
+            }
+        </div>
+        @if (Model.Items.Count == 0)
+        {
+            <p class="sb-pane-body sb-meta mb-0">Nothing to announce right now. <a href="/kb/announcements/edit">Post an announcement</a> to tell agents or requesters about outages and changes.</p>
+        }
+        else
+        {
+            <ul class="kb-announcements">
+                @foreach (var a in Model.Items)
+                {
+                    <li class="kb-announcement">
+                        <h3 class="kb-announcement-title"><i class="bi bi-megaphone" aria-hidden="true"></i>@a.Title</h3>
+                        <div class="kb-announcement-body">@Html.Raw(a.BodyHtml)</div>
+                        @if (a.ActiveTo is { } end)
+                        {
+                            <div class="kb-announcement-meta">Until <sb-time value="@end" mode="datetime" /></div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+}

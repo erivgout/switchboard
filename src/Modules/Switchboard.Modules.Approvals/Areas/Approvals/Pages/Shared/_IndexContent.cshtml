@@ -1,0 +1,31 @@
+@using Switchboard.Modules.Approvals.Web
+@model ApprovalIndexPageBase
+@{
+    string Href(string view) => view == "pending" ? Model.BasePath : $"{Model.BasePath}?view={view}";
+}
+<sb-page-header title="Approvals" subtitle="Requests waiting for your decision, and the ones you've asked for." />
+
+@foreach (var d in Model.Covering)
+{
+    <div class="alert alert-info d-flex gap-2 align-items-start" role="status">
+        <i class="bi bi-person-check mt-1" aria-hidden="true"></i>
+        <div>You're covering approvals for <strong>@d.UserName</strong> until <sb-time value="@d.EndsAt" mode="datetime" />. Their requests show up in your list.</div>
+    </div>
+}
+@foreach (var d in Model.Delegated)
+{
+    <div class="alert alert-warning d-flex gap-2 align-items-start" role="status">
+        <i class="bi bi-forward mt-1" aria-hidden="true"></i>
+        <div>@d.DelegateName is covering your approvals until <sb-time value="@d.EndsAt" mode="datetime" />. You can still decide yourself. <a href="/profile#delegation">Change this</a></div>
+    </div>
+}
+
+<nav aria-label="Approval lists" class="mb-3">
+    <ul class="sb-views d-flex flex-wrap gap-1 p-0">
+        <li><a href="@Href("pending")" aria-current="@(Model.View == "pending" ? "page" : null)">Waiting on you<span class="sb-count">@Model.PendingCount</span></a></li>
+        <li><a href="@Href("decided")" aria-current="@(Model.View == "decided" ? "page" : null)">Decided by you</a></li>
+        <li><a href="@Href("requested")" aria-current="@(Model.View == "requested" ? "page" : null)">Your requests</a></li>
+    </ul>
+</nav>
+
+<partial name="_ApprovalList" model="new ApprovalListModel(Model.Items, Model.BasePath, Model.View)" />

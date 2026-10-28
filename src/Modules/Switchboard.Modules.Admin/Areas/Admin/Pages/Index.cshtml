@@ -1,0 +1,27 @@
+@page "/admin"
+@model IndexModel
+@{
+    ViewData["Title"] = "Admin";
+}
+<sb-page-header title="Admin" subtitle="Set up how Switchboard works for your organization. You see the areas your role lets you manage." />
+
+<div class="sb-admin-directory">
+    @foreach (var group in Model.Groups)
+    {
+        var id = "admin-group-" + group.Key.ToLowerInvariant().Replace(' ', '-');
+        <section class="sb-pane" aria-labelledby="@id">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="@id">@group.Key</h2></div>
+            <ul class="sb-admin-links">
+                @foreach (var item in group)
+                {
+                    <li>
+                        <a href="@item.Href">
+                            <i class="bi @item.Icon" aria-hidden="true"></i>
+                            <span><strong>@item.Title</strong>@if (item.Description is not null) { <span>@item.Description</span> }</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</div>

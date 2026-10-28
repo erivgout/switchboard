@@ -1,0 +1,117 @@
+@page "/admin/automations/runs/{runId:guid}"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.RunModel
+@{
+    var run = Model.Run;
+    ViewData["Title"] = $"Run of {run.WorkflowName}";
+    Layout = "_AdminLayout";
+    var duration = run.FinishedAt is { } done ? done - run.StartedAt : (TimeSpan?)null;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+
+<sb-page-header title="Run details" subtitle="@run.WorkflowName" />
+<p class="mb-3">
+    @if (Model.Workflow is not null)
+    {
+        <a href="/admin/automations/@Model.Workflow.Id/runs"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>All runs of this workflow</a>
+    }
+</p>
+
+<div class="sb-split">
+    <div class="min-w-0">
+        @if (run.Message is not null)
+        {
+            <div class="alert @(run.Status == RunStatus.Failed ? "alert-danger" : "alert-warning")" role="status">@run.Message</div>
+        }
+        <div class="sb-pane">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Steps</h2></div>
+            @if (run.Steps.Count == 0)
+            {
+                <p class="sb-pane-body mb-0 text-muted">This run stopped before any step ran.</p>
+            }
+            else
+            {
+                <ol class="aut-runsteps">
+                    @foreach (var step in run.Steps.OrderBy(s => s.Order))
+                    {
+                        var (css, icon, text) = AutomationAdminPageModel.StepState(step.Status);
+                        <li>
+                            <div class="aut-runstep-head">
+                                <h3 class="aut-runstep-title">@step.Title</h3>
+                                <span class="aut-state @css"><i class="bi @icon" aria-hidden="true"></i>@text</span>
+                            </div>
+                            @if (step.Error is not null)
+                            {
+                                <p class="aut-error">@step.Error</p>
+                            }
+                            @if (step.Kind == "conditions" && step.OutputJson is not null)
+                            {
+                                var checks = Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.RunModel.Checks(step.OutputJson);
+                                @if (checks.Count > 0)
+                                {
+                                    <ul class="aut-checks mt-2">
+                                        @foreach (var check in checks)
+                                        {
+                                            <li>
+                                                <i class="bi @(check.Matched ? "bi-check-circle-fill is-yes" : "bi-x-circle-fill is-no")" aria-hidden="true"></i>
+                                                <span><span class="visually-hidden">@(check.Matched ? "Matched:" : "Didn't match:")</span> @check.Condition
+                                                    <span class="aut-actual">The ticket had: @check.Actual</span></span>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                            else
+                            {
+                                @if (step.InputJson is not null)
+                                {
+                                    <details class="aut-detail">
+                                        <summary>Input</summary>
+                                        <pre class="aut-pre">@AutomationAdminPageModel.Pretty(step.InputJson)</pre>
+                                    </details>
+                                }
+                                @if (step.OutputJson is not null)
+                                {
+                                    <details class="aut-detail">
+                                        <summary>Output</summary>
+                                        <pre class="aut-pre">@AutomationAdminPageModel.Pretty(step.OutputJson)</pre>
+                                    </details>
+                                }
+                            }
+                        </li>
+                    }
+                </ol>
+            }
+        </div>
+    </div>
+    <aside class="sb-sticky">
+        <div class="sb-pane">
+            <dl class="sb-props sb-pane-body">
+                <div><dt>Result</dt><dd><partial name="_RunState" model="(RunStatus?)run.Status" /></dd></div>
+                <div>
+                    <dt>Ticket</dt>
+                    <dd>
+                        @if (Model.TicketDisplayId is not null)
+                        {
+                            <a href="@AutomationAdminPageModel.TicketHref(Model.TicketDisplayId)"><span class="sb-stamp">@Model.TicketDisplayId</span></a>
+                            <div class="small">@Model.TicketSubject</div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Deleted</span>
+                        }
+                    </dd>
+                </div>
+                <div><dt>Trigger</dt><dd>@run.TriggerSummary</dd></div>
+                <div><dt>Version</dt><dd class="tabular">@(run.Version?.ToString() ?? "None")</dd></div>
+                <div><dt>Started</dt><dd><sb-time value="run.StartedAt" mode="datetime" /></dd></div>
+                <div><dt>Took</dt><dd class="tabular">@(duration is { } d ? d.TotalSeconds < 1 ? $"{d.TotalMilliseconds:0} ms" : $"{d.TotalSeconds:0.0} s" : "Still sending")</dd></div>
+                <div>
+                    <dt>Chain</dt>
+                    <dd>@(run.CascadeDepth == 0 ? "Started by a person or the clock" : $"Step {run.CascadeDepth + 1} of an automation chain")</dd>
+                </div>
+            </dl>
+        </div>
+    </aside>
+</div>

@@ -1,0 +1,34 @@
+@page "/kb/new"
+@model NewModel
+@{
+    ViewData["Title"] = "New article";
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li aria-current="page">New article</li>
+    </ol>
+</nav>
+<h1 class="visually-hidden">New article</h1>
+
+@if (Model.Folders.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-folder-plus" title="There's no folder you can write in">
+            <p class="sb-empty-text">Articles live in folders. Ask a knowledge manager to create one, or to give you access.</p>
+            @if (Model.Viewer.CanManageAny) { <div class="sb-empty-actions"><a class="btn btn-primary" href="/kb/folders">Set up folders</a></div> }
+        </sb-empty>
+    </div>
+}
+else
+{
+    <partial name="_Editor" model="Model" />
+}
+
+@section Scripts {
+    <script src="@KbUi.EditorJs" asp-append-version="true"></script>
+}

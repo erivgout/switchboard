@@ -1,0 +1,19 @@
+@model UploaderModel
+@* Files go to POST /uploads as they are picked; each upload adds a hidden AttachmentIds input. Needs JavaScript, so it starts hidden. *@
+<div class="prt-upload" data-prt-upload @(Model.Files.Count == 0 ? "hidden" : null)>
+    <input type="file" id="@Model.Id" class="visually-hidden" multiple data-prt-upload-input aria-describedby="@(Model.Id)Help">
+    <label for="@Model.Id" class="btn btn-outline-secondary btn-sm"><i class="bi bi-paperclip" aria-hidden="true"></i> @Model.Label</label>
+    <span class="form-text ms-1" id="@(Model.Id)Help">Up to 25 MB each</span>
+    <ul class="prt-files" data-prt-upload-list aria-live="polite">
+        @foreach (var f in Model.Files)
+        {
+            <li class="prt-file">
+                <i class="bi bi-file-earmark" aria-hidden="true"></i>
+                <span class="prt-file-name">@f.FileName</span>
+                <span class="prt-file-size">@PortalText.FileSize(f.Size)</span>
+                <input type="hidden" name="AttachmentIds" value="@f.Id">
+                <button type="button" class="btn btn-ghost btn-icon btn-sm" data-prt-upload-remove aria-label="Remove @f.FileName"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+            </li>
+        }
+    </ul>
+</div>

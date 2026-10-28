@@ -1,0 +1,76 @@
+@page "/admin/people/{id:guid}/convert"
+@model Switchboard.Modules.Admin.Pages.People.ConvertModel
+@{
+    var u = Model.Detail.User;
+    var title = Model.ToAgent ? $"Make {u.DisplayName} an agent" : $"Convert {u.DisplayName} to a requester";
+    ViewData["Title"] = title;
+    var back = ($"/admin/people/{u.Id}/account", u.DisplayName);
+    var scopes = new[] { TicketScope.Global, TicketScope.Group, TicketScope.Restricted };
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@title" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    @if (Model.ToAgent)
+    {
+        <form method="post" asp-page-handler="Agent">
+            <section class="sb-pane">
+                <div class="sb-pane-body">
+                    <p>Agents can work tickets in the workspaces where they have a role. You can add more roles and groups on the Access tab afterwards.</p>
+                    <div class="row g-3">
+                        @if (Model.Workspaces.Count > 1)
+                        {
+                            <div class="col-12">
+                                <label class="form-label" asp-for="Agent.WorkspaceId">Workspace</label>
+                                <select class="form-select" asp-for="Agent.WorkspaceId">
+                                    @foreach (var w in Model.Workspaces)
+                                    {
+                                        <option value="@w.Id">@w.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        else
+                        {
+                            <input type="hidden" asp-for="Agent.WorkspaceId">
+                        }
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Agent.RoleId">Role</label>
+                            <select class="form-select" asp-for="Agent.RoleId" asp-items="Model.Roles"></select>
+                            <partial name="_FieldError" model="@("Agent.RoleId")" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Agent.Scope">Tickets they can see</label>
+                            <select class="form-select" asp-for="Agent.Scope">
+                                @foreach (var scope in scopes)
+                                {
+                                    <option value="@scope">@AdminPageModel.ScopeLabel(scope)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="sb-pane-footer d-flex gap-2">
+                    <button class="btn btn-primary" type="submit">Make agent</button>
+                    <a class="btn btn-ghost" href="/admin/people/@u.Id/account">Cancel</a>
+                </div>
+            </section>
+        </form>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="Requester">
+            <section class="sb-pane">
+                <div class="sb-pane-body">
+                    <p>@u.DisplayName loses every agent role and group and becomes a requester. They keep their tickets as a requester and can still use the portal.</p>
+                    <partial name="_HandOff" model="Model.HandOff" />
+                </div>
+                <div class="sb-pane-footer d-flex gap-2">
+                    <button class="btn btn-danger" type="submit">Convert to requester</button>
+                    <a class="btn btn-ghost" href="/admin/people/@u.Id/account">Cancel</a>
+                </div>
+            </section>
+        </form>
+    }
+</div>

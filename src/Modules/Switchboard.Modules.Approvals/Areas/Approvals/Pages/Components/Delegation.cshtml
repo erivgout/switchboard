@@ -1,0 +1,62 @@
+@using Switchboard.Modules.Approvals.Web
+@model DelegationSectionModel
+@{
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var picker = new PeoplePickerModel("delegateId", "aprDelegate", "Who covers for you", Required: true);
+}
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+<script src="~/_content/Switchboard.Modules.Approvals/js/approvals.js" asp-append-version="true" defer></script>
+<section class="sb-pane" id="delegation" aria-labelledby="aprDelegationTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprDelegationTitle">Approvals while you're away</h2></div>
+    <div class="sb-pane-body">
+        @foreach (var d in Model.Received)
+        {
+            <p class="d-flex gap-2 align-items-start">
+                <i class="bi bi-person-check mt-1" aria-hidden="true"></i>
+                <span>You cover approvals for <strong>@d.UserName</strong> from <sb-time value="@d.StartsAt" mode="datetime" /> until <sb-time value="@d.EndsAt" mode="datetime" />.</span>
+            </p>
+        }
+        @if (Model.Given.Count > 0)
+        {
+            <ul class="list-unstyled mb-3">
+                @foreach (var d in Model.Given)
+                {
+                    <li class="d-flex flex-wrap gap-2 align-items-center py-2 border-bottom">
+                        <sb-avatar name="@d.DelegateName" size="sm" />
+                        <span class="flex-grow-1">
+                            <strong>@d.DelegateName</strong> @(d.IsActive ? "is covering" : "will cover") your approvals until <sb-time value="@d.EndsAt" mode="datetime" />
+                            @if (!d.IsActive)
+                            {
+                                <span class="text-muted">(starts <sb-time value="@d.StartsAt" mode="datetime" />)</span>
+                            }
+                        </span>
+                        <form method="post" action="/approvals/delegation?handler=End" asp-antiforgery="true">
+                            <input type="hidden" name="id" value="@d.Id">
+                            <button class="btn btn-ghost btn-sm" type="submit">@(d.IsActive ? "End now" : "Remove")</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="text-muted">Choose someone to approve requests for you, for example while you're on leave. They decide under their own name, and the record shows they acted for you.</p>
+        }
+        <form method="post" action="/approvals/delegation?handler=Create" asp-antiforgery="true" class="row g-3 align-items-end">
+            <div class="col-12 col-md-5">
+                <partial name="/Areas/Approvals/Pages/Shared/_PeoplePicker.cshtml" model="picker" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="aprFrom">First day</label>
+                <input class="form-control" type="date" id="aprFrom" name="from" value="@today.ToString("yyyy-MM-dd")" required>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="aprUntil">Last day</label>
+                <input class="form-control" type="date" id="aprUntil" name="until" value="@today.AddDays(7).ToString("yyyy-MM-dd")" required>
+            </div>
+            <div class="col-12">
+                <button class="btn btn-outline-secondary" type="submit">Hand over approvals</button>
+            </div>
+        </form>
+    </div>
+</section>

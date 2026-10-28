@@ -1,0 +1,172 @@
+@using Switchboard.Modules.Approvals.Domain
+@using Switchboard.Modules.Approvals.Web
+@using Switchboard.Core.Domain
+@model ApprovalDetailPageBase
+@{
+    var d = Model.Details;
+    var r = d.Request;
+    Guid? viewer = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var parsed) ? parsed : null;
+    var coveredOnly = d.CanDecideFor.Count == 1 && d.CanDecideFor[0] != viewer ? d.CanDecideFor[0] : (Guid?)null;
+    var involved = viewer is { } v && (v == r.RequesterId || v == r.RequestedById);
+    var subtitle = $"Requested by {d.NameOf(r.RequesterId)}"
+        + (r.RequestedById is { } by && by != r.RequesterId ? $", on their behalf by {d.NameOf(by)}" : "");
+    string ChannelText(AprDecision x) => x.Channel switch
+    {
+        Channel.Email => "from email",
+        Channel.Mcp => $"through {x.ClientName ?? "an AI assistant"}",
+        _ => "",
+    };
+}
+<sb-page-header title="@r.Title" subtitle="@subtitle">
+    <partial name="_Status" model="r.Status" />
+</sb-page-header>
+
+<div class="sb-split">
+    <div class="min-w-0">
+        <div class="d-flex flex-wrap gap-3 align-items-center mb-3 small text-muted">
+            @if (d.Subject.Href is not null)
+            {
+                <a href="@d.Subject.Href"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Open @(d.Subject.DisplayId ?? "the record")</a>
+            }
+            else if (d.Subject.DisplayId is not null && !r.Title.StartsWith(d.Subject.DisplayId, StringComparison.Ordinal))
+            {
+                <span class="sb-stamp">@d.Subject.DisplayId</span>
+            }
+            <span>Asked <sb-time value="@r.CreatedAt" /></span>
+        </div>
+
+        <sb-slot name="approval.subject" model="r" />
+
+        @if (d.CanDecideFor.Count > 0)
+        {
+            <section class="sb-pane apr-decide" aria-labelledby="aprDecideTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprDecideTitle">Your decision</h2></div>
+                <form method="post" asp-page-handler="Decide" asp-route-id="@r.Id" class="sb-pane-body">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    @if (d.CanDecideFor.Count > 1)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label" for="aprOnBehalf">Deciding for</label>
+                            <select class="form-select" id="aprOnBehalf" name="Input.OnBehalfOfId">
+                                @foreach (var id in d.CanDecideFor)
+                                {
+                                    <option value="@id" selected="@(Model.Input.OnBehalfOfId == id)">@(id == viewer ? $"Yourself ({d.NameOf(id)})" : d.NameOf(id))</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Input.OnBehalfOfId" class="text-danger small"></span>
+                        </div>
+                    }
+                    else if (coveredOnly is { } covered)
+                    {
+                        <p class="mb-3"><i class="bi bi-person-check me-1" aria-hidden="true"></i>You're deciding on behalf of <strong>@d.NameOf(covered)</strong>. The record shows both names.</p>
+                        <input type="hidden" name="Input.OnBehalfOfId" value="@covered">
+                    }
+                    <label class="form-label" for="aprComment">Comment</label>
+                    <textarea class="form-control" id="aprComment" name="Input.Comment" rows="3" maxlength="2000" data-sb-autosize
+                              aria-describedby="aprCommentHelp">@Model.Input.Comment</textarea>
+                    <div id="aprCommentHelp" class="form-text">The requester sees this. Required if you reject, so they know what to change.</div>
+                    <span asp-validation-for="Input.Comment" class="text-danger small d-block"></span>
+                    <div class="apr-decide-actions">
+                        <button class="btn btn-primary" type="submit" name="Input.Verdict" value="Approved"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Approve</button>
+                        <button class="btn btn-outline-secondary" type="submit" name="Input.Verdict" value="Rejected"><i class="bi bi-x-lg me-1" aria-hidden="true"></i>Reject</button>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">Decisions are final. To change one, the request has to be cancelled and asked again.</p>
+                </form>
+            </section>
+        }
+        else if (d.DecideBlockedReason is not null)
+        {
+            <div class="alert alert-warning d-flex gap-2" role="status"><i class="bi bi-person-lock mt-1" aria-hidden="true"></i><div>@d.DecideBlockedReason</div></div>
+        }
+
+        <section class="sb-pane" aria-labelledby="aprHistoryTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprHistoryTitle">Decisions</h2></div>
+            <div class="sb-pane-body">
+                @if (r.Decisions.Count == 0 && r.CancelledAt is null)
+                {
+                    <p class="text-muted mb-0">No one has decided yet.</p>
+                }
+                else
+                {
+                    <ul class="apr-history">
+                        @foreach (var x in r.Decisions.OrderBy(x => x.CreatedAt))
+                        {
+                            var who = d.NameOf(x.DecidedById);
+                            <li>
+                                <sb-avatar name="@who" />
+                                <div class="min-w-0">
+                                    <div class="apr-history-head">
+                                        <strong>@who</strong>
+                                        <span class="apr-verdict apr-verdict--@x.Verdict.ToString().ToLowerInvariant()">
+                                            <i class="bi @(x.Verdict == ApprovalVerdict.Approved ? "bi-check2" : "bi-x-lg")" aria-hidden="true"></i>@(x.Verdict == ApprovalVerdict.Approved ? "approved" : "rejected")
+                                        </span>
+                                        @if (x.OnBehalfOfId is { } o)
+                                        {
+                                            <span class="text-muted">on behalf of @d.NameOf(o)</span>
+                                        }
+                                        @if (ChannelText(x) is { Length: > 0 } via)
+                                        {
+                                            <span class="text-muted">@via</span>
+                                        }
+                                        <sb-time value="@x.CreatedAt" />
+                                    </div>
+                                    @if (x.Comment is not null)
+                                    {
+                                        <p class="apr-history-comment">@x.Comment</p>
+                                    }
+                                </div>
+                            </li>
+                        }
+                        @if (r.CancelledAt is { } cancelledAt)
+                        {
+                            var canceller = r.CancelledById is { } cb ? d.NameOf(cb) : "The service desk";
+                            <li>
+                                <sb-avatar name="@canceller" />
+                                <div class="min-w-0">
+                                    <div class="apr-history-head"><strong>@canceller</strong><span class="text-muted">cancelled the request</span><sb-time value="@cancelledAt" /></div>
+                                    @if (r.CancelReason is not null)
+                                    {
+                                        <p class="apr-history-comment">@r.CancelReason</p>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </section>
+    </div>
+
+    <aside class="sb-sticky">
+        <section class="sb-pane" aria-labelledby="aprChainTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprChainTitle">Who approves</h2></div>
+            <div class="sb-pane-body"><partial name="_Chain" model="d" /></div>
+            @if (r.Status == ApprovalStatus.Requested && r.LastRemindedAt is { } reminded)
+            {
+                <div class="sb-pane-footer small text-muted">Last reminder sent <sb-time value="@reminded" /></div>
+            }
+        </section>
+        @if (r.Status == ApprovalStatus.Requested && (d.CanManage || involved))
+        {
+            <section class="sb-pane" aria-labelledby="aprActionsTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprActionsTitle">Waiting too long?</h2></div>
+                <div class="sb-pane-body d-grid gap-3">
+                    <form method="post" asp-page-handler="Remind" asp-route-id="@r.Id">
+                        <button class="btn btn-outline-secondary w-100" type="submit"><i class="bi bi-bell me-1" aria-hidden="true"></i>Send a reminder</button>
+                    </form>
+                    @if (d.CanManage)
+                    {
+                        <details>
+                            <summary class="btn btn-ghost w-100">Cancel approval</summary>
+                            <form method="post" asp-page-handler="Cancel" asp-route-id="@r.Id" class="mt-2" data-sb-confirm="Cancel this approval? Decisions so far are kept, and you can ask again later.">
+                                <label class="form-label small" for="aprCancelReason">Why? (optional, shown on the record)</label>
+                                <input class="form-control form-control-sm mb-2" id="aprCancelReason" name="reason" maxlength="1000">
+                                <button class="btn btn-outline-secondary btn-sm" type="submit">Cancel approval</button>
+                            </form>
+                        </details>
+                    }
+                </div>
+            </section>
+        }
+    </aside>
+</div>

@@ -1,0 +1,57 @@
+@page "/admin/audit/{sequence:long}"
+@model Switchboard.Modules.Admin.Pages.Audit.DetailModel
+@using Switchboard.Modules.Admin.Pages.Audit
+@{
+    var e = Model.Entry;
+    if (Model.IsPartial)
+    {
+        Layout = null;
+    }
+    ViewData["Title"] = e.Action;
+    var back = ("/admin/audit", "Audit log");
+}
+@if (!Model.IsPartial)
+{
+    <partial name="_BackLink" model="back" />
+    <sb-page-header title="@e.Action" subtitle="@($"Entry {e.Sequence}")" />
+}
+<div class="@(Model.IsPartial ? "" : "sb-pane sb-form-narrow")">
+    @if (Model.IsPartial)
+    {
+        <p class="fw-semibold mb-2"><code>@e.Action</code></p>
+    }
+    <dl class="sb-props @(Model.IsPartial ? "" : "sb-pane-body")">
+        <div><dt>When</dt><dd><sb-time value="@e.OccurredAt" mode="datetime" /></dd></div>
+        <div><dt>Who</dt><dd>@AdminPageModel.ActorLabel(e)@if (e.ActorUserId is { } uid) { <div class="sb-meta"><a href="/admin/people/@uid">Open person</a></div> }</dd></div>
+        <div><dt>Kind of actor</dt><dd>@e.ActorKind</dd></div>
+        @if (e.OnBehalfOfUserId is { } behalf)
+        {
+            <div><dt>On behalf of</dt><dd><a href="/admin/people/@behalf">@behalf</a></dd></div>
+        }
+        <div><dt>Channel</dt><dd>@e.Channel@(e.ClientName is null ? "" : $" ({e.ClientName})")</dd></div>
+        <div><dt>IP address</dt><dd class="tabular">@(e.Ip ?? "Not recorded")</dd></div>
+        @if (e.UserAgent is not null)
+        {
+            <div><dt>Browser</dt><dd class="small text-break">@e.UserAgent</dd></div>
+        }
+        <div><dt>Object</dt><dd>@(e.ObjectType ?? "None")@if (e.ObjectId is not null) { <div class="sb-meta tabular text-break">@e.ObjectId</div> }</dd></div>
+        @if (e.RequestId is not null)
+        {
+            <div><dt>Request</dt><dd class="small tabular text-break">@e.RequestId</dd></div>
+        }
+    </dl>
+    <div class="@(Model.IsPartial ? "mt-3" : "sb-pane-body border-top")">
+        <p class="sb-section-label">Details</p>
+        <pre class="sb-json">@Model.Details</pre>
+        <p class="sb-section-label mt-3">Seal</p>
+        @if (e.Hash is null)
+        {
+            <p class="text-muted small mb-0">Not sealed yet. Entries join the hash chain within a few seconds.</p>
+        }
+        else
+        {
+            <p class="sb-hash mb-1">Hash @e.Hash</p>
+            <p class="sb-hash mb-0">Previous @(string.IsNullOrEmpty(e.PrevHash) ? "(first entry)" : e.PrevHash)</p>
+        }
+    </div>
+</div>

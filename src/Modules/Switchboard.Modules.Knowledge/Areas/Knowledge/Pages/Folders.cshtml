@@ -1,0 +1,137 @@
+@page "/kb/folders"
+@model FoldersModel
+@{
+    ViewData["Title"] = "Knowledge folders";
+    var multiWorkspace = Model.Categories.Select(c => c.WorkspaceId).Distinct().Count() > 1;
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li aria-current="page">Folders</li>
+    </ol>
+</nav>
+
+<sb-page-header title="Folders" subtitle="Categories hold folders; each top-level folder decides who can read its articles and whether publishing needs approval.">
+    <a class="btn btn-primary" href="/kb/categories/edit"><i class="bi bi-plus-lg" aria-hidden="true"></i> New category</a>
+</sb-page-header>
+
+<section class="sb-pane mb-3" aria-labelledby="kbPublicTitle">
+    <form method="post" asp-page-handler="Public" class="sb-pane-body d-flex flex-wrap align-items-center gap-3">
+        <div class="flex-grow-1">
+            <h2 class="sb-pane-title mb-1" id="kbPublicTitle">Public knowledge base</h2>
+            <p class="sb-meta mb-0">
+                @if (Model.PublicKb) { <text>Signed-out visitors can read articles in folders visible to everyone.</text> }
+                else { <text>Only signed-in people can read articles. Turn this on to let anyone with the portal address read folders visible to everyone.</text> }
+            </p>
+        </div>
+        <input type="hidden" name="enabled" value="@(!Model.PublicKb ? "true" : "false")">
+        <button class="btn btn-outline-secondary" type="submit"
+                data-sb-confirm="@(Model.PublicKb ? "Require sign-in to read every article?" : "Let signed-out visitors read every article in folders visible to everyone?")">
+            @(Model.PublicKb ? "Require sign-in" : "Allow signed-out visitors")
+        </button>
+    </form>
+</section>
+
+@if (Model.Categories.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-folder-plus" title="No categories yet">
+            <p class="sb-empty-text">Start with a category such as "IT help", then add folders for the topics people ask about most.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="/kb/categories/edit">New category</a></div>
+        </sb-empty>
+    </div>
+}
+
+@foreach (var category in Model.Categories)
+{
+    var folders = KbUi.Tree(Model.Index, category.Id).ToList();
+    <section class="sb-pane mb-3" aria-labelledby="cat-@category.Id">
+        <div class="sb-pane-header flex-wrap">
+            <div class="me-auto">
+                <h2 class="sb-pane-title" id="cat-@category.Id">@category.Name</h2>
+                @if (!string.IsNullOrWhiteSpace(category.Description) || multiWorkspace)
+                {
+                    <p class="sb-meta mb-0">@(multiWorkspace ? $"{Model.Workspaces.GetValueOrDefault(category.WorkspaceId)} workspace. " : "")@category.Description</p>
+                }
+            </div>
+            <form method="post" asp-page-handler="Move" class="kb-order">
+                <input type="hidden" name="kind" value="category">
+                <input type="hidden" name="id" value="@category.Id">
+                <button class="btn btn-ghost btn-icon" type="submit" name="direction" value="-1" aria-label="Move @category.Name up"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                <button class="btn btn-ghost btn-icon" type="submit" name="direction" value="1" aria-label="Move @category.Name down"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+            </form>
+            <a class="btn btn-sm btn-outline-secondary" href="/kb/folders/edit?category=@category.Id"><i class="bi bi-folder-plus" aria-hidden="true"></i> New folder</a>
+            <a class="btn btn-sm btn-ghost" href="/kb/categories/edit/@category.Id">Edit</a>
+            <form method="post" asp-page-handler="Trash" data-sb-confirm="Move @category.Name and everything in it to the trash? You can restore it from the trash.">
+                <input type="hidden" name="kind" value="category">
+                <input type="hidden" name="id" value="@category.Id">
+                <button class="btn btn-sm btn-ghost" type="submit">Move to trash</button>
+            </form>
+        </div>
+        @if (folders.Count == 0)
+        {
+            <p class="sb-pane-body sb-meta mb-0">No folders yet. <a href="/kb/folders/edit?category=@category.Id">Add a folder</a> to start writing articles here.</p>
+        }
+        else
+        {
+            <table class="sb-queue kb-folder-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Folder</th>
+                        <th scope="col" class="sb-hide-sm">Who can read</th>
+                        <th scope="col" class="sb-hide-sm">Publishing</th>
+                        <th scope="col" class="sb-hide-sm text-end">Articles</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (folder, depth) in folders)
+                    {
+                        <tr>
+                            <td>
+                                <div class="kb-folder-name" data-depth="@depth">
+                                    <i class="bi @(depth == 0 ? "bi-folder2" : "bi-arrow-return-right") text-body-secondary" aria-hidden="true"></i>
+                                    <a href="/kb/folders/edit/@folder.Id" class="fw-semibold">@folder.Name</a>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(folder.Description)) { <div class="sb-meta kb-folder-name" data-depth="@depth">@folder.Description</div> }
+                            </td>
+                            <td class="sb-hide-sm">@(depth == 0 ? folder.VisibilityLabel : "Same as parent")</td>
+                            <td class="sb-hide-sm">@(depth > 0 ? "Same as parent" : folder.RequiresApproval ? "Needs approval" : "Direct")</td>
+                            <td class="sb-hide-sm text-end tabular"><a href="/kb?folder=@folder.Id">@(Model.Counts.GetValueOrDefault(folder.Id))</a></td>
+                            <td class="text-end">
+                                <div class="d-inline-flex align-items-center gap-1">
+                                    <form method="post" asp-page-handler="Move" class="kb-order">
+                                        <input type="hidden" name="kind" value="folder">
+                                        <input type="hidden" name="id" value="@folder.Id">
+                                        <button class="btn btn-ghost btn-icon" type="submit" name="direction" value="-1" aria-label="Move @folder.Name up"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                                        <button class="btn btn-ghost btn-icon" type="submit" name="direction" value="1" aria-label="Move @folder.Name down"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+                                    </form>
+                                    <div class="dropdown">
+                                        <button class="btn btn-ghost btn-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More for @folder.Name"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="/kb/folders/edit/@folder.Id">Edit</a></li>
+                                            @if (depth < 2) { <li><a class="dropdown-item" href="/kb/folders/edit?category=@category.Id&parent=@folder.Id">New sub-folder</a></li> }
+                                            <li><a class="dropdown-item" href="/kb/new?folder=@folder.Id">New article here</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form method="post" asp-page-handler="Trash" data-sb-confirm="Move @folder.Name, its sub-folders and articles to the trash? You can restore it from the trash.">
+                                                    <input type="hidden" name="kind" value="folder">
+                                                    <input type="hidden" name="id" value="@folder.Id">
+                                                    <button class="dropdown-item text-danger" type="submit">Move to trash</button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+}

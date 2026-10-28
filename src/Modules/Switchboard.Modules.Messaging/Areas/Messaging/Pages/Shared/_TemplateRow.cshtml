@@ -1,0 +1,26 @@
+@model TemplateRowModel
+@{
+    var t = Model.Template;
+    var id = t.Event.Key.Replace('.', '-');
+}
+<tr id="tpl-@id">
+    <td>
+        <a class="fw-semibold" href="/admin/notifications/@t.Event.Key?ws=@Model.WorkspaceId">@t.Event.Name</a>
+        <span class="d-block small text-muted">@t.Event.Description</span>
+    </td>
+    <td class="sb-hide-sm">
+        <span class="d-block text-truncate sb-template-subject" title="@t.Subject">@t.Subject</span>
+        @if (t.IsCustomized)
+        {
+            <span class="small text-muted">Edited</span>
+        }
+    </td>
+    <td class="text-end">
+        <div class="form-check form-switch d-inline-flex align-items-center gap-2 mb-0 justify-content-end">
+            <input class="form-check-input" type="checkbox" role="switch" id="on-@id" checked="@t.IsEnabled"
+                   hx-post="/admin/notifications?handler=Toggle&amp;ws=@Model.WorkspaceId&amp;key=@t.Event.Key&amp;enabled=@(t.IsEnabled ? "false" : "true")"
+                   hx-target="#tpl-@id" hx-swap="outerHTML" hx-trigger="change">
+            <label class="form-check-label small" for="on-@id">@(t.IsEnabled ? "On" : "Off")<span class="visually-hidden">: @t.Event.Name</span></label>
+        </div>
+    </td>
+</tr>

@@ -1,0 +1,19 @@
+@model string
+@{
+    var tabs = new (string Key, string Href, string Title)[]
+    {
+        ("settings", "/admin/mcp", "Settings"),
+        ("tools", "/admin/mcp/tools", "Tools and access"),
+        ("clients", "/admin/mcp/clients", "Agent apps"),
+        ("connections", "/admin/mcp/connections", "Connections"),
+        ("activity", "/admin/mcp/activity", "Activity"),
+    };
+}
+<nav aria-label="AI agent settings">
+    <ul class="nav nav-tabs mcp-subnav">
+        @foreach (var t in tabs)
+        {
+            <li class="nav-item"><a class="nav-link @(t.Key == Model ? "active" : "")" href="@t.Href" aria-current="@(t.Key == Model ? "page" : null)">@t.Title</a></li>
+        }
+    </ul>
+</nav>

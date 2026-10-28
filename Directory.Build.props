@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!--
+      Parallel builds: set the SWITCHBOARD_BUILD_SLOT environment variable to give each
+      concurrent build its own bin/obj tree under .artifacts/<slot>.
+    -->
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath Condition="'$(SWITCHBOARD_BUILD_SLOT)' != ''">$(MSBuildThisFileDirectory).artifacts/$(SWITCHBOARD_BUILD_SLOT)</ArtifactsPath>
+    <ArtifactsPath Condition="'$(SWITCHBOARD_BUILD_SLOT)' == ''">$(MSBuildThisFileDirectory).artifacts/default</ArtifactsPath>
+  </PropertyGroup>
+</Project>

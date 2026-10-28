@@ -1,0 +1,209 @@
+@page "/admin/fields/{id}"
+@model Switchboard.Modules.Admin.Pages.Fields.EditModel
+@{
+    var title = Model.IsNew ? $"New {Model.EntityTitle.ToLowerInvariant().TrimEnd('s')} field" : Model.Field!.Label;
+    if (Model.Entity == FieldEntities.User && Model.IsNew)
+    {
+        title = "New people field";
+    }
+    ViewData["Title"] = title;
+    var back = (Model.ListHref, "Custom fields");
+    var requester = FieldEntities.HasRequesterSettings(Model.Entity);
+    var ticket = Model.Entity == FieldEntities.Ticket;
+    var typeInfo = FieldAdminService.Types.First(t => t.Type == Model.Input.Type);
+    var subtitle = Model.IsNew
+        ? (Model.Workspace is null ? $"On {Model.EntityTitle.ToLowerInvariant()}." : $"On tickets in the {Model.Workspace.Name} workspace.")
+        : $"{typeInfo.Title}, key {Model.Field!.Key}";
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@title" subtitle="@subtitle" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    @if (Model.Field is { IsActive: false })
+    {
+        <div class="alert alert-warning">This field is inactive: it's hidden from forms, and its stored values are kept.</div>
+    }
+
+    <form method="post" novalidate>
+        <input type="hidden" name="Entity" value="@Model.Entity">
+        <input type="hidden" name="Ws" value="@Model.Workspace?.Key">
+
+        <section class="sb-pane" aria-labelledby="basicsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="basicsTitle">Field</h2></div>
+            <div class="sb-pane-body">
+                <div class="row g-3">
+                    @if (Model.IsNew)
+                    {
+                        <div class="col-12">
+                            <label class="form-label" asp-for="Input.Type">Type</label>
+                            <select class="form-select" asp-for="Input.Type" aria-describedby="typeHelp">
+                                @foreach (var t in FieldAdminService.Types)
+                                {
+                                    <option value="@t.Type">@t.Title: @t.Hint</option>
+                                }
+                            </select>
+                            <div class="form-text" id="typeHelp">The type can't change after the field is created.</div>
+                            <partial name="_FieldError" model="@("Input.Type")" />
+                        </div>
+                    }
+                    else
+                    {
+                        <input type="hidden" name="Input.Type" value="@Model.Input.Type">
+                    }
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.Label">Label</label>
+                        <input class="form-control" asp-for="Input.Label" maxlength="200" required>
+                        <partial name="_FieldError" model="@("Input.Label")" />
+                    </div>
+                    @if (Model.IsNew)
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Input.Key">Key</label>
+                            <input class="form-control" asp-for="Input.Key" maxlength="64" placeholder="Made from the label" aria-describedby="keyHelp" spellcheck="false">
+                            <div class="form-text" id="keyHelp">Used by the API and filters, like asset_tag. It can't change later.</div>
+                            <partial name="_FieldError" model="@("Input.Key")" />
+                        </div>
+                    }
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.Section">Section</label>
+                        <input class="form-control" asp-for="Input.Section" maxlength="200" list="sectionList" aria-describedby="sectionHelp">
+                        <datalist id="sectionList">
+                            @foreach (var s in Model.Sections)
+                            {
+                                <option value="@s"></option>
+                            }
+                        </datalist>
+                        <div class="form-text" id="sectionHelp">Fields with the same section appear together.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" asp-for="Input.HelpText" data-sb-show-when="Input.Type=Content">Text to show</label>
+                        <label class="form-label" asp-for="Input.HelpText" data-sb-show-when="Input.Type=Text,Paragraph,Number,Decimal,Checkbox,Date,DateTime,Dropdown,MultiSelect,DependentDropdown,Lookup">Help text</label>
+                        <textarea class="form-control" asp-for="Input.HelpText" rows="2" maxlength="1000" data-sb-autosize></textarea>
+                        <partial name="_FieldError" model="@("Input.HelpText")" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="optionsTitle" data-sb-show-when="Input.Type=Dropdown,MultiSelect,DependentDropdown">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="optionsTitle">Options</h2></div>
+            <div class="sb-pane-body">
+                <label class="form-label" asp-for="Input.Options">Choices</label>
+                <textarea class="form-control font-monospace" asp-for="Input.Options" rows="6" data-sb-autosize aria-describedby="optionsHelp" spellcheck="false"></textarea>
+                <div class="form-text" id="optionsHelp">
+                    One option per line. For a dependent dropdown, indent each lower level by two spaces, up to three levels.
+                    @if (Model.HasData)
+                    {
+                        <strong>Records already use this field: renaming an option doesn't change values they already have.</strong>
+                    }
+                </div>
+                <partial name="_FieldError" model="@("Input.Options")" />
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="lookupTitle" data-sb-show-when="Input.Type=Lookup">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="lookupTitle">Links to</h2></div>
+            <div class="sb-pane-body">
+                <label class="form-label" asp-for="Input.LookupTarget">Kind of record</label>
+                <select class="form-select" asp-for="Input.LookupTarget">
+                    <option value="">Choose…</option>
+                    @foreach (var (key, name) in LookupTargets.All)
+                    {
+                        <option value="@key">@name</option>
+                    }
+                </select>
+                <partial name="_FieldError" model="@("Input.LookupTarget")" />
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="rulesTitle" data-sb-show-when="Input.Type=Text,Paragraph,Number,Decimal,Checkbox,Date,DateTime,Dropdown,MultiSelect,DependentDropdown,Lookup">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="rulesTitle">Rules</h2></div>
+            <div class="sb-pane-body">
+                <div class="row g-3">
+                    <div class="col-md-6" data-sb-show-when="Input.Type=Text,Paragraph,Number,Decimal,Checkbox,Date,DateTime,Dropdown">
+                        <label class="form-label" asp-for="Input.DefaultValue">Default value</label>
+                        <input class="form-control" asp-for="Input.DefaultValue" maxlength="1000" aria-describedby="defaultHelp">
+                        <div class="form-text" id="defaultHelp">Filled in on new records. Dates as 2026-01-31; checkboxes as true or false.</div>
+                        <partial name="_FieldError" model="@("Input.DefaultValue")" />
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" asp-for="Input.RequiredForAgents">
+                            <label class="form-check-label" asp-for="Input.RequiredForAgents">Agents must fill it in to save</label>
+                        </div>
+                        @if (ticket)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" asp-for="Input.RequiredOnResolve">
+                                <label class="form-check-label" asp-for="Input.RequiredOnResolve">Agents must fill it in to resolve or close a ticket</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        @if (requester)
+        {
+            <section class="sb-pane" aria-labelledby="requesterTitle" data-sb-show-when="Input.Type=Text,Paragraph,Number,Decimal,Checkbox,Date,DateTime,Dropdown,MultiSelect,DependentDropdown,Lookup">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="requesterTitle">Requesters</h2></div>
+                <div class="sb-pane-body">
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Input.VisibleToRequesters">
+                        <label class="form-check-label" asp-for="Input.VisibleToRequesters">Requesters can see it@(ticket ? " on their tickets" : " on their profile")</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Input.EditableByRequesters">
+                        <label class="form-check-label" asp-for="Input.EditableByRequesters">Requesters can fill it in</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Input.RequiredForRequesters">
+                        <label class="form-check-label" asp-for="Input.RequiredForRequesters">Requesters must fill it in</label>
+                    </div>
+                    <div class="form-text mb-3">Requiring it also lets requesters see and fill it in.</div>
+                    <label class="form-label" asp-for="Input.RequesterLabel">Label requesters see</label>
+                    <input class="form-control" asp-for="Input.RequesterLabel" maxlength="200" placeholder="Same as the label">
+                    <partial name="_FieldError" model="@("Input.RequesterLabel")" />
+                </div>
+            </section>
+        }
+
+        <div class="d-flex gap-2 mt-3 mb-4">
+            <button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create field" : "Save field")</button>
+            <a class="btn btn-ghost" href="@Model.ListHref">Cancel</a>
+        </div>
+    </form>
+
+    @if (!Model.IsNew)
+    {
+        var f = Model.Field!;
+        <section class="sb-pane sb-pane--caution" aria-labelledby="removeTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="removeTitle">Remove field</h2></div>
+            <ul class="sb-actions">
+                <li>
+                    <div>
+                        <h3>@(f.IsActive ? "Deactivate" : "Activate")</h3>
+                        <p>@(f.IsActive ? "Hides the field from every form. Stored values stay, and come back if you activate it again." : "Shows the field on forms again, with the values it had.")</p>
+                    </div>
+                    <form method="post" asp-page-handler="Active">
+                        <input type="hidden" name="active" value="@(f.IsActive ? "false" : "true")">
+                        <button class="btn btn-outline-secondary" type="submit">@(f.IsActive ? "Deactivate field" : "Activate field")</button>
+                    </form>
+                </li>
+                <li>
+                    <div>
+                        <h3>Delete</h3>
+                        <p>@(Model.HasData ? "Some records have a value in this field, so it can't be deleted. Deactivate it instead." : "Nobody has filled in this field yet, so it can be deleted for good.")</p>
+                    </div>
+                    @if (!Model.HasData)
+                    {
+                        <form method="post" asp-page-handler="Delete">
+                            <button class="btn btn-danger" type="submit" data-sb-confirm="Delete the field @f.Label? This can't be undone.">Delete field</button>
+                        </form>
+                    }
+                </li>
+            </ul>
+        </section>
+    }
+</div>

@@ -1,0 +1,143 @@
+@page "/dashboard"
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Dashboard.IndexModel
+@using Switchboard.Modules.Insights.Areas.Insights.Pages.Dashboard
+@{
+    ViewData["Title"] = "Dashboard";
+    var d = Model.Data;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Insights/css/insights.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Insights/js/insights.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="Dashboard" subtitle="What needs you now, and how your groups are doing.">
+    @if (Model.CanSeeTeam)
+    {
+        <a class="btn btn-outline-secondary" href="/dashboard/team"><i class="bi bi-people" aria-hidden="true"></i> Team dashboard</a>
+    }
+</sb-page-header>
+
+<div class="sb-metrics ins-metrics mb-4">
+    @foreach (var metric in d.Metrics)
+    {
+        <div class="sb-metric">
+            <a href="@IndexModel.QueueHref(metric.Query)">
+                <div class="sb-num">@metric.Value</div>
+                <div class="sb-metric-label">@metric.Label</div>
+            </a>
+        </div>
+    }
+</div>
+
+<div class="@(Model.HasWidgets ? "sb-split" : "")">
+    <div class="min-w-0">
+        <section class="sb-pane sb-queue-wrap" aria-labelledby="dashQueue">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="dashQueue">Your queue</h2>
+                <span class="sb-meta d-none d-md-inline">Waiting or overdue, yours and unassigned in your groups</span>
+                <a class="ms-auto small" href="@IndexModel.QueueHref(Switchboard.Modules.Insights.Services.InsightsQueries.QueueQuery)">See all @d.QueueTotal</a>
+            </div>
+            @if (d.Queue.Count == 0)
+            {
+                <sb-empty icon="bi-inbox" title="Nothing is waiting on you">
+                    <p class="sb-empty-text">New requests for you and your groups light up here as they arrive.</p>
+                    <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/tickets">Open the queue</a></div>
+                </sb-empty>
+            }
+            else
+            {
+                <table class="sb-queue">
+                    <thead>
+                    <tr>
+                        <th class="sb-col-lamp"><span class="visually-hidden">Waiting</span></th>
+                        <th>Subject</th>
+                        <th class="sb-hide-sm">Priority</th>
+                        <th>Due</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var t in d.Queue)
+                    {
+                        var overdue = t.DueBy is { } due && due < Model.Now && t.StatusCategory == StatusCategory.Open;
+                        <tr class="@(t.IsLampLit ? "is-lit" : "")" data-sb-href="/tickets/@t.Number">
+                            <td class="sb-col-lamp"><sb-lamp lit="@t.IsLampLit" alert="@overdue" /></td>
+                            <td>
+                                <a class="sb-subject" href="/tickets/@t.Number">@t.Subject</a><sb-slot name="ticket.list.badges" model="t" />
+                                <div class="sb-meta"><span class="sb-stamp">@t.DisplayId</span> @t.RequesterName, <sb-time value="@t.CreatedAt" /></div>
+                            </td>
+                            <td class="sb-hide-sm"><sb-priority value="@t.Priority" /></td>
+                            <td><sb-due due="@t.DueBy" category="@t.StatusCategory" resolved-at="@t.ResolvedAt" /></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            }
+        </section>
+
+        <section class="sb-pane" aria-labelledby="dashTrend">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="dashTrend">Created and resolved, last 14 days</h2></div>
+            <div class="sb-pane-body">
+                <partial name="_TrendChart" model="Model.Trend" />
+            </div>
+        </section>
+    </div>
+    @if (Model.HasWidgets)
+    {
+        <aside class="ins-widgets" aria-label="More for you">
+            <sb-slot name="dashboard.widgets" model="null" />
+        </aside>
+    }
+</div>
+
+<section class="sb-pane sb-queue-wrap mt-4" aria-labelledby="dashGroups">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="dashGroups">@(d.GroupsAreMine ? "Your groups" : "Group workload")</h2>
+        <span class="sb-meta">Open tickets right now</span>
+    </div>
+    @if (d.Groups.Count == 0)
+    {
+        <sb-empty icon="bi-people" title="No groups to show">
+            <p class="sb-empty-text">Once you join an agent group, its workload shows up here.</p>
+        </sb-empty>
+    }
+    else
+    {
+        <table class="sb-queue ins-workload">
+            <thead>
+            <tr>
+                <th>Group</th>
+                <th class="text-end">Open</th>
+                <th class="text-end">Waiting</th>
+                <th class="text-end sb-hide-sm">Unassigned</th>
+                <th class="text-end">Overdue</th>
+                <th class="text-end sb-hide-sm">Due today</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var g in d.Groups)
+            {
+                var group = $"group:\"{g.Name.Replace("\"", "")}\"";
+                <tr>
+                    <td><a class="sb-subject" href="@IndexModel.QueueHref($"{group} is:unresolved")">@g.Name</a></td>
+                    <td class="text-end tabular">@g.Open</td>
+                    <td class="text-end tabular">@g.Waiting</td>
+                    <td class="text-end tabular sb-hide-sm">@g.Unassigned</td>
+                    <td class="text-end tabular">
+                        @if (g.Overdue > 0)
+                        {
+                            <a class="ins-overdue" href="@IndexModel.QueueHref($"{group} is:overdue -state:pending")"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>@g.Overdue</a>
+                        }
+                        else
+                        {
+                            @g.Overdue
+                        }
+                    </td>
+                    <td class="text-end tabular sb-hide-sm">@g.DueToday</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>

@@ -1,0 +1,39 @@
+@page "/admin/categories"
+@model Switchboard.Modules.Admin.Pages.Categories.IndexModel
+@{
+    ViewData["Title"] = "Categories";
+}
+<sb-page-header title="Categories" subtitle="Category, sub-category and item: up to three levels. Drag to change the order agents and requesters see." />
+<partial name="_WorkspacePicker" model="new WorkspacePickerModel(Model.Workspace, Model.Workspaces, [])" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    @if (Model.Tree.Count == 0)
+    {
+        <div class="sb-pane">
+            <sb-empty icon="bi-folder2" title="No categories yet">
+                <p class="sb-empty-text">Add top-level categories like Hardware or Access, then open one to add sub-categories.</p>
+            </sb-empty>
+        </div>
+    }
+    else
+    {
+        <div class="sb-pane sb-tree">
+            <partial name="_Nodes" model="new Switchboard.Modules.Admin.Pages.Categories.CategoryNodesModel(Model.Tree, null, Model.Workspace.Key)" />
+        </div>
+        <p class="form-text">Open a category to rename it, add the next level under it, or delete it.</p>
+    }
+
+    <form method="post" class="sb-pane mt-3">
+        <input type="hidden" name="Ws" value="@Model.Workspace.Key">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Add a category</h2></div>
+        <div class="sb-pane-body">
+            <label class="form-label" for="categoryName">Name</label>
+            <div class="d-flex gap-2">
+                <input class="form-control" id="categoryName" name="Name" value="@Model.Name" maxlength="200" placeholder="Facilities">
+                <button class="btn btn-primary text-nowrap" type="submit">Add category</button>
+            </div>
+            <partial name="_FieldError" model="@("Name")" />
+        </div>
+    </form>
+</div>

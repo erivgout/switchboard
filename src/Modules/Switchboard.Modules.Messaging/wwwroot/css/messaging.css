@@ -1,0 +1,315 @@
+/* Messaging module. Loaded on every agent page (the bell lives in the top bar), so every
+   selector is scoped to this module's own classes. Colors come from the design tokens only. */
+
+/* ------------------------------------------------------------------ bell */
+
+.sb-bell-button { position: relative; }
+
+.sb-bell-count {
+  position: absolute;
+  top: -0.125rem;
+  right: -0.3125rem;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 999px;
+  background: var(--sb-cord);
+  color: var(--sb-on-cord);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.125rem;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--sb-surface);
+  pointer-events: none;
+}
+
+.sb-bell-count[hidden] { display: none; }
+
+.sb-bell-menu {
+  width: min(24rem, calc(100vw - 1.5rem));
+  padding: 0;
+  overflow: hidden;
+}
+
+.sb-bell-loading { padding: 1rem; }
+
+.sb-bell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--sb-rule);
+}
+
+.sb-bell-title { margin: 0; font-weight: 650; }
+
+.sb-bell-empty {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1.25rem 1rem;
+  color: var(--sb-ink-muted);
+  font-size: 0.875rem;
+}
+
+.sb-bell-empty .bi { font-size: 1.25rem; }
+
+.sb-bell-foot {
+  display: block;
+  padding: 0.625rem 1rem;
+  border-top: 1px solid var(--sb-rule);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.sb-bell-foot:hover { background: var(--sb-surface-2); }
+
+.sb-bell-menu .sb-notif-list { max-height: min(28rem, 60vh); overflow-y: auto; }
+
+/* ------------------------------------------------------------------ notification list */
+
+.sb-notif-list { list-style: none; margin: 0; padding: 0; }
+
+.sb-notif {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--sb-rule);
+}
+
+.sb-notif:first-child { border-top: 0; }
+
+/* Unread: a cord rule on the left and a bold title (never the lamp, which means "waiting"). */
+.sb-notif.is-unread { box-shadow: inset 3px 0 0 var(--sb-cord); }
+.sb-notif.is-unread .sb-notif-title { font-weight: 700; }
+
+.sb-notif-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  gap: 0.625rem;
+  align-items: start;
+  padding: 0.75rem 1rem;
+  color: var(--sb-ink);
+  text-decoration: none;
+}
+
+.sb-notif-link:hover { background: var(--sb-surface-2); color: var(--sb-ink); }
+
+.sb-notif-icon { color: var(--sb-ink-muted); font-size: 1.0625rem; line-height: 1.4; }
+
+.sb-notif-text { min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; }
+
+.sb-notif-title { font-weight: 500; line-height: 1.35; }
+
+.sb-notif-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--sb-ink-muted);
+  font-size: 0.875rem;
+}
+
+.sb-notif-meta .sb-stamp { flex: none; }
+
+.sb-notif-body { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sb-notif-link time { color: var(--sb-ink-muted); font-size: 0.8125rem; white-space: nowrap; line-height: 1.6; }
+
+.sb-notif-toggle { flex: none; margin-right: 0.5rem; }
+
+.sb-notif-list--page .sb-notif-link { padding: 0.875rem 1rem 0.875rem 1.125rem; }
+
+/* Two columns: views on the left, list on the right. */
+.sb-notif-layout {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.sb-notif-layout > nav .sb-views { margin: 0; }
+
+.sb-msg-fill { min-width: 0; }
+
+/* Horizontal filters (incoming mail): the saved-view style, laid out in a row. */
+.sb-msg-filters { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0; margin: 0 0 1rem; }
+.sb-msg-filters a { padding: 0.3125rem 0.625rem; border: 1px solid var(--sb-rule); background: var(--sb-surface); font-size: 0.875rem; }
+.sb-msg-filters a[aria-current="page"] { border-color: var(--sb-cord); }
+
+.sb-msg-measure { max-width: 68ch; }
+
+/* ------------------------------------------------------------------ status chips (delivery and routing results) */
+
+.sb-delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sb-delivery--ok { color: var(--sb-success); }
+.sb-delivery--danger { color: var(--sb-danger); }
+.sb-delivery--warn { color: var(--sb-warning); }
+.sb-delivery--muted { color: var(--sb-ink-muted); }
+
+.sb-delivery-detail { max-width: 22rem; }
+
+.sb-deliveries-subject { max-width: 24rem; }
+
+.sb-mailbox-error { max-width: 16rem; }
+
+.sb-template-subject { max-width: 26rem; color: var(--sb-ink-muted); }
+.sb-template-table { table-layout: fixed; }
+.sb-template-col-name { width: 52%; }
+.sb-template-col-on { width: 7.5rem; }
+.sb-template-help { margin: 0; padding: 0.625rem 1rem; border-bottom: 1px solid var(--sb-rule); }
+
+/* Tables inside panes: quiet headers like the queue, edges aligned with the pane padding. */
+.sb-msg-table thead th {
+  background: var(--sb-surface-2);
+  color: var(--sb-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sb-msg-table > :not(caption) > tr > :first-child { padding-left: 1rem; }
+.sb-msg-table > :not(caption) > tr > :last-child { padding-right: 1rem; }
+.sb-msg-table > tbody > tr:last-child > * { border-bottom: 0; }
+
+/* Tables in this module hide minor columns on phones, like the queue does. */
+@media (max-width: 575.98px) {
+  .sb-msg-table .sb-hide-sm { display: none; }
+  .sb-template-col-name { width: auto; }
+  .sb-notif-layout { grid-template-columns: minmax(0, 1fr); }
+  .sb-notif-layout > nav .sb-views { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .sb-notif-link { grid-template-columns: 1.25rem minmax(0, 1fr); }
+  .sb-notif-link time { grid-column: 2; }
+}
+
+/* ------------------------------------------------------------------ admin sub-navigation */
+
+.sb-msg-tabs { margin-bottom: 1.25rem; overflow-x: auto; }
+.sb-msg-tabs .nav-tabs { flex-wrap: nowrap; white-space: nowrap; }
+
+.sb-props--inline > div { grid-template-columns: 8.5rem minmax(0, 1fr); }
+
+.sb-recent-mail li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  border-top: 1px solid var(--sb-rule);
+}
+
+.sb-recent-mail li:first-child { border-top: 0; }
+
+.sb-recent-mail-link { display: flex; flex-direction: column; min-width: 0; color: var(--sb-ink); text-decoration: none; }
+.sb-recent-mail-link:hover .sb-recent-mail-subject { text-decoration: underline; }
+.sb-recent-mail-subject { font-weight: 600; }
+.sb-recent-mail time { color: var(--sb-ink-muted); font-size: 0.8125rem; white-space: nowrap; }
+
+.sb-incoming-message { max-width: 28rem; }
+
+/* ------------------------------------------------------------------ routing trace: the path a message took */
+
+.sb-route { list-style: none; margin: 0; padding: 0; }
+
+.sb-route-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0.875rem;
+  padding-bottom: 1.125rem;
+}
+
+/* The cord running between steps. */
+.sb-route-step::before {
+  content: "";
+  position: absolute;
+  left: 0.8125rem;
+  top: 1.75rem;
+  bottom: 0.125rem;
+  width: 2px;
+  background: var(--sb-rule-strong);
+}
+
+.sb-route-step:last-child { padding-bottom: 0; }
+.sb-route-step:last-child::before { display: none; }
+
+.sb-route-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 2px solid var(--sb-rule-strong);
+  background: var(--sb-surface);
+  color: var(--sb-ink-muted);
+  font-size: 0.875rem;
+}
+
+.sb-route-step--ok .sb-route-node { border-color: var(--sb-success); color: var(--sb-success); }
+.sb-route-step--warn .sb-route-node { border-color: var(--sb-warning); color: var(--sb-warning); background: var(--sb-warning-tint); }
+.sb-route-step--stop .sb-route-node { border-color: var(--sb-danger); color: var(--sb-danger); background: var(--sb-danger-tint); }
+
+/* The final step is where the line was patched through: filled with cord. */
+.sb-route-step.is-final.sb-route-step--ok .sb-route-node { background: var(--sb-cord); border-color: var(--sb-cord); color: var(--sb-on-cord); }
+
+.sb-route-text { padding-top: 0.1875rem; min-width: 0; }
+.sb-route-title { margin: 0; font-weight: 650; }
+.sb-route-detail { margin: 0.125rem 0 0; color: var(--sb-ink-muted); overflow-wrap: anywhere; }
+.sb-route-step.is-final .sb-route-detail { color: var(--sb-ink); }
+
+/* ------------------------------------------------------------------ simulator and templates */
+
+.sb-raw-mime, .sb-template-body { font-size: 0.875rem; line-height: 1.5; }
+
+.sb-commands > div { padding: 0.375rem 0; border-top: 1px solid var(--sb-rule); }
+.sb-commands > div:first-child { border-top: 0; padding-top: 0; }
+.sb-commands dt { font-weight: 400; }
+.sb-commands dd { margin: 0; color: var(--sb-ink-muted); font-size: 0.875rem; }
+
+.sb-placeholders li + li { margin-top: 0.125rem; }
+
+.sb-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: 0.375rem 0.5rem;
+}
+
+.sb-placeholder-key { font-weight: 600; color: var(--sb-cord); }
+.sb-placeholder-desc { font-size: 0.8125rem; color: var(--sb-ink-muted); font-weight: 400; }
+
+/* The email preview always shows the email as recipients see it: the light frame. */
+.sb-email-preview-head { margin: 0 0 0.75rem; }
+.sb-email-preview-head > div { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 0.5rem; }
+.sb-email-preview-head dt { color: var(--sb-ink-muted); font-weight: 600; font-size: 0.875rem; }
+.sb-email-preview-head dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.sb-email-preview-frame {
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius);
+  overflow: hidden;
+  color-scheme: light;
+}
+
+.sb-email-preview-frame a { color: revert; }
+
+/* ------------------------------------------------------------------ profile preferences */
+
+.sb-pref-table td { width: 7rem; }
+.sb-pref-table .form-check-input { width: 1.25rem; height: 1.25rem; }

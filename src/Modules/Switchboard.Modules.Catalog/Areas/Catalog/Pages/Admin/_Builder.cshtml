@@ -1,0 +1,202 @@
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Admin.ItemModel
+@{
+    var item = Model.Item.Item;
+    var fields = item.Fields.OrderBy(f => f.Order).ToList();
+    var types = Enum.GetValues<CatFieldType>();
+    var available = Model.SharedFields.Where(s => fields.All(f => f.Key != s.Key)).ToList();
+    var preview = FormRenderModel.Empty(Model.Item.Fields, "pv", preview: true);
+}
+<div id="catBuilder" class="cat-builder">
+    <div class="min-w-0">
+        <section class="sb-pane" aria-labelledby="catQuestions">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="catQuestions">Questions</h2>
+                <span class="ms-auto small text-muted">Asked in this order</span>
+            </div>
+            @if (fields.Count == 0)
+            {
+                <sb-empty icon="bi-ui-checks" title="No questions yet">
+                    <p class="sb-empty-text">Add the questions the team needs answered to deliver this. Some items need none: requesters just submit.</p>
+                </sb-empty>
+            }
+            else
+            {
+                <ol class="cat-fields">
+                    @for (var i = 0; i < fields.Count; i++)
+                    {
+                        var field = fields[i];
+                        var f = FormField.From(field);
+                        var shared = field.SharedFieldId is not null;
+                        <li class="cat-field">
+                            <div class="d-flex align-items-start">
+                                <details class="flex-grow-1 min-w-0">
+                                    <summary>
+                                        <span class="cat-field-num" aria-hidden="true"></span>
+                                        <span class="min-w-0">
+                                            <span class="cat-field-label">@f.Label</span>
+                                            <span class="cat-field-type d-block">@CatalogFormBinding.TypeLabel(f.Type)@(f.Required ? ", required" : "")@(shared ? ", shared field" : "")@(f.Options.Count > 0 ? $", {f.Options.Count} options" : "")</span>
+                                        </span>
+                                    </summary>
+                                    <form class="cat-field-edit" data-cat-field-form hx-post="?handler=UpdateField" hx-target="#catBuilder" hx-swap="outerHTML">
+                                        <input type="hidden" name="fieldId" value="@field.Id">
+                                        @if (shared)
+                                        {
+                                            <p class="small text-muted">This question comes from a shared field. Change its wording in <a href="/admin/catalog/fields">Shared fields</a>; it updates every item using it.</p>
+                                            <input type="hidden" name="field.Label" value="@f.Label">
+                                            <input type="hidden" name="field.FieldType" value="@f.Type">
+                                        }
+                                        else
+                                        {
+                                            <div class="row g-2">
+                                                <div class="col-md-7">
+                                                    <label class="form-label small" for="fl-@field.Id">Question</label>
+                                                    <input class="form-control form-control-sm" id="fl-@field.Id" name="field.Label" value="@f.Label" maxlength="200" required>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <label class="form-label small" for="ft-@field.Id">Answer type</label>
+                                                    <select class="form-select form-select-sm" id="ft-@field.Id" name="field.FieldType" data-cat-type>
+                                                        @foreach (var t in types)
+                                                        {
+                                                            <option value="@t" selected="@(t == f.Type)">@CatalogFormBinding.TypeLabel(t)</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-12" data-cat-options>
+                                                    <label class="form-label small" for="fo-@field.Id">Options, one per line</label>
+                                                    <textarea class="form-control form-control-sm" id="fo-@field.Id" name="field.Options" rows="3">@string.Join("\n", f.Options)</textarea>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small" for="fh-@field.Id">Help text</label>
+                                                    <input class="form-control form-control-sm" id="fh-@field.Id" name="field.HelpText" value="@f.HelpText" maxlength="500">
+                                                </div>
+                                            </div>
+                                        }
+                                        <div class="d-flex flex-wrap gap-3 align-items-center mt-2">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input" type="checkbox" id="fr-@field.Id" name="field.Required" value="true" checked="@field.Required">
+                                                <label class="form-check-label small" for="fr-@field.Id">Required</label>
+                                            </div>
+                                            <span class="small text-muted">Key: <code>@field.Key</code></span>
+                                            <button class="btn btn-outline-secondary btn-sm ms-auto" type="submit">Save question</button>
+                                        </div>
+                                    </form>
+                                </details>
+                                <div class="cat-field-tools p-2">
+                                    @if (i > 0)
+                                    {
+                                        <button class="btn btn-ghost btn-icon btn-sm" type="button" aria-label="Move @f.Label up"
+                                                hx-post="?handler=MoveField&fieldId=@field.Id&direction=-1" hx-target="#catBuilder" hx-swap="outerHTML"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                                    }
+                                    else
+                                    {
+                                        <span class="btn btn-icon btn-sm invisible" aria-hidden="true"></span>
+                                    }
+                                    @if (i < fields.Count - 1)
+                                    {
+                                        <button class="btn btn-ghost btn-icon btn-sm" type="button" aria-label="Move @f.Label down"
+                                                hx-post="?handler=MoveField&fieldId=@field.Id&direction=1" hx-target="#catBuilder" hx-swap="outerHTML"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+                                    }
+                                    else
+                                    {
+                                        <span class="btn btn-icon btn-sm invisible" aria-hidden="true"></span>
+                                    }
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" aria-label="Remove @f.Label"
+                                            hx-post="?handler=RemoveField&fieldId=@field.Id" hx-target="#catBuilder" hx-swap="outerHTML"
+                                            hx-confirm="Remove the question &quot;@f.Label&quot;? Answers on past requests are kept."><i class="bi bi-trash3" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+
+        <section class="sb-pane" aria-labelledby="catAddQuestion">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="catAddQuestion">Add a question</h2></div>
+            <form class="sb-pane-body" data-cat-field-form hx-post="?handler=AddField" hx-target="#catBuilder" hx-swap="outerHTML">
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        <label class="form-label" for="newLabel">Question</label>
+                        <input class="form-control" id="newLabel" name="field.Label" maxlength="200" required placeholder="For example: Which keyboard layout?">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label" for="newType">Answer type</label>
+                        <select class="form-select" id="newType" name="field.FieldType" data-cat-type>
+                            @foreach (var t in types)
+                            {
+                                <option value="@t">@CatalogFormBinding.TypeLabel(t)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12" data-cat-options hidden>
+                        <label class="form-label" for="newOptions">Options, one per line</label>
+                        <textarea class="form-control" id="newOptions" name="field.Options" rows="3"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="newHelp">Help text (optional)</label>
+                        <input class="form-control" id="newHelp" name="field.HelpText" maxlength="500">
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-3 align-items-center">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="newRequired" name="field.Required" value="true">
+                            <label class="form-check-label" for="newRequired">Required</label>
+                        </div>
+                        <button class="btn btn-primary ms-auto" type="submit"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add question</button>
+                    </div>
+                </div>
+            </form>
+            @if (available.Count > 0)
+            {
+                <form class="sb-pane-footer flex-wrap" hx-post="?handler=AddShared" hx-target="#catBuilder" hx-swap="outerHTML">
+                    <label class="small text-muted" for="newShared">Or reuse a shared field</label>
+                    <select class="form-select form-select-sm w-auto flex-grow-1" id="newShared" name="sharedFieldId">
+                        @foreach (var s in available)
+                        {
+                            <option value="@s.Id">@s.Label (@CatalogFormBinding.TypeLabel(s.FieldType).ToLowerInvariant())</option>
+                        }
+                    </select>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="newSharedRequired" name="required" value="true">
+                        <label class="form-check-label small" for="newSharedRequired">Required</label>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">Add</button>
+                </form>
+            }
+        </section>
+    </div>
+
+    <aside class="cat-builder-preview" aria-labelledby="catPreview">
+        <section class="sb-pane">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="catPreview">What requesters see</h2>
+                <span class="ms-auto small text-muted">Live preview</span>
+            </div>
+            <div class="cat-preview-frame">
+                <div class="sb-pane">
+                    <div class="sb-pane-body cat-form" inert>
+                        @if (item.AllowRequestedFor)
+                        {
+                            <div class="cat-q">
+                                <label class="form-label" for="pv-for">Requesting for someone else? (optional)</label>
+                                <input class="form-control" id="pv-for" placeholder="Search by name or email">
+                            </div>
+                        }
+                        @if (item.MaxQuantity > 1)
+                        {
+                            <div class="cat-q">
+                                <label class="form-label" for="pv-qty">How many</label>
+                                <input class="form-control cat-qty" id="pv-qty" type="number" value="1">
+                            </div>
+                        }
+                        @if (fields.Count == 0 && item.MaxQuantity <= 1 && !item.AllowRequestedFor)
+                        {
+                            <p class="text-muted mb-0">Nothing to fill in. Requesters just submit.</p>
+                        }
+                        <partial name="_FormFields" model="preview" />
+                    </div>
+                    <div class="sb-pane-footer"><span class="btn btn-primary disabled" aria-disabled="true">Submit request</span></div>
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>

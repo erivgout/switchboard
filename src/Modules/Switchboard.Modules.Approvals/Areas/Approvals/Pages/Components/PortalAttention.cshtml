@@ -1,0 +1,5 @@
+@model int
+<a class="prt-attention-item" href="/portal/approvals">
+    <span class="sb-num">@Model</span>
+    <span>@(Model == 1 ? "approval is waiting for you" : "approvals are waiting for you")</span>
+</a>

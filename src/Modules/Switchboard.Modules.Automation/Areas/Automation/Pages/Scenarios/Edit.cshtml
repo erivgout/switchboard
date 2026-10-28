@@ -1,0 +1,104 @@
+@page "/automations/scenarios/{id}"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Scenarios.EditModel
+@{
+    var isNew = Model.Scenario is null;
+    ViewData["Title"] = isNew ? "New scenario" : Model.Name;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Automation/js/automation-builder.js" asp-append-version="true"></script>
+    <script src="~/_content/Switchboard.Modules.Automation/js/automation-admin.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="@(isNew ? "New scenario" : Model.Name)" subtitle="Runs these steps on a ticket, as you, when you pick it from the ticket's More menu.">
+    <button class="btn btn-primary" type="submit" form="autScenario" asp-page-handler="Save">Save scenario</button>
+</sb-page-header>
+<p class="mb-3"><a href="/automations/scenarios"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>All scenarios</a></p>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <p class="fw-semibold mb-1">The scenario wasn't saved:</p>
+        <ul class="mb-0">@foreach (var e in Model.Errors) { <li>@e</li> }</ul>
+    </div>
+}
+
+<form id="autScenario" method="post" class="sb-form-narrow">
+    <div class="sb-pane mb-3">
+        <div class="sb-pane-body row g-3">
+            <div class="col-12">
+                <label class="form-label" for="scName">Name</label>
+                <input class="form-control" id="scName" name="Name" value="@Model.Name" maxlength="200" required placeholder="Ask for more details" aria-describedby="scNameHelp">
+                <div class="form-text" id="scNameHelp">This is what appears in the ticket's More menu.</div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="scDescription">Description (optional)</label>
+                <input class="form-control" id="scDescription" name="Description" value="@Model.Description" maxlength="1000">
+            </div>
+            @if (isNew && Model.Workspaces.Count > 1)
+            {
+                <div class="col-12">
+                    <label class="form-label" for="scWorkspace">Workspace</label>
+                    <select class="form-select" id="scWorkspace" name="WorkspaceId">
+                        @foreach (var w in Model.Workspaces)
+                        {
+                            <option value="@w.Id" selected="@(w.Id == Model.WorkspaceId)">@w.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" name="WorkspaceId" value="@Model.WorkspaceId">
+            }
+            <fieldset class="col-12">
+                <legend class="form-label fs-6">Who can use it</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="Visibility" id="scPersonal" value="Personal" checked="@(Model.Visibility == ScenarioVisibility.Personal)">
+                    <label class="form-check-label" for="scPersonal">Only me</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="Visibility" id="scGroup" value="Group" checked="@(Model.Visibility == ScenarioVisibility.Group)" disabled="@(!Model.CanShare)">
+                    <label class="form-check-label" for="scGroup">Agents in a group</label>
+                </div>
+                <div class="ms-4 my-1">
+                    <label class="visually-hidden" for="scGroupId">Group</label>
+                    <select class="form-select form-select-sm w-auto" id="scGroupId" name="GroupId" disabled="@(!Model.CanShare)">
+                        @foreach (var g in Model.Groups)
+                        {
+                            <option value="@g.Value" selected="@(g.Value == Model.GroupId?.ToString())">@g.Label</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="Visibility" id="scGlobal" value="Global" checked="@(Model.Visibility == ScenarioVisibility.Global)" disabled="@(!Model.CanShare)">
+                    <label class="form-check-label" for="scGlobal">Every agent</label>
+                </div>
+                @if (!Model.CanShare)
+                {
+                    <div class="form-text">Only automation admins can share scenarios.</div>
+                }
+            </fieldset>
+        </div>
+    </div>
+
+    <div class="sb-pane">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Steps, in order</h2></div>
+        <div class="sb-pane-body">
+            <input type="hidden" id="scActions" name="ActionsJson" value="@Model.EditorJson">
+            <div id="autBuilder" data-mode="actions" data-output="scActions" data-allowed-actions="@Switchboard.Modules.Automation.Areas.Automation.Pages.Scenarios.EditModel.AllowedActions"
+                 data-catalog="@Model.CatalogJson" data-definition="@Model.EditorJson"></div>
+            <noscript><div class="alert alert-warning">Editing steps needs JavaScript.</div></noscript>
+            <p class="aut-block-hint mt-3 mb-0">Every step runs with your permissions. If one can't run, none of them are applied.</p>
+        </div>
+    </div>
+</form>
+
+@if (!isNew)
+{
+    <form method="post" asp-page-handler="Delete" class="mt-3" data-sb-confirm="Delete this scenario? This can't be undone.">
+        <button class="btn btn-ghost text-danger" type="submit"><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Delete scenario</button>
+    </form>
+}

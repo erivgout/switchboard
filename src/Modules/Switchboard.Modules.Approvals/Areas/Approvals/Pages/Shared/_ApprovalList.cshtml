@@ -1,0 +1,74 @@
+@using Switchboard.Modules.Approvals.Domain
+@using Switchboard.Modules.Approvals.Web
+@model ApprovalListModel
+@{
+    var pending = Model.View == "pending";
+}
+@if (Model.Items.Count == 0)
+{
+    <div class="sb-pane">
+        @switch (Model.View)
+        {
+            case "decided":
+                <sb-empty icon="bi-journal-check" title="You haven't decided anything yet">
+                    <p class="sb-empty-text">Approvals you give or turn down are kept here, with your comments.</p>
+                </sb-empty>
+                break;
+            case "requested":
+                <sb-empty icon="bi-send" title="Nothing you asked for needs approval">
+                    <p class="sb-empty-text">When a request of yours needs someone's approval, you can follow it here.</p>
+                </sb-empty>
+                break;
+            default:
+                <sb-empty icon="bi-check2-all" title="Nothing is waiting on you">
+                    <p class="sb-empty-text">When someone needs your approval, it shows up here and you get an email.</p>
+                </sb-empty>
+                break;
+        }
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th>Request</th>
+                <th>@(pending ? "Requested by" : "Status")</th>
+                <th class="sb-hide-sm">@(pending ? "Waiting since" : "Updated")</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model.Items)
+            {
+                var href = $"{Model.BasePath}/{item.Id}";
+                <tr data-sb-href="@href">
+                    <td>
+                        <a class="apr-list-title" href="@href">@item.Title</a>
+                        @{
+                            var meta = pending
+                                ? string.Join(". ", new[] { item.LevelCount > 1 ? $"Level {item.CurrentLevel} of {item.LevelCount}" : null, item.OnBehalfOfName is null ? null : $"You're covering for {item.OnBehalfOfName}" }.OfType<string>())
+                                : $"Requested by {item.RequesterName}";
+                        }
+                        @if (meta.Length > 0)
+                        {
+                            <div class="sb-meta">@meta</div>
+                        }
+                    </td>
+                    <td>
+                        @if (pending)
+                        {
+                            <span class="d-inline-flex gap-2 align-items-center"><sb-avatar name="@item.RequesterName" size="sm" />@item.RequesterName</span>
+                        }
+                        else
+                        {
+                            <partial name="_Status" model="item.Status" />
+                        }
+                    </td>
+                    <td class="sb-hide-sm text-muted"><sb-time value="@(pending ? item.WaitingSince ?? item.CreatedAt : item.UpdatedAt)" /></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

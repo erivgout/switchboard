@@ -1,0 +1,9 @@
+<link rel="stylesheet" href="@Url.Content(KbUi.Css)" asp-append-version="true">
+<section class="kb-deflect sb-pane" data-kb-deflect hidden aria-labelledby="kbDeflectTitle" aria-live="polite">
+    <div class="sb-pane-body">
+        <h2 class="kb-deflect-title" id="kbDeflectTitle"><i class="bi bi-lightbulb" aria-hidden="true"></i>These articles might solve it</h2>
+        <p class="kb-deflect-intro">If one does, you don't need to send a request.</p>
+        <ul class="kb-suggest" data-kb-deflect-list></ul>
+    </div>
+</section>
+<script src="@Url.Content(KbUi.PagesJs)" asp-append-version="true" defer></script>

@@ -1,0 +1,29 @@
+@page "/portal/requests/{number:int}/sent"
+@model SentModel
+@{
+    ViewData["Title"] = "Request sent";
+    var v = Model.View;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Portal/css/portal.css" asp-append-version="true">
+}
+
+<div class="prt-sent">
+    <h1 class="sb-title prt-sent-title">Request sent</h1>
+    <p class="prt-sent-lead">Thanks, @Model.FirstName. Your request number is <span class="sb-stamp prt-sent-id">@v.DisplayId</span></p>
+    <p class="prt-sent-subject">@v.Subject</p>
+
+    <section class="prt-next" aria-labelledby="prtNextTitle">
+        <h2 class="prt-section-title" id="prtNextTitle">What happens next</h2>
+        <ol class="prt-steps">
+            <li>Someone from the service desk picks up your request.</li>
+            <li>They reply on the request page, and you can answer there or add more files.</li>
+            <li>When it's sorted, you can close the request from the same page.</li>
+        </ol>
+    </section>
+
+    <div class="prt-sent-actions">
+        <a class="btn btn-primary" href="/portal/requests/@v.Number">View your request</a>
+        <a class="btn btn-outline-secondary" href="/portal">Back to home</a>
+    </div>
+</div>

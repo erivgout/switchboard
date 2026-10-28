@@ -1,0 +1,71 @@
+@model HandOffModel
+@{
+    var tickets = Model.Work.Tickets;
+    var agentPicker = new PersonPickerModel("handoffAgent", "Input.AgentId", "Agent", "agents", Model.Agent) { NoneLabel = "Choose an agent" };
+}
+@if (tickets.Count == 0 && Model.Work.OpenTasks == 0)
+{
+    <p>@Model.PersonName has no open tickets or tasks assigned, so nothing needs handing over.</p>
+    <input type="hidden" name="Input.Action" value="@OpenWorkAction.Flag">
+}
+else
+{
+    <p>
+        @Model.PersonName has @tickets.Count open @(tickets.Count == 1 ? "ticket" : "tickets")@if (Model.Work.OpenTasks > 0) { <span> and @Model.Work.OpenTasks open @(Model.Work.OpenTasks == 1 ? "task" : "tasks")</span> } assigned.
+        Choose who takes them.
+    </p>
+    @if (tickets.Count > 0)
+    {
+        <div class="sb-pane sb-queue-wrap mb-3">
+            <table class="sb-queue">
+                <thead><tr><th scope="col">Ticket</th><th scope="col">Status</th><th scope="col" class="sb-hide-sm">Group</th></tr></thead>
+                <tbody>
+                    @foreach (var t in tickets.Take(10))
+                    {
+                        <tr>
+                            <td><span class="sb-stamp">@t.DisplayId</span> @t.Subject</td>
+                            <td><sb-status name="@t.Status" category="@t.Category" /></td>
+                            <td class="sb-hide-sm text-muted">@(t.Group ?? "No group")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (tickets.Count > 10)
+        {
+            <p class="text-muted">And @(tickets.Count - 10) more.</p>
+        }
+    }
+    <fieldset class="sb-fieldset">
+        <legend class="sb-section-label">What happens to them</legend>
+        <div class="sb-choice">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" asp-for="Input.Action" value="@OpenWorkAction.ReassignToGroup" id="handoffGroup">
+                <label class="form-check-label" for="handoffGroup">Move them to a group's queue</label>
+                <div class="form-text">They lose their assignee and wait for the next agent in that group.</div>
+            </div>
+            <div class="sb-choice-extra" data-sb-show-when="Input.Action=ReassignToGroup">
+                <label class="form-label" for="handoffGroupId">Group</label>
+                <select class="form-select" id="handoffGroupId" name="Input.GroupId" asp-items="Model.Groups"></select>
+                <partial name="_FieldError" model="@("Input.GroupId")" />
+            </div>
+        </div>
+        <div class="sb-choice">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" asp-for="Input.Action" value="@OpenWorkAction.ReassignToAgent" id="handoffAgentChoice">
+                <label class="form-check-label" for="handoffAgentChoice">Give them to one agent</label>
+                <div class="form-text">Every open ticket and task goes to the agent you choose.</div>
+            </div>
+            <div class="sb-choice-extra" data-sb-show-when="Input.Action=ReassignToAgent">
+                <partial name="_PersonPicker" model="agentPicker" />
+            </div>
+        </div>
+        <div class="sb-choice">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" asp-for="Input.Action" value="@OpenWorkAction.Flag" id="handoffFlag">
+                <label class="form-check-label" for="handoffFlag">Leave them assigned and tag them</label>
+                <div class="form-text">Tickets get the tag @PersonLifecycleService.FlagTag so a supervisor can find and reassign them later.</div>
+            </div>
+        </div>
+    </fieldset>
+}

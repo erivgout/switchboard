@@ -1,0 +1,8 @@
+<script src="~/_content/Switchboard.UI/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="~/_content/Switchboard.UI/lib/htmx/htmx.min.js"></script>
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <script src="~/_content/Switchboard.UI/lib/signalr/signalr.min.js"></script>
+    <script src="~/_content/Switchboard.UI/js/live.js" asp-append-version="true"></script>
+}
+<script src="~/_content/Switchboard.UI/js/switchboard.js" asp-append-version="true"></script>

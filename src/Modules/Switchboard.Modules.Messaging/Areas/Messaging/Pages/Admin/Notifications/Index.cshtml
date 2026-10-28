@@ -1,0 +1,64 @@
+@page "/admin/notifications"
+@model NotificationTemplatesModel
+@{
+    ViewData["Title"] = "Notifications";
+    var groups = new (NotificationAudience Audience, string Title, string Help)[]
+    {
+        (NotificationAudience.Requester, "To requesters", "Email to the person who raised the request. Private notes are never included."),
+        (NotificationAudience.Agent, "To agents", "In the app and by email. Each agent chooses their channels on their profile."),
+        (NotificationAudience.Other, "To others", "Email to people outside the ticket."),
+    };
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+<sb-page-header title="Notifications" subtitle="Which notifications go out, and what they say." />
+
+@if (Model.Workspaces.Count > 1)
+{
+    <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+        <div>
+            <label class="form-label" for="ws">Workspace</label>
+            <select class="form-select" id="ws" name="ws" data-sb-autosubmit>
+                @foreach (var w in Model.Workspaces)
+                {
+                    <option value="@w.Id" selected="@(w.Id == Model.CurrentWorkspace)">@w.Name</option>
+                }
+            </select>
+        </div>
+        <noscript><button class="btn btn-outline-secondary" type="submit">Show</button></noscript>
+    </form>
+}
+
+@foreach (var group in groups)
+{
+    var rows = Model.Templates.Where(t => t.Event.Audience == group.Audience).ToList();
+    var titleId = $"aud-{group.Audience}";
+    <section class="sb-pane" aria-labelledby="@titleId">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="@titleId">@group.Title</h2>
+        </div>
+        <p class="sb-template-help text-muted small">@group.Help</p>
+        <div class="table-responsive">
+            <table class="table sb-msg-table align-middle mb-0 sb-template-table">
+                <colgroup><col class="sb-template-col-name"><col class="sb-hide-sm"><col class="sb-template-col-on"></colgroup>
+                <thead>
+                    <tr>
+                        <th scope="col">Notification</th>
+                        <th scope="col" class="sb-hide-sm">Subject</th>
+                        <th scope="col" class="text-end">Sent</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in rows)
+                    {
+                        <partial name="_TemplateRow" model="new TemplateRowModel(t, Model.CurrentWorkspace)" />
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Messaging/js/messaging.js" asp-append-version="true"></script>
+}

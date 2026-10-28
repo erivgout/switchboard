@@ -1,0 +1,6 @@
+@model Switchboard.Modules.ServiceDesk.Services.TicketSummary
+<li class="sd-mini-row">
+    <span class="sb-stamp">@Model.DisplayId</span>
+    <a href="/tickets/@Model.Number" class="text-truncate">@Model.Subject</a>
+    <sb-status name="@Model.StatusName" category="@Model.StatusCategory" />
+</li>

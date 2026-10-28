@@ -1,0 +1,89 @@
+@page "/api-docs"
+@model Switchboard.Modules.Api.Areas.Api.Pages.ApiDocsModel
+@using Switchboard.Modules.Api.Areas.Api.Pages
+@{
+    ViewData["Title"] = "REST API";
+    if (!Model.IsAgent)
+    {
+        Layout = "_PortalLayout";
+    }
+    var origin = $"{Request.Scheme}://{Request.Host}";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Api/css/api.css" asp-append-version="true">
+}
+<sb-page-header title="REST API" subtitle="Everything you can do here, from scripts and other systems. Every call acts as you, with your permissions.">
+    <a class="btn btn-outline-secondary" href="/openapi/v1.json"><i class="bi bi-filetype-json" aria-hidden="true"></i> OpenAPI document</a>
+    <a class="btn btn-primary" href="/profile#apiKeys">Create an API key</a>
+</sb-page-header>
+
+<div class="row g-4">
+    <div class="col-xl-8 min-w-0">
+        <section class="sb-pane" aria-labelledby="authTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="authTitle">Sign requests with your key</h2></div>
+            <div class="sb-pane-body">
+                <p>Send your personal API key in the Authorization header. Basic auth also works, with the key as the user name and any password.</p>
+                <pre class="sb-hook-payload mb-3">curl @origin/api/v1/tickets?q=is:lit \
+  -H "Authorization: Bearer sb_your_key"</pre>
+                <p class="mb-0">A key limited to scopes can only call endpoints those scopes cover, and never does more than its owner can. Revoked or expired keys, and keys of deactivated people, get 401.</p>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="conventionsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="conventionsTitle">How requests and responses work</h2></div>
+            <dl class="sb-props sb-pane-body mb-0">
+                <div><dt>JSON</dt><dd>camelCase names; enums are strings such as "serviceRequest" or "urgent"; times are ISO 8601 in UTC.</dd></div>
+                <div><dt>Lists</dt><dd>Return data and meta. Filter tickets with q, the same filter language as the queue. Follow meta.nextCursor with ?cursor= for the next page.</dd></div>
+                <div><dt>Updates</dt><dd>PATCH sends only the fields to change. Send the ETag from a GET as If-Match, and a stale copy gets 412 instead of overwriting someone's change.</dd></div>
+                <div><dt>Retries</dt><dd>Add an Idempotency-Key header to POST. Repeating it within 24 hours returns the first response instead of doing the work twice.</dd></div>
+                <div><dt>Errors</dt><dd>application/problem+json. Validation errors list each field under errors. Records you can't see get the same 404 as records that don't exist.</dd></div>
+                <div><dt>Limits</dt><dd>Requests per minute are capped; 429 comes with Retry-After. JSON bodies up to 2 MB.</dd></div>
+            </dl>
+        </section>
+
+        @foreach (var group in Model.Groups)
+        {
+            <section class="sb-pane" aria-labelledby="@("tag-" + group.Key.ToLowerInvariant().Replace(' ', '-'))">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="@("tag-" + group.Key.ToLowerInvariant().Replace(' ', '-'))">@group.Key</h2></div>
+                <div class="sb-queue-wrap">
+                    <table class="sb-queue">
+                        <thead>
+                        <tr><th>Endpoint</th><th class="sb-hide-sm">Scope</th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var e in group)
+                        {
+                            <tr>
+                                <td>
+                                    <div><span class="sb-api-docs-method">@e.Method</span> <span class="sb-api-docs-path">@e.Path</span></div>
+                                    @if (e.Summary is { } summary)
+                                    {
+                                        <div>@summary@(e.AgentsOnly ? ". Agents only." : "")</div>
+                                    }
+                                    @if (e.Description is { } description)
+                                    {
+                                        <div class="sb-meta">@description</div>
+                                    }
+                                </td>
+                                <td class="sb-hide-sm">@if (e.Scope is { } scope) { <span class="sb-tag">@scope</span> }</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    </div>
+
+    <aside class="col-xl-4">
+        <section class="sb-pane sb-sticky" aria-labelledby="scopesTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="scopesTitle">Scopes</h2></div>
+            <dl class="sb-props sb-pane-body mb-0">
+                @foreach (var s in ApiDocsModel.Scopes.Where(s => Model.IsAgent || s.ForRequesters))
+                {
+                    <div><dt><span class="sb-tag">@s.Key</span></dt><dd>@s.Title</dd></div>
+                }
+            </dl>
+        </section>
+    </aside>
+</div>

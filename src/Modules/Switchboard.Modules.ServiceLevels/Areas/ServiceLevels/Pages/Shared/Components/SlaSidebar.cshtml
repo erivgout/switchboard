@@ -1,0 +1,116 @@
+@model Switchboard.Modules.ServiceLevels.Components.SlaSidebarModel
+@using Switchboard.Modules.ServiceLevels.Domain
+@{
+    var t = Model.Ticket;
+    var s = Model.State;
+    var resolved = Model.Category is StatusCategory.Resolved or StatusCategory.Closed;
+    var paused = Model.Paused && !resolved;
+    var titleId = $"sla-{t.Id:N}";
+}
+<section class="sb-pane" aria-labelledby="@titleId">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="@titleId">Service level</h2>
+        @if (paused)
+        {
+            <span class="ms-auto sb-due"><i class="bi bi-pause-circle" aria-hidden="true"></i><span>Clock paused</span></span>
+        }
+    </div>
+    @if (s?.PolicyId is null)
+    {
+        <div class="sb-pane-body">
+            <p class="mb-0 text-muted">No SLA policy applies to this ticket, so it has no response or resolution targets.</p>
+        </div>
+    }
+    else
+    {
+        <dl class="sb-props sb-pane-body">
+            <div>
+                <dt>Policy</dt>
+                <dd>
+                    @s.PolicyName
+                    <div class="sb-meta mt-1">@s.SelectionReason</div>
+                </dd>
+            </div>
+            @if (t.FirstResponseDueBy is { } frDue)
+            {
+                <div>
+                    <dt>First response</dt>
+                    <dd>
+                        @if (t.FirstRespondedAt is not null)
+                        {
+                            <sb-due due="@frDue" category="@StatusCategory.Resolved" resolved-at="@t.FirstRespondedAt" />
+                        }
+                        else
+                        {
+                            <sb-due due="@frDue" category="@Model.Category" paused="@paused" />
+                        }
+                        <div class="sb-meta mt-1"><sb-time value="@frDue" mode="datetime" /></div>
+                        @if (s.FirstResponseOverridden)
+                        {
+                            <div class="sb-meta mt-1">
+                                Set by hand.
+                                @if (s.FirstResponseTargetAt is { } original)
+                                {
+                                    <text>SLA target: <sb-time value="@original" mode="datetime" /></text>
+                                }
+                            </div>
+                        }
+                    </dd>
+                </div>
+            }
+            @if (t.DueBy is { } due)
+            {
+                <div>
+                    <dt>Resolution</dt>
+                    <dd>
+                        <sb-due due="@due" category="@Model.Category" resolved-at="@t.ResolvedAt" paused="@paused" />
+                        <div class="sb-meta mt-1"><sb-time value="@due" mode="datetime" /></div>
+                        @if (s.ResolutionOverridden)
+                        {
+                            <div class="sb-meta mt-1">
+                                Set by hand.
+                                @if (s.ResolutionTargetAt is { } original)
+                                {
+                                    <text>SLA target: <sb-time value="@original" mode="datetime" /></text>
+                                }
+                            </div>
+                        }
+                    </dd>
+                </div>
+            }
+            @if (s.NextResponseDueBy is { } next && !resolved)
+            {
+                <div>
+                    <dt>Next response</dt>
+                    <dd><sb-due due="@next" category="@Model.Category" paused="@paused" /></dd>
+                </div>
+            }
+            @if (s.OverrideReason is { Length: > 0 } reason && (s.FirstResponseOverridden || s.ResolutionOverridden))
+            {
+                <div>
+                    <dt>Why it changed</dt>
+                    <dd>@reason</dd>
+                </div>
+            }
+            @if (s.Cycle > 1)
+            {
+                <div>
+                    <dt>Reopened</dt>
+                    <dd>@(s.Cycle == 2 ? "Once" : $"{s.Cycle - 1} times"). The resolution clock restarted <sb-time value="@s.CycleStartedAt" />.</dd>
+                </div>
+            }
+        </dl>
+    }
+    @if (Model.Events.Count > 0)
+    {
+        <div class="sb-pane-body border-top">
+            <p class="sb-section-label mb-2">Breaches and escalations</p>
+            <ul class="sb-timeline">
+                @foreach (var e in Model.Events)
+                {
+                    <li>@e.Summary <sb-time value="@e.FiredAt" /></li>
+                }
+            </ul>
+        </div>
+    }
+</section>

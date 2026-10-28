@@ -1,0 +1,80 @@
+@page "/admin/automations/{id:guid}/runs"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.RunsModel
+@{
+    ViewData["Title"] = $"Runs of {Model.Workflow.Name}";
+    Layout = "_AdminLayout";
+    var filters = new (string? Key, string Label)[] { (null, "All"), ("failed", "Failed"), ("blocked", "Stopped by a limit"), ("succeeded", "Succeeded") };
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+
+<sb-page-header title="Run history" subtitle="@Model.Workflow.Name" />
+<p class="mb-3"><a href="/admin/automations/@Model.Workflow.Id"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to the workflow</a></p>
+
+<nav aria-label="Filter runs" class="mb-3">
+    <ul class="nav nav-tabs">
+        @foreach (var f in filters)
+        {
+            var active = f.Key == Model.Status;
+            <li class="nav-item"><a class="nav-link @(active ? "active" : null)" aria-current="@(active ? "page" : null)" href="?status=@f.Key">@f.Label</a></li>
+        }
+    </ul>
+</nav>
+
+@if (Model.Runs.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-clock-history" title="No runs to show">
+            <p class="sb-empty-text">Runs appear here when the workflow is live and a ticket matches it. Use a test run to check it before then.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th scope="col">Result</th>
+                <th scope="col">Ticket</th>
+                <th scope="col" class="sb-hide-sm">Trigger</th>
+                <th scope="col">Started</th>
+                <th scope="col" class="sb-hide-sm">Version</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Runs)
+            {
+                var run = row.Run;
+                <tr data-sb-href="/admin/automations/runs/@run.Id">
+                    <td>
+                        <a href="/admin/automations/runs/@run.Id"><partial name="_RunState" model="(RunStatus?)run.Status" /></a>
+                        @if (run.Message is not null)
+                        {
+                            <div class="small text-muted text-truncate aut-run-message">@run.Message</div>
+                        }
+                    </td>
+                    <td>
+                        @if (row.TicketDisplayId is not null)
+                        {
+                            <a href="@AutomationAdminPageModel.TicketHref(row.TicketDisplayId)"><span class="sb-stamp">@row.TicketDisplayId</span></a> <span class="small">@row.TicketSubject</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Deleted ticket</span>
+                        }
+                    </td>
+                    <td class="sb-hide-sm">@run.TriggerSummary</td>
+                    <td><sb-time value="run.StartedAt" /></td>
+                    <td class="sb-hide-sm tabular">@run.Version</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.HasMore)
+    {
+        <p class="mt-3"><a class="btn btn-outline-secondary" href="?status=@Model.Status&before=@Uri.EscapeDataString(Model.Runs[^1].Run.StartedAt.ToString("O"))">Show older runs</a></p>
+    }
+}

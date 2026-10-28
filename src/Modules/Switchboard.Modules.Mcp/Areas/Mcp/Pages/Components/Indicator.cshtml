@@ -1,0 +1,9 @@
+@model int
+<span data-mcp-indicator data-count="@Model" hidden="@(Model == 0)">
+    <a class="btn btn-ghost btn-sm d-inline-flex align-items-center text-nowrap" href="/agent-actions" title="Agent actions waiting for your approval">
+        <i class="bi bi-robot" aria-hidden="true"></i><strong class="tabular ms-1" data-mcp-count>@Model</strong>
+        <span class="d-none d-lg-inline ms-1">to approve</span>
+        <span class="visually-hidden d-lg-none">agent actions waiting for your approval</span>
+    </a>
+</span>
+<script src="~/_content/Switchboard.Modules.Mcp/js/mcp.js" asp-append-version="true" defer></script>

@@ -1,0 +1,63 @@
+@model Switchboard.Modules.Mcp.Components.ConnectedAgentsModel
+@using Switchboard.Modules.Mcp.Security
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+<section class="sb-pane" id="connected-agents" aria-labelledby="connectedAgentsTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="connectedAgentsTitle">Connected agents</h2>
+        <a class="ms-auto small" href="/agent-actions">Agent actions@(Model.PendingCount > 0 ? $" ({Model.PendingCount} waiting)" : "")</a>
+    </div>
+    @if (Model.Grants.Count == 0)
+    {
+        <div class="sb-pane-body">
+            <p class="mb-0 text-muted">
+                @(Model.McpEnabled
+                    ? "No AI agents are connected. When you connect one, such as Claude or Copilot, it appears here and you can disconnect it at any time."
+                    : "Your administrator has turned off AI agent access.")
+            </p>
+        </div>
+    }
+    else
+    {
+        <ul class="list-unstyled mb-0">
+            @foreach (var row in Model.Grants)
+            {
+                var g = row.Grant;
+                <li class="sb-pane-body border-top">
+                    <div class="d-flex flex-wrap align-items-start gap-2">
+                        <div class="me-auto min-w-0">
+                            <div class="fw-semibold">@g.ClientName</div>
+                            <div class="small text-muted">
+                                @(row.Domain.Length > 0 ? row.Domain : "No website given"), returns to @g.RedirectHost
+                            </div>
+                        </div>
+                        <form method="post" action="/agent-actions?handler=Revoke" asp-antiforgery="true" data-sb-confirm="Disconnect @g.ClientName? It stops working right away and has to ask again to reconnect.">
+                            <input type="hidden" name="grantId" value="@g.Id">
+                            <input type="hidden" name="returnUrl" value="/profile#connected-agents">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">Disconnect</button>
+                        </form>
+                    </div>
+                    <dl class="mcp-facts mt-2 mb-0">
+                        <div><dt>May</dt><dd class="fw-normal">@string.Join(", ", g.Scopes.Select(s => McpScopes.Find(s)?.Title ?? s))</dd></div>
+                        <div><dt>Connected</dt><dd class="fw-normal"><sb-time value="@g.CreatedAt" mode="datetime" /></dd></div>
+                        <div><dt>Last used</dt><dd class="fw-normal">@if (g.LastUsedAt is { } used) { <sb-time value="@used" /> } else { <span>Not yet</span> }</dd></div>
+                        <div><dt>Ends</dt><dd class="fw-normal"><sb-time value="@g.ExpiresAt" mode="datetime" /></dd></div>
+                    </dl>
+                    @if (row.Recent.Count > 0)
+                    {
+                        <p class="small fw-semibold text-muted mt-2 mb-1">What it asked to do recently</p>
+                        <ul class="list-unstyled small mb-0">
+                            @foreach (var call in row.Recent)
+                            {
+                                <li class="d-flex gap-2">
+                                    <span class="text-truncate">@(char.ToUpperInvariant(call.Tool[0]) + call.Tool[1..].Replace('_', ' '))</span>
+                                    <span class="text-muted">@(call.ResultCode switch { "ok" => "done", "confirmation_required" => "waited for you", "confirmation_declined" => "declined", _ => "refused" })</span>
+                                    <span class="ms-auto text-muted"><sb-time value="@call.At" /></span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</section>

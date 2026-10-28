@@ -1,0 +1,68 @@
+@page "/reports/agents"
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Reports.AgentsModel
+@using Switchboard.Modules.Insights.Areas.Insights.Pages.Reports
+@{
+    ViewData["Title"] = "Agent performance";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Insights/css/insights.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Insights/js/insights.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="Agent performance" subtitle="Work assigned to each agent and how quickly they first responded. Only tickets you can see are counted.">
+    <a class="btn btn-outline-secondary" href="/reports/agents?handler=Csv&amp;@Model.Query"><i class="bi bi-download" aria-hidden="true"></i> Download CSV</a>
+    <a class="btn btn-outline-secondary" href="@Model.SaveHref("/reports/agents")"><i class="bi bi-bookmark" aria-hidden="true"></i> Save report</a>
+    <a class="btn btn-ghost" href="/reports">All reports</a>
+</sb-page-header>
+
+<form method="get" class="ins-filters" aria-label="Report filters" data-period-form>
+    <partial name="_Filters" model="Model" />
+    <button class="btn btn-primary btn-sm" type="submit">Show report</button>
+</form>
+<p class="sb-meta">@Model.Range.Sentence Assigned counts tickets created in the period; resolved counts tickets resolved in it.</p>
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-person-badge" title="No assigned tickets in this period">
+            <p class="sb-empty-text">Try a longer period or a different group.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <section class="sb-pane sb-queue-wrap" aria-labelledby="agentTable">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="agentTable">@(Model.Rows.Count == 1 ? "1 agent" : $"{Model.Rows.Count} agents")</h2></div>
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th>Agent</th>
+                <th class="text-end">Assigned</th>
+                <th class="text-end">Resolved</th>
+                <th class="text-end sb-hide-sm">Open now</th>
+                <th class="text-end">Median first response</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var a in Model.Rows)
+            {
+                <tr>
+                    <td><span class="d-inline-flex gap-2 align-items-center"><sb-avatar name="@a.Name" size="sm" />@a.Name</span></td>
+                    <td class="text-end tabular">@a.Assigned</td>
+                    <td class="text-end tabular">@a.Resolved</td>
+                    <td class="text-end tabular sb-hide-sm">@a.OpenNow</td>
+                    <td class="text-end tabular">
+                        @AgentsModel.Minutes(a.MedianFirstResponseMinutes)
+                        @if (a.Responded > 0)
+                        {
+                            <span class="sb-meta d-block">of @(a.Responded == 1 ? "1 ticket" : $"{a.Responded} tickets")</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}

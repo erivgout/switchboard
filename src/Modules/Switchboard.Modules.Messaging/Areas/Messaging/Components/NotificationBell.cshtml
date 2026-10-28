@@ -1,0 +1,19 @@
+@model int
+@{
+    var unread = Model;
+    var label = unread == 0 ? "Notifications" : $"Notifications, {unread} unread";
+}
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+<div class="dropdown sb-bell" data-sb-bell>
+    <button class="btn btn-ghost btn-icon sb-bell-button" type="button" id="sbBellButton"
+            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true"
+            aria-label="@label" data-sb-bell-button
+            hx-get="/notifications/menu" hx-trigger="show.bs.dropdown" hx-target="#sbBellMenu" hx-swap="innerHTML">
+        <i class="bi bi-bell" aria-hidden="true"></i>
+        <span class="sb-bell-count tabular" data-sb-bell-count hidden="@(unread == 0)">@(unread > 99 ? "99+" : unread.ToString())</span>
+    </button>
+    <div class="dropdown-menu dropdown-menu-end sb-bell-menu" id="sbBellMenu" aria-labelledby="sbBellButton">
+        <div class="sb-bell-loading text-muted small"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Loading notifications</div>
+    </div>
+</div>
+<script src="~/_content/Switchboard.Modules.Messaging/js/messaging.js" asp-append-version="true" defer></script>

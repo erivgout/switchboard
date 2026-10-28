@@ -1,0 +1,137 @@
+@page "/admin/api-keys"
+@model Switchboard.Modules.Api.Areas.Api.Pages.Admin.ApiKeysModel
+@using Switchboard.Modules.Api.Areas.Api.Pages.Admin
+@{
+    ViewData["Title"] = "API keys";
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Api/css/api.css" asp-append-version="true">
+}
+<sb-page-header title="API keys" subtitle="Personal keys people use to reach the Switchboard API. Each key acts as its owner, so revoke any key that shouldn't be in use." />
+
+<div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+    <ul class="nav nav-tabs flex-grow-1" aria-label="Filter keys">
+        @foreach (var (key, title) in ApiKeysModel.States)
+        {
+            <li class="nav-item"><a class="nav-link @(Model.State == key ? "active" : null)" href="@Model.Link(key)" aria-current="@(Model.State == key ? "page" : null)">@title</a></li>
+        }
+    </ul>
+    <form method="get" class="d-flex gap-2" role="search">
+        <input type="hidden" name="state" value="@Model.State">
+        <label class="visually-hidden" for="keySearch">Search keys</label>
+        <input class="form-control form-control-sm" id="keySearch" name="q" value="@Model.Q" placeholder="Owner, key name or prefix" maxlength="100">
+        <button class="btn btn-outline-secondary btn-sm" type="submit">Search</button>
+    </form>
+</div>
+
+@if (Model.Keys.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-key" title="@(Model.Q is { Length: > 0 } ? "No keys match that search" : Model.State == "active" ? "No active API keys" : "No keys here")">
+            <p class="sb-empty-text">People create keys on their profile page. Keys show up here as soon as they're created.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th class="sb-hide-sm">Owner</th>
+                <th>Key</th>
+                <th class="sb-hide-sm">Access</th>
+                <th class="sb-hide-sm">Last used</th>
+                <th>Expires</th>
+                <th><span class="visually-hidden">Actions</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var key in Model.Keys)
+            {
+                var state = key.State(Model.Now);
+                <tr class="@(state == ApiKeyState.Active ? null : "sb-api-inactive")">
+                    <td class="sb-hide-sm"><span class="d-inline-flex gap-2 align-items-center"><sb-avatar name="@key.UserName" size="sm" />@key.UserName</span></td>
+                    <td>
+                        <div class="fw-semibold">@key.Name</div>
+                        <div class="sb-meta d-lg-none">@key.UserName</div>
+                        <div class="sb-meta"><span class="sb-api-prefix">@key.Prefix…</span> created <sb-time value="@key.CreatedAt" /></div>
+                    </td>
+                    <td class="sb-hide-sm">
+                        @if (key.Scopes.Count == 0)
+                        {
+                            <span>Full access</span>
+                        }
+                        else
+                        {
+                            <span class="sb-api-scopes">@foreach (var s in key.Scopes) { <span class="sb-tag">@s</span> }</span>
+                        }
+                    </td>
+                    <td class="sb-hide-sm">@if (key.LastUsedAt is { } used) { <sb-time value="@used" /> } else { <span class="text-muted">Never</span> }</td>
+                    <td>
+                        @switch (state)
+                        {
+                            case ApiKeyState.Revoked:
+                                <span class="sb-status sb-status--closed">Revoked</span>
+                                break;
+                            case ApiKeyState.Expired:
+                                <span class="sb-status sb-status--pending">Expired</span>
+                                break;
+                            default:
+                                if (key.ExpiresAt is { } exp) { <time class="tabular text-nowrap" datetime="@exp.ToUniversalTime().ToString("O")">@exp.ToUniversalTime().ToString("MMM d, yyyy")</time> } else { <span>Never</span> }
+                                break;
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (state == ApiKeyState.Active)
+                        {
+                            <form method="post" action="/admin/api-keys@(Model.Link(page: Model.PageNumber))&handler=revoke"
+                                  data-sb-confirm="Revoke @(key.UserName)’s key “@key.Name”? Anything using it stops working right away.">
+                                <input type="hidden" name="id" value="@key.Id">
+                                <button class="btn btn-outline-secondary btn-sm" type="submit">Revoke</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.PageCount > 1)
+    {
+        <nav class="d-flex align-items-center gap-2 mt-3" aria-label="Pages">
+            <span class="text-muted small me-auto">@Model.Total keys</span>
+            @if (Model.PageNumber > 1)
+            {
+                <a class="btn btn-outline-secondary btn-sm" href="@Model.Link(page: Model.PageNumber - 1)">Previous</a>
+            }
+            @if (Model.PageNumber < Model.PageCount)
+            {
+                <a class="btn btn-outline-secondary btn-sm" href="@Model.Link(page: Model.PageNumber + 1)">Next</a>
+            }
+        </nav>
+    }
+}
+
+<section class="sb-pane mt-4 sb-form-narrow" aria-labelledby="lifetimeTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="lifetimeTitle">Key lifetime</h2></div>
+    <form method="post" action="/admin/api-keys@(Model.Link())&handler=lifetime" class="sb-pane-body">
+        <label class="form-label" for="maxLifetime">Longest a new key can last</label>
+        <div class="d-flex flex-wrap gap-2 align-items-start">
+            <select class="form-select w-auto @(Model.LifetimeError is null ? null : "is-invalid")" id="maxLifetime" name="MaxLifetime" aria-describedby="maxLifetimeHelp">
+                <option value="none" selected="@(Model.MaxLifetimeDays is null)">No limit</option>
+                @foreach (var days in ApiKeysModel.LifetimeChoices.Union(Model.MaxLifetimeDays is { } current ? [current] : Array.Empty<int>()).Order())
+                {
+                    <option value="@days" selected="@(Model.MaxLifetimeDays == days)">@ApiKeysSectionModel.Lifetime(days)</option>
+                }
+            </select>
+            <button class="btn btn-primary" type="submit">Save lifetime</button>
+        </div>
+        @if (Model.LifetimeError is { } error)
+        {
+            <div class="text-danger small mt-1">@error</div>
+        }
+        <div class="form-text" id="maxLifetimeHelp">Applies to keys created from now on. Existing keys keep their expiry.</div>
+    </form>
+</section>

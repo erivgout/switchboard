@@ -1,0 +1,31 @@
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Reports.ReportPage
+@using Switchboard.Modules.Insights.Services
+<div class="ins-filter-fields">
+    <div>
+        <label class="form-label" for="insPeriod">Period</label>
+        <select class="form-select form-select-sm" id="insPeriod" name="period">
+            @foreach (var (key, label) in InsightsPeriod.Presets)
+            {
+                <option value="@key" selected="@(Model.Range.Key == key)">@label</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="insFrom">From</label>
+        <input class="form-control form-control-sm" type="date" id="insFrom" name="from" value="@Model.Range.FirstDay.ToString("yyyy-MM-dd")">
+    </div>
+    <div>
+        <label class="form-label" for="insTo">To</label>
+        <input class="form-control form-control-sm" type="date" id="insTo" name="to" value="@Model.Range.LastDay.ToString("yyyy-MM-dd")">
+    </div>
+    <div>
+        <label class="form-label" for="insGroup">Group</label>
+        <select class="form-select form-select-sm" id="insGroup" name="group">
+            <option value="">All groups</option>
+            @foreach (var g in Model.Groups)
+            {
+                <option value="@g.Id" selected="@(Model.Group == g.Id)">@g.Name</option>
+            }
+        </select>
+    </div>
+</div>

@@ -1,0 +1,92 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.DetailModel
+@{
+    var d = Model.Data;
+    var t = d.Ticket;
+    var url = $"/tickets/{t.Number}";
+    var edit = d.Can.Edit && !d.IsReadOnly;
+    var done = d.Tasks.Count(x => x.Task.Status == TicketTaskStatus.Completed);
+    var agents = d.Options.AgentsFor(t.GroupId);
+}
+<div class="sb-pane" id="sdTasks">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title">Tasks</h2>
+        @if (d.Tasks.Count > 0)
+        {
+            <span class="sb-meta ms-auto">@done of @d.Tasks.Count done</span>
+        }
+    </div>
+    @if (d.Tasks.Count == 0)
+    {
+        <p class="sd-pane-empty">No tasks yet. Break the work into steps that can be assigned and tracked.</p>
+    }
+    else
+    {
+        <ul class="sd-tasks" hx-target="#sdTasks" hx-swap="outerHTML">
+            @foreach (var item in d.Tasks)
+            {
+                var task = item.Task;
+                var completed = task.Status == TicketTaskStatus.Completed;
+                <li class="sd-task @(completed ? "is-done" : "")">
+                    <div class="sd-task-main">
+                        <span class="sd-task-title">@task.Title</span>
+                        <span class="sb-meta">
+                            @(item.AssigneeName ?? "Unassigned")@if (task.DueAt is { } dueAt) {<span>, due <sb-time value="dueAt" mode="datetime" /></span>}
+                        </span>
+                    </div>
+                    @if (edit)
+                    {
+                        <label class="visually-hidden" for="task-status-@task.Id">Status of @task.Title</label>
+                        <select class="form-select form-select-sm sd-task-status" id="task-status-@task.Id" name="value"
+                                hx-post="@url?handler=UpdateTask&amp;id=@task.Id" hx-vals='{"field":"status"}' hx-trigger="change">
+                            <option value="Open" selected="@(task.Status == TicketTaskStatus.Open)">Open</option>
+                            <option value="InProgress" selected="@(task.Status == TicketTaskStatus.InProgress)">In progress</option>
+                            <option value="Completed" selected="@completed">Completed</option>
+                        </select>
+                        <label class="visually-hidden" for="task-assignee-@task.Id">Assignee of @task.Title</label>
+                        <select class="form-select form-select-sm sd-task-assignee" id="task-assignee-@task.Id" name="value"
+                                hx-post="@url?handler=UpdateTask&amp;id=@task.Id" hx-vals='{"field":"assignee"}' hx-trigger="change">
+                            <option value="">Unassigned</option>
+                            @foreach (var a in d.Options.Agents)
+                            {
+                                <option value="@a.Id" selected="@(a.Id == task.AssigneeId)">@a.Name</option>
+                            }
+                        </select>
+                        <button class="btn btn-ghost btn-icon btn-sm" type="button" aria-label="Delete task @task.Title"
+                                hx-post="@url?handler=DeleteTask&amp;id=@task.Id" hx-confirm="Delete the task &quot;@task.Title&quot;?">
+                            <i class="bi bi-trash3" aria-hidden="true"></i>
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="sb-meta">@(task.Status switch { TicketTaskStatus.InProgress => "In progress", TicketTaskStatus.Completed => "Completed", _ => "Open" })</span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    @if (edit)
+    {
+        <form class="sd-task-add" hx-post="@url?handler=AddTask" hx-target="#sdTasks" hx-swap="outerHTML">
+            <input type="hidden" name="TzOffset" value="0" data-sd-tz>
+            <div class="sd-task-add-title">
+                <label class="form-label" for="taskTitle">New task</label>
+                <input class="form-control form-control-sm" id="taskTitle" name="Title" maxlength="300" required placeholder="Swap the battery and test charging">
+            </div>
+            <div>
+                <label class="form-label" for="taskAssignee">Assignee</label>
+                <select class="form-select form-select-sm" id="taskAssignee" name="AssigneeId">
+                    <option value="">Unassigned</option>
+                    @foreach (var a in agents)
+                    {
+                        <option value="@a.Id">@(a.Id == d.MeId ? "Me" : a.Name)</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="taskDue">Due</label>
+                <input class="form-control form-control-sm" id="taskDue" name="DueAt" type="datetime-local">
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" type="submit">Add task</button>
+        </form>
+    }
+</div>

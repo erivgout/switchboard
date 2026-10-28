@@ -1,0 +1,143 @@
+@page "/admin/people/{id:guid}/access"
+@model Switchboard.Modules.Admin.Pages.People.AccessModel
+@{
+    ViewData["Title"] = $"Access for {Model.Detail.User.DisplayName}";
+    var u = Model.Detail.User;
+    var multiWorkspace = Model.Workspaces.Count > 1;
+    var scopes = new[] { TicketScope.Global, TicketScope.Group, TicketScope.Restricted };
+}
+<partial name="_PersonHeader" model='new PersonHeaderModel(Model.Detail, "access")' />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    @if (Model.ReadOnlyReason is not null)
+    {
+        <p class="text-muted"><i class="bi bi-lock me-1" aria-hidden="true"></i>@Model.ReadOnlyReason</p>
+    }
+
+    <form method="post">
+        <section class="sb-pane" aria-labelledby="rolesTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="rolesTitle">Workspace roles</h2></div>
+            <div class="sb-pane-body">
+                <p class="text-muted">The role decides what @u.DisplayName can do. The ticket scope decides which tickets they can see.
+                    @if (u.IsOrgAdmin)
+                    {
+                        <span>As an organization admin they can already do everything, everywhere.</span>
+                    }
+                </p>
+                <fieldset disabled="@(!Model.CanEdit)" class="sb-fieldset">
+                    <legend class="visually-hidden">Workspace roles</legend>
+                    @for (var i = 0; i < Model.Input.Memberships.Count; i++)
+                    {
+                        var ws = Model.Workspaces.First(w => w.Id == Model.Input.Memberships[i].WorkspaceId);
+                        <div class="row g-3 @(i > 0 ? "mt-1" : "")">
+                            <input type="hidden" asp-for="Input.Memberships[i].WorkspaceId">
+                            @if (multiWorkspace)
+                            {
+                                <div class="col-12"><strong>@ws.Name</strong></div>
+                            }
+                            <div class="col-md-6">
+                                <label class="form-label" asp-for="Input.Memberships[i].RoleId">Role@(multiWorkspace ? $" in {ws.Name}" : "")</label>
+                                <select class="form-select" asp-for="Input.Memberships[i].RoleId" asp-items="Model.Roles"></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" asp-for="Input.Memberships[i].Scope">Tickets they can see</label>
+                                <select class="form-select" asp-for="Input.Memberships[i].Scope">
+                                    @foreach (var scope in scopes)
+                                    {
+                                        <option value="@scope">@AdminPageModel.ScopeLabel(scope)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    }
+                </fieldset>
+                <partial name="_FieldError" model="@("Input.Memberships")" />
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="groupsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="groupsTitle">Groups</h2></div>
+            <div class="sb-pane-body">
+                <p class="text-muted">Members are assigned work from the group's queue. Observers see the group's tickets and its notifications but aren't assigned work.</p>
+                @if (Model.Input.Groups.Count == 0)
+                {
+                    <p class="mb-0">There are no agent groups yet. <a href="/admin/groups">Create one</a>.</p>
+                }
+                else
+                {
+                    <fieldset disabled="@(!Model.CanEdit)" class="sb-fieldset">
+                        <legend class="visually-hidden">Group membership</legend>
+                        <div class="row g-3">
+                            @for (var i = 0; i < Model.Input.Groups.Count; i++)
+                            {
+                                var g = Model.AllGroups.First(x => x.Id == Model.Input.Groups[i].GroupId);
+                                var wsName = Model.Workspaces.First(w => w.Id == g.WorkspaceId).Name;
+                                <div class="col-md-6">
+                                    <input type="hidden" asp-for="Input.Groups[i].GroupId">
+                                    <label class="form-label" asp-for="Input.Groups[i].Role">@g.Name@(multiWorkspace ? $" ({wsName})" : "")</label>
+                                    <select class="form-select" asp-for="Input.Groups[i].Role">
+                                        <option value="@GroupRole.None">Not a member</option>
+                                        <option value="@GroupRole.Member">Member</option>
+                                        <option value="@GroupRole.Observer">Observer</option>
+                                    </select>
+                                </div>
+                            }
+                        </div>
+                    </fieldset>
+                }
+                <partial name="_FieldError" model="@("Input.Groups")" />
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="skillsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="skillsTitle">Skills</h2></div>
+            <div class="sb-pane-body">
+                <label class="form-label" asp-for="Input.Skills">Skills</label>
+                <input class="form-control" asp-for="Input.Skills" disabled="@(!Model.CanEdit)" aria-describedby="skillsHelp">
+                <div class="form-text" id="skillsHelp">Separate with commas, like windows, vpn, printers. Routing can match tickets to these.</div>
+                <partial name="_FieldError" model="@("Input.Skills")" />
+            </div>
+            @if (Model.CanEdit)
+            {
+                <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save access</button></div>
+            }
+        </section>
+    </form>
+
+    <section class="sb-pane" aria-labelledby="orgAdminTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="orgAdminTitle">Organization admin</h2></div>
+        <ul class="sb-actions">
+            <li>
+                <div>
+                    <h3>@(u.IsOrgAdmin ? $"{u.DisplayName} is an organization admin" : "Not an organization admin")</h3>
+                    <p>Organization admins can change every setting in every workspace, including who else is an admin.</p>
+                    @if (u.IsOrgAdmin && Model.OtherActiveOrgAdmins == 0)
+                    {
+                        <p>This is the only active organization admin, so the role stays until you give it to someone else.</p>
+                    }
+                    else if (!Model.ViewerIsOrgAdmin)
+                    {
+                        <p>Only organization admins can change this.</p>
+                    }
+                </div>
+                @if (Model.ViewerIsOrgAdmin && u.IsActive)
+                {
+                    <form method="post" asp-page-handler="OrgAdmin">
+                        <input type="hidden" name="grant" value="@(u.IsOrgAdmin ? "false" : "true")">
+                        @if (u.IsOrgAdmin)
+                        {
+                            <button class="btn btn-outline-secondary" type="submit" disabled="@(Model.OtherActiveOrgAdmins == 0)"
+                                    data-sb-confirm="Remove organization admin from @u.DisplayName? They keep their workspace roles.">Remove organization admin</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-secondary" type="submit"
+                                    data-sb-confirm="Make @u.DisplayName an organization admin? They will be able to change every setting, in every workspace.">Make organization admin</button>
+                        }
+                    </form>
+                }
+            </li>
+        </ul>
+    </section>
+</div>

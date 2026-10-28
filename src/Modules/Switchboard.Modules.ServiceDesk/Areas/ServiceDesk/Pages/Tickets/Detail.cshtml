@@ -1,0 +1,273 @@
+@page "/tickets/{number:int}"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.DetailModel
+@using Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var d = Model.Data;
+    var t = d.Ticket;
+    var can = d.Can;
+    var url = $"/tickets/{t.Number}";
+    var tab = Request.Query["tab"].ToString() switch { "tasks" => "tasks", "related" => "related", "activity" => "activity", _ => "conversation" };
+    var category = t.Status!.Category;
+    var lit = t.IsLampLit(category);
+    var overdue = t.DueBy is { } due && due < d.LoadedAt && category is StatusCategory.Open or StatusCategory.Pending;
+    var requester = t.Requester!;
+    var source = t.Source;
+    var openTasks = d.Tasks.Count(x => x.Task.Status != TicketTaskStatus.Completed);
+    string SourcePhrase() => source?.Key switch
+    {
+        "email" => "by email",
+        "portal" => "in the portal",
+        "phone" => "by phone",
+        "chat" => "by chat",
+        "walk_up" => "at the desk",
+        "agent" => "from the agent console",
+        null => "",
+        _ => $"via {source.Name}",
+    };
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+
+<div class="sd-ticket" data-sd-ticket data-sd-ticket-id="@t.Id" data-sd-number="@t.Number" data-sd-me="@d.MeId" data-sd-url="@url" data-sd-loaded="@d.LoadedAt.ToUnixTimeMilliseconds()">
+    <div class="sd-conflict alert alert-warning" id="sdConflict" role="alert" hidden>
+        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+        <span data-sd-conflict-text>Someone else changed this ticket.</span>
+        <button class="btn btn-sm btn-outline-secondary ms-auto" type="button" data-sd-reload>Reload</button>
+    </div>
+
+    @if (d.MergedInto is { } into)
+    {
+        <div class="alert alert-secondary sd-banner" role="status">
+            <i class="bi bi-intersect" aria-hidden="true"></i>
+            <span>This ticket was merged into <a href="/tickets/@into.Number">@into.DisplayId: @into.Subject</a>. It's read-only; continue the conversation there.</span>
+        </div>
+    }
+    else if (t.MergedIntoId is not null)
+    {
+        <div class="alert alert-secondary sd-banner" role="status"><i class="bi bi-intersect" aria-hidden="true"></i><span>This ticket was merged into another ticket you can't see. It's read-only.</span></div>
+    }
+    @if (t.DeletedAt is { } deletedAt)
+    {
+        <div class="alert alert-warning sd-banner" role="status">
+            <i class="bi bi-trash3" aria-hidden="true"></i>
+            <span>In trash since <sb-time value="deletedAt" mode="datetime" />. It's permanently deleted on <sb-time value="@deletedAt.AddDays(d.TrashRetentionDays)" mode="datetime" />.</span>
+            <div class="sd-banner-actions">
+                @if (can.Delete)
+                {
+                    <form method="post" action="@url?handler=Restore" asp-antiforgery="true"><button class="btn btn-sm btn-outline-secondary" type="submit">Restore</button></form>
+                }
+                @if (can.DeletePermanently)
+                {
+                    <form method="post" action="@url?handler=Purge" asp-antiforgery="true" data-sb-confirm="Permanently delete @t.DisplayId? Its conversation and attachments are erased. This can't be undone.">
+                        <button class="btn btn-sm btn-danger" type="submit">Delete permanently</button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+    else if (t.IsSpam)
+    {
+        <div class="alert alert-warning sd-banner" role="status">
+            <i class="bi bi-slash-circle" aria-hidden="true"></i>
+            <span>Marked as spam. It doesn't show in the queue or light a lamp.</span>
+            <div class="sd-banner-actions">
+                @if (can.Delete)
+                {
+                    <form method="post" action="@url?handler=Spam" asp-antiforgery="true"><input type="hidden" name="spam" value="false"><button class="btn btn-sm btn-outline-secondary" type="submit">Not spam</button></form>
+                }
+                @if (can.DeletePermanently)
+                {
+                    <form method="post" action="@url?handler=Purge" asp-antiforgery="true" data-sb-confirm="Permanently delete @t.DisplayId? This can't be undone.">
+                        <button class="btn btn-sm btn-danger" type="submit">Delete permanently</button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+
+    <header class="sd-ticket-head">
+        <div class="sd-ticket-ids">
+            <sb-lamp lit="lit" alert="@(lit && overdue)" />
+            <span class="sb-stamp sd-stamp-lg">@t.DisplayId</span>
+            <span class="sd-head-badges" id="sdHeadBadges">
+                <partial name="_HeadBadges" model="d" />
+            </span>
+            <div class="sd-presence" data-sd-presence aria-live="polite"></div>
+        </div>
+
+        <div class="sd-subject" data-sd-subject>
+            <h1 class="sd-subject-text" id="sdSubject">@t.Subject</h1>
+            @if (can.Edit && !d.IsReadOnly)
+            {
+                <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-edit-subject aria-label="Edit subject" title="Edit subject">
+                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                </button>
+                <form class="sd-subject-form" data-sd-subject-form hidden
+                      hx-post="@url?handler=Property" hx-target="#sdProps" hx-swap="outerHTML" hx-include="#sdPropsMeta">
+                    <input type="hidden" name="Field" value="subject">
+                    <label class="visually-hidden" for="sdSubjectInput">Subject</label>
+                    <input class="form-control" id="sdSubjectInput" name="Value" value="@t.Subject" maxlength="500" required>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                    <button class="btn btn-ghost" type="button" data-sd-cancel-subject>Cancel</button>
+                </form>
+            }
+        </div>
+
+        <p class="sd-ticket-meta">
+            <sb-avatar name="@requester.DisplayName" size="sm" />
+            <span><strong>@requester.DisplayName</strong>@if (requester.IsVip) {<span class="sb-vip ms-1">VIP</span>} reported this @SourcePhrase(), <sb-time value="t.CreatedAt" />.</span>
+            @if (t.RequestedFor is { } forUser)
+            {
+                <span>On behalf of <strong>@forUser.DisplayName</strong>.</span>
+            }
+            @if (t.CcEmails.Count > 0)
+            {
+                <span class="text-muted">CC: @string.Join(", ", t.CcEmails)</span>
+            }
+        </p>
+
+        <sb-slot name="ticket.header" model="t" />
+
+        @if (!d.IsReadOnly)
+        {
+            <div class="sd-actions" role="toolbar" aria-label="Ticket actions">
+                @if (can.Reply || can.Note)
+                {
+                    <a class="btn btn-outline-secondary btn-sm" href="#sdComposer" data-sd-focus-composer><i class="bi bi-reply" aria-hidden="true"></i> Reply <span class="sb-kbd d-none d-lg-inline">r</span></a>
+                }
+                @if (can.Assign && t.AgentId != d.MeId)
+                {
+                    <form method="post" action="@url?handler=AssignToMe" asp-antiforgery="true">
+                        <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-person-check" aria-hidden="true"></i> Assign to me</button>
+                    </form>
+                }
+                @if (can.Merge && !t.IsSpam)
+                {
+                    <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#sdMergeDialog"><i class="bi bi-intersect" aria-hidden="true"></i> Merge</button>
+                }
+                @if (can.Edit)
+                {
+                    <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#sdLinkDialog"><i class="bi bi-link-45deg" aria-hidden="true"></i> Link</button>
+                }
+                @if (can.Create && !d.IsChild)
+                {
+                    <a class="btn btn-ghost btn-sm" href="/tickets/new?type=@(t.Type == TicketType.Incident ? "incident" : "request")&amp;parent=@t.Number"><i class="bi bi-diagram-2" aria-hidden="true"></i> Create child</a>
+                }
+                @if (can.MajorIncident && t.Type == TicketType.Incident)
+                {
+                    <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#sdMajorDialog">
+                        <i class="bi bi-broadcast" aria-hidden="true"></i> @(t.IsMajorIncident ? "Demote major incident" : "Promote to major incident")
+                    </button>
+                }
+                <div class="sd-actions-end">
+                    @if (can.Delete && !t.IsSpam)
+                    {
+                        <form method="post" action="@url?handler=Spam" asp-antiforgery="true" data-sb-confirm="Mark @t.DisplayId as spam? It leaves the queue; you can restore it from the Spam view.">
+                            <input type="hidden" name="spam" value="true">
+                            <button class="btn btn-ghost btn-sm" type="submit"><i class="bi bi-slash-circle" aria-hidden="true"></i> Spam</button>
+                        </form>
+                        <form method="post" action="@url?handler=Trash" asp-antiforgery="true" data-sb-confirm="Move @t.DisplayId to trash? You can restore it for @d.TrashRetentionDays days.">
+                            <button class="btn btn-ghost btn-sm" type="submit"><i class="bi bi-trash3" aria-hidden="true"></i> Move to trash</button>
+                        </form>
+                    }
+                    <div class="dropdown">
+                        <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-three-dots" aria-hidden="true"></i> More</button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><button class="dropdown-item" type="button" data-sd-print><i class="bi bi-printer me-2" aria-hidden="true"></i>Print</button></li>
+                            <li><button class="dropdown-item" type="button" data-sd-copy-link><i class="bi bi-clipboard me-2" aria-hidden="true"></i>Copy link</button></li>
+                            <sb-slot name="ticket.actions" model="t" />
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+    </header>
+
+    <div class="sb-split sd-ticket-split">
+        <div class="sd-main">
+            <ul class="nav sd-tabs" role="tablist" data-sd-tabs>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(tab == "conversation" ? "active" : "")" id="tabbtn-conversation" data-bs-toggle="tab" data-bs-target="#tab-conversation" type="button" role="tab" aria-controls="tab-conversation" aria-selected="@(tab == "conversation" ? "true" : "false")">Conversation</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(tab == "tasks" ? "active" : "")" id="tabbtn-tasks" data-bs-toggle="tab" data-bs-target="#tab-tasks" type="button" role="tab" aria-controls="tab-tasks" aria-selected="@(tab == "tasks" ? "true" : "false")">
+                        <span>Tasks</span>@if (d.Tasks.Count > 0) {<span class="sd-tab-count">@openTasks<span class="visually-hidden"> open</span></span>}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(tab == "related" ? "active" : "")" id="tabbtn-related" data-bs-toggle="tab" data-bs-target="#tab-related" type="button" role="tab" aria-controls="tab-related" aria-selected="@(tab == "related" ? "true" : "false")">
+                        <span>Related</span>@if (d.RelatedCount > 0) {<span class="sd-tab-count">@d.RelatedCount</span>}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link @(tab == "activity" ? "active" : "")" id="tabbtn-activity" data-bs-toggle="tab" data-bs-target="#tab-activity" type="button" role="tab" aria-controls="tab-activity" aria-selected="@(tab == "activity" ? "true" : "false")">Activity</button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <section class="tab-pane @(tab == "conversation" ? "show active" : "")" id="tab-conversation" role="tabpanel" aria-labelledby="tabbtn-conversation" tabindex="0">
+                    <div class="sb-pane sd-thread-pane">
+                        <div class="sb-thread" id="sdThread">
+                            <article class="sb-msg" id="msg-description">
+                                <sb-avatar name="@requester.DisplayName" />
+                                <div class="min-w-0">
+                                    <div class="sb-msg-head">
+                                        <span class="sb-msg-author">@requester.DisplayName</span>
+                                        <span class="sb-msg-kind">reported @SourcePhrase()</span>
+                                        <sb-time value="t.CreatedAt" />
+                                    </div>
+                                    <div class="sb-msg-body">
+                                        @if (string.IsNullOrWhiteSpace(t.DescriptionText) && string.IsNullOrWhiteSpace(t.DescriptionHtml))
+                                        {
+                                            <p class="text-muted">No description.</p>
+                                        }
+                                        else
+                                        {
+                                            @Html.Raw(t.DescriptionHtml)
+                                        }
+                                    </div>
+                                    <partial name="_Attachments" model="d.TicketAttachments" />
+                                </div>
+                            </article>
+                            @foreach (var entry in d.Thread)
+                            {
+                                <partial name="_Message" model="new MessageModel(d, entry)" />
+                            }
+                        </div>
+                    </div>
+                    @if (!d.IsReadOnly && (can.Reply || can.Note))
+                    {
+                        <partial name="_Composer" model="d" />
+                    }
+                </section>
+                <section class="tab-pane @(tab == "tasks" ? "show active" : "")" id="tab-tasks" role="tabpanel" aria-labelledby="tabbtn-tasks" tabindex="0">
+                    <partial name="_Tasks" model="Model" />
+                </section>
+                <section class="tab-pane @(tab == "related" ? "show active" : "")" id="tab-related" role="tabpanel" aria-labelledby="tabbtn-related" tabindex="0">
+                    <partial name="_Related" model="d" />
+                </section>
+                <section class="tab-pane @(tab == "activity" ? "show active" : "")" id="tab-activity" role="tabpanel" aria-labelledby="tabbtn-activity" tabindex="0">
+                    <partial name="_Activity" model="d" />
+                </section>
+                <div class="sd-extra-tabs" data-sd-extra-tabs>
+                    <sb-slot name="ticket.tabs" model="t" />
+                </div>
+            </div>
+        </div>
+
+        <aside class="sd-side" aria-label="Ticket details">
+            <partial name="_Props" model="Model" />
+            <partial name="_RequesterCard" model="d" />
+            <sb-slot name="ticket.sidebar" model="t" />
+        </aside>
+    </div>
+</div>
+
+<partial name="_TicketDialogs" model="d" />
+
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/editor.js" asp-append-version="true"></script>
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/ticket.js" asp-append-version="true"></script>
+}

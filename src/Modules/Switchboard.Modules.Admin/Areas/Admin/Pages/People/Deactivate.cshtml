@@ -1,0 +1,36 @@
+@page "/admin/people/{id:guid}/deactivate"
+@model Switchboard.Modules.Admin.Pages.People.DeactivateModel
+@{
+    var u = Model.Detail.User;
+    ViewData["Title"] = $"Deactivate {u.DisplayName}";
+    var back = ($"/admin/people/{u.Id}/account", u.DisplayName);
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@($"Deactivate {u.DisplayName}")" />
+
+<form method="post" class="sb-form-narrow">
+    <partial name="_Errors" />
+    <section class="sb-pane" aria-labelledby="whatTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="whatTitle">What happens</h2></div>
+        <div class="sb-pane-body">
+            <ul class="sb-consequences">
+                <li>They're signed out of every device within a minute and can't sign in.</li>
+                <li>Their API keys stop working for good. They'd need new ones after reactivation.</li>
+                <li>Nobody can assign them tickets, tasks or approvals.</li>
+                <li>Their tickets, messages and history stay as they are.</li>
+            </ul>
+            <p class="mb-0 text-muted">You can reactivate the account later from the Account tab.</p>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="workTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="workTitle">Open work</h2></div>
+        <div class="sb-pane-body">
+            <partial name="_HandOff" model="Model.HandOff" />
+        </div>
+        <div class="sb-pane-footer d-flex gap-2">
+            <button class="btn btn-danger" type="submit">Deactivate account</button>
+            <a class="btn btn-ghost" href="/admin/people/@u.Id/account">Cancel</a>
+        </div>
+    </section>
+</form>

@@ -1,0 +1,63 @@
+@model TicketDeliveries
+@{
+    var titleId = $"sbDeliveries-{Model.TicketId:N}";
+}
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+<section class="sb-pane sb-deliveries" data-sb-tab="notifications" data-sb-tab-title="Notifications" aria-labelledby="@titleId">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="@titleId">Notifications</h2>
+        @if (Model.Total > 0)
+        {
+            <span class="text-muted small ms-auto tabular">@(Model.Total == 1 ? "1 sent" : $"{Model.Total} sent")</span>
+        }
+    </div>
+    @if (Model.Rows.Count == 0)
+    {
+        <sb-empty icon="bi-envelope" title="No notifications yet">
+            <p class="sb-empty-text">Emails and in-app notifications about this ticket will be listed here, with whether they arrived.</p>
+        </sb-empty>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table sb-msg-table align-middle mb-0 sb-deliveries-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Sent</th>
+                        <th scope="col">To</th>
+                        <th scope="col" class="sb-hide-sm">Notification</th>
+                        <th scope="col">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        var d = row.Delivery;
+                        <tr>
+                            <td class="text-nowrap"><sb-time value="@d.CreatedAt" /></td>
+                            <td class="sb-deliveries-to">
+                                <i class="bi @(d.Channel == DeliveryChannel.Email ? "bi-envelope" : "bi-bell") text-muted me-1" aria-hidden="true"></i>
+                                <span class="visually-hidden">@(d.Channel == DeliveryChannel.Email ? "Email to" : "In-app notification to")</span>
+                                <span class="text-break">@row.Recipient</span>
+                            </td>
+                            <td class="sb-hide-sm">
+                                <span class="d-block">@row.Notification</span>
+                                @if (!string.IsNullOrEmpty(d.Subject) && d.Channel == DeliveryChannel.Email)
+                                {
+                                    <span class="small text-muted d-block text-truncate sb-deliveries-subject" title="@d.Subject">@d.Subject</span>
+                                }
+                            </td>
+                            <td>
+                                <partial name="/Areas/Messaging/Components/_DeliveryStatus.cshtml" model="d" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Total > Model.Rows.Count)
+        {
+            <div class="sb-pane-footer small text-muted">Showing the latest @Model.Rows.Count of @Model.Total.</div>
+        }
+    }
+</section>

@@ -1,0 +1,54 @@
+@model WebhookFormModel
+@{
+    var f = Model.Form;
+}
+@if (Model.Errors is { Count: > 0 })
+{
+    <div class="alert alert-danger" role="alert">@string.Join(" ", Model.Errors.SelectMany(e => e.Value))</div>
+}
+<div class="row g-3">
+    <div class="col-md-6">
+        <label class="form-label" for="hookName">Name</label>
+        <input class="form-control @(Model.Error("name") is null ? null : "is-invalid")" id="hookName" name="Form.Name" value="@f.Name" maxlength="200" required placeholder="The system that receives it, e.g. Ops chat">
+        @if (Model.Error("name") is { } nameError) { <div class="invalid-feedback">@nameError</div> }
+    </div>
+    <div class="col-md-6">
+        <label class="form-label" for="hookWorkspace">Events from</label>
+        <select class="form-select @(Model.Error("workspaceId") is null ? null : "is-invalid")" id="hookWorkspace" name="Form.Workspace">
+            @foreach (var w in Model.Workspaces)
+            {
+                <option value="@w.Value" selected="@(f.Workspace == w.Value)">@w.Name</option>
+            }
+        </select>
+        @if (Model.Error("workspaceId") is { } wsError) { <div class="invalid-feedback">@wsError</div> }
+    </div>
+    <div class="col-12">
+        <label class="form-label" for="hookUrl">Receiver URL</label>
+        <input class="form-control @(Model.Error("url") is null ? null : "is-invalid")" id="hookUrl" name="Form.Url" value="@f.Url" type="url" inputmode="url" maxlength="2000" required
+               placeholder="https://hooks.example.com/switchboard" aria-describedby="hookUrlHelp">
+        @if (Model.Error("url") is { } urlError) { <div class="invalid-feedback">@urlError</div> }
+        <div class="form-text" id="hookUrlHelp">Switchboard sends a signed POST here for each event. Internal and private network addresses are refused.</div>
+    </div>
+    <fieldset class="col-12">
+        <legend class="form-label fs-6">Send these events</legend>
+        @if (Model.Error("events") is { } eventsError) { <div class="text-danger small mb-1">@eventsError</div> }
+        <div class="sb-hook-events">
+            @foreach (var e in WebhookEvents.All)
+            {
+                var id = "hookEvent_" + e.Key.Replace('.', '_');
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="Form.Events" value="@e.Key" id="@id" checked="@f.Events.Contains(e.Key)">
+                    <label class="form-check-label" for="@id">@e.Title</label>
+                </div>
+            }
+        </div>
+    </fieldset>
+    <div class="col-12">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" name="Form.IsActive" value="true" id="hookActive" checked="@f.IsActive">
+            <input type="hidden" name="Form.IsActive" value="false">
+            <label class="form-check-label" for="hookActive">Send events now</label>
+        </div>
+    </div>
+</div>
+<div class="mt-3"><button class="btn btn-primary" type="submit">@Model.SubmitLabel</button></div>

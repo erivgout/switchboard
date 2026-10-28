@@ -1,0 +1,163 @@
+@model EditorPage
+@{
+    var canPublish = Model.CanPublishIn(Model.Input.FolderId);
+    var titleError = ViewData.ModelState["Input.Title"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var action = Model.IsNew ? "/kb/new" : $"/kb/{Model.ArticleId}/edit";
+    var folderModes = string.Join(",", Model.Folders.Select(f => $"{f.Id}:{(Model.CanPublishIn(f.Id) ? "publish" : "submit")}"));
+}
+
+<form method="post" action="@action" asp-antiforgery="true" class="kb-editor-form" data-kb-editor data-kb-autosave="@(Model.IsNew ? "create" : "update")"
+      data-kb-article="@Model.ArticleId" data-kb-folder-modes="@folderModes" novalidate>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert" asp-validation-summary="All">
+            <p class="fw-semibold mb-1">The article wasn't saved.</p>
+        </div>
+    }
+    <input type="hidden" asp-for="Input.Revision" data-kb-revision>
+    <input type="hidden" asp-for="Input.SourceTicketId">
+
+    <div class="sb-split">
+        <div>
+            <label class="visually-hidden" for="kbTitle">Title</label>
+            <textarea id="kbTitle" class="kb-title-input @(titleError is null ? null : "is-invalid")" name="Input.Title" rows="1"
+                      placeholder="Title, phrased the way people search" maxlength="300" autocomplete="off" required data-kb-title
+                      aria-describedby="@(titleError is null ? null : "kbTitleError")">@Model.Input.Title</textarea>
+            @if (titleError is not null) { <div class="invalid-feedback d-block mb-2" id="kbTitleError">@titleError</div> }
+
+            <partial name="_RichText" model="@(new KbRichText("Input.BodyHtml", Model.Input.BodyHtml, "Article text", "Start with the answer. Then the steps, one action each.", "kb"))" />
+            <div class="kb-editor-foot">
+                <span class="kb-save-state" data-kb-save-state aria-live="polite">
+                    @if (Model.IsNew) { <text>Your draft saves automatically once you start writing.</text> }
+                    else { <text>Changes save automatically as a draft.</text> }
+                </span>
+                @if (!Model.IsNew && Model.PublishedBefore) { <span>Readers keep seeing the published version until you publish.</span> }
+            </div>
+        </div>
+
+        <aside class="sb-sticky" aria-label="Article settings">
+            <div class="sb-pane">
+                <div class="sb-pane-body">
+                    @if (Model.TicketLabel is not null)
+                    {
+                        <p class="sb-meta mb-2"><i class="bi bi-link-45deg" aria-hidden="true"></i> Written from @Model.TicketLabel</p>
+                    }
+                    <label class="form-label fw-semibold" for="kbChangeNote">What changed <span class="sb-meta fw-normal">Optional</span></label>
+                    <input id="kbChangeNote" class="form-control" name="Input.ChangeNote" value="@Model.Input.ChangeNote" maxlength="500" placeholder="For example, updated for the new VPN client">
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button class="btn btn-primary" type="submit" name="intent" value="publish" data-kb-intent="publish" hidden="@(!canPublish)">Publish</button>
+                        <button class="btn btn-primary" type="submit" name="intent" value="submit" data-kb-intent="submit" hidden="@canPublish">Submit for review</button>
+                        <button class="btn btn-outline-secondary" type="submit" name="intent" value="save">Save draft</button>
+                        <a class="btn btn-ghost" href="@(Model.IsNew ? "/kb" : $"/kb/{Model.ArticleId}")">Close</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sb-pane">
+                <div class="sb-pane-body">
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbFolder">Folder</label>
+                        <select id="kbFolder" class="form-select" name="Input.FolderId" data-kb-folder>
+                            @foreach (var f in Model.Folders)
+                            {
+                                <option value="@f.Id" selected="@(f.Id == Model.Input.FolderId)">@f.Label@(f.RequiresApproval ? " (needs approval)" : "")</option>
+                            }
+                        </select>
+                    </div>
+                    <fieldset class="kb-form-section">
+                        <legend class="form-label">Type</legend>
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" id="kbTypePermanent" name="Input.Type" value="Permanent" checked="@(Model.Input.Type == KbArticleType.Permanent)">
+                                <label class="form-check-label" for="kbTypePermanent">Permanent fix</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" id="kbTypeWorkaround" name="Input.Type" value="Workaround" checked="@(Model.Input.Type == KbArticleType.Workaround)">
+                                <label class="form-check-label" for="kbTypeWorkaround">Workaround</label>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbOwner">Owner</label>
+                        <select id="kbOwner" class="form-select" name="Input.OwnerId">
+                            @foreach (var o in Model.Owners) { <option value="@o.Id" selected="@(o.Id == Model.Input.OwnerId)">@o.Name</option> }
+                        </select>
+                        <div class="form-text">Keeps the article accurate and answers reader comments.</div>
+                    </div>
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbReviewBy">Review by</label>
+                        <input id="kbReviewBy" class="form-control" type="date" name="Input.ReviewBy" value="@Model.Input.ReviewBy?.ToString("yyyy-MM-dd")">
+                        <div class="form-text">After this date the article shows up under Due for review.</div>
+                    </div>
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbTags">Tags</label>
+                        <input id="kbTags" class="form-control" name="Input.Tags" value="@Model.Input.Tags" placeholder="vpn, remote" maxlength="600">
+                        <div class="form-text">Separate tags with commas.</div>
+                    </div>
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbKeywords">Search keywords</label>
+                        <input id="kbKeywords" class="form-control" name="Input.Keywords" value="@Model.Input.Keywords" placeholder="Other words people use, like remote access" maxlength="500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sb-pane">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">Related articles</h2></div>
+                <div class="sb-pane-body" data-kb-related>
+                    <ul class="kb-chips" data-kb-chips>
+                        @foreach (var r in Model.Related)
+                        {
+                            <li>
+                                <span>@r.Title</span>
+                                <input type="hidden" name="Input.RelatedIds" value="@r.Id">
+                                <button type="button" class="btn btn-ghost btn-sm" data-kb-chip-remove aria-label="Remove @r.Title"><i class="bi bi-x" aria-hidden="true"></i></button>
+                            </li>
+                        }
+                    </ul>
+                    <div class="kb-picker">
+                        <label class="visually-hidden" for="kbPick">Find an article to link</label>
+                        <input id="kbPick" class="form-control" type="search" placeholder="Find an article to link" autocomplete="off" data-kb-pick
+                               aria-controls="kbPickResults" aria-expanded="false">
+                        <ul class="kb-picker-results" id="kbPickResults" data-kb-pick-results hidden></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sb-pane">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">Files</h2></div>
+                <div class="sb-pane-body" data-kb-files>
+                    <ul class="kb-chips" data-kb-file-chips>
+                        @foreach (var file in Model.Files)
+                        {
+                            <li>
+                                <i class="bi bi-paperclip" aria-hidden="true"></i><span>@file.FileName</span>
+                                <button type="button" class="btn btn-ghost btn-sm" data-kb-file-remove="@file.Id" aria-label="Remove @file.FileName"><i class="bi bi-x" aria-hidden="true"></i></button>
+                            </li>
+                        }
+                    </ul>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-kb-file-add><i class="bi bi-paperclip" aria-hidden="true"></i> Attach a file</button>
+                    <input type="file" multiple data-kb-file-input hidden>
+                </div>
+            </div>
+
+            <details class="sb-pane">
+                <summary class="sb-pane-header"><span class="sb-pane-title">Link and search settings</span></summary>
+                <div class="sb-pane-body">
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbExternal">Point to another page instead</label>
+                        <input id="kbExternal" class="form-control" type="url" name="Input.ExternalUrl" value="@Model.Input.ExternalUrl" placeholder="https://" maxlength="1000">
+                        <div class="form-text">Readers get a link to this page, for example a vendor's guide.</div>
+                    </div>
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbSeoTitle">Search engine title</label>
+                        <input id="kbSeoTitle" class="form-control" name="Input.SeoTitle" value="@Model.Input.SeoTitle" maxlength="200">
+                    </div>
+                    <div class="kb-form-section">
+                        <label class="form-label" for="kbSeoDescription">Search engine description</label>
+                        <textarea id="kbSeoDescription" class="form-control" name="Input.SeoDescription" rows="2" maxlength="500">@Model.Input.SeoDescription</textarea>
+                    </div>
+                </div>
+            </details>
+        </aside>
+    </div>
+</form>

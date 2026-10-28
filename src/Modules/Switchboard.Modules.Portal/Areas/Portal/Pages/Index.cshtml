@@ -1,0 +1,78 @@
+@page "/portal"
+@model IndexModel
+@{
+    ViewData["Title"] = "Help";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Portal/css/portal.css" asp-append-version="true">
+}
+
+<section class="sb-hero prt-hero" aria-labelledby="prtHello">
+    <h1 class="sb-hero-title" id="prtHello">How can we help, @Model.FirstName?</h1>
+    <form class="sb-hero-search" method="get" action="/portal/search" role="search">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <label class="visually-hidden" for="prtSearch">Search for answers or your requests</label>
+        <input id="prtSearch" class="form-control" type="search" name="q" placeholder="Search for answers or your requests" autocomplete="off" maxlength="200" data-sb-search>
+    </form>
+</section>
+
+<nav class="sb-paths prt-paths" aria-label="Get help">
+    <a class="sb-path" href="/portal/new">
+        <i class="bi bi-wrench-adjustable" aria-hidden="true"></i>
+        <strong>Report a problem</strong>
+        <span>Something isn't working. Tell us and we'll help fix it.</span>
+    </a>
+    <a class="sb-path" href="@Model.RequestHref">
+        <i class="bi bi-bag" aria-hidden="true"></i>
+        <strong>Request something</strong>
+        <span>Ask for access, software, equipment or a service.</span>
+    </a>
+</nav>
+
+<div class="row g-4 prt-home-grid">
+    <div class="col-lg-4 order-lg-2">
+        <section class="sb-pane" aria-labelledby="prtAttention">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="prtAttention">Waiting on you</h2></div>
+            <div class="prt-attention">
+                @if (Model.WaitingCount > 0)
+                {
+                    <a class="prt-attention-item" href="@(Model.WaitingNumber is { } n ? $"/portal/requests/{n}" : "/portal/requests")">
+                        <span class="sb-num">@Model.WaitingCount</span>
+                        <span>@(Model.WaitingCount == 1 ? "request needs a reply from you" : "requests need a reply from you")</span>
+                    </a>
+                }
+                <sb-slot name="@PortalModule.HomeAttentionSlot" />
+                @if (Model.ShowApprovalsLink)
+                {
+                    <a class="prt-attention-item" href="/portal/approvals">
+                        <i class="bi bi-check2-square" aria-hidden="true"></i>
+                        <span>Approvals</span>
+                    </a>
+                }
+                <p class="prt-attention-empty">Nothing needs you right now.</p>
+            </div>
+        </section>
+    </div>
+    <div class="col-lg-8 order-lg-1">
+        <section class="sb-pane" aria-labelledby="prtOpen">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="prtOpen">Your open requests</h2>
+                <a class="ms-auto" href="/portal/requests">See all your requests</a>
+            </div>
+            @if (Model.Open.Items.Count == 0)
+            {
+                <sb-empty icon="bi-inbox" title="You have no open requests">
+                    <p class="sb-empty-text">When you report a problem or ask for something, you can follow it here.</p>
+                </sb-empty>
+            }
+            else
+            {
+                <partial name="_RequestList" model="new RequestListModel(Model.Open.Items)" />
+            }
+        </section>
+    </div>
+</div>
+
+<div class="prt-home-more">
+    <sb-slot name="portal.home" />
+</div>

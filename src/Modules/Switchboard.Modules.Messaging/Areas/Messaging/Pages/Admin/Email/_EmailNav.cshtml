@@ -1,0 +1,21 @@
+@model string
+@{
+    var tabs = new (string Key, string Label, string Href)[]
+    {
+        ("mailboxes", "Mailboxes", "/admin/email"),
+        ("outgoing", "Outgoing mail", "/admin/email/outgoing"),
+        ("rules", "Sender rules", "/admin/email/rules"),
+        ("incoming", "Incoming mail", "/admin/email/incoming"),
+        ("simulate", "Simulate incoming email", "/admin/email/simulate"),
+    };
+}
+<nav aria-label="Email settings" class="sb-msg-tabs">
+    <ul class="nav nav-tabs">
+        @foreach (var tab in tabs)
+        {
+            <li class="nav-item">
+                <a class="nav-link @(tab.Key == Model ? "active" : "")" href="@tab.Href" aria-current="@(tab.Key == Model ? "page" : null)">@tab.Label</a>
+            </li>
+        }
+    </ul>
+</nav>

@@ -1,0 +1,12 @@
+.artifacts/
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+.idea/
+App_Data/
+*.db
+.env
+TestResults/
+node_modules/

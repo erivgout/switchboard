@@ -1,0 +1,135 @@
+@page "/kb/{id:guid}/versions"
+@model VersionsModel
+@{
+    var a = Model.Detail.Article;
+    ViewData["Title"] = $"Versions of {a.DisplayId}";
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li><a href="/kb/@a.Id">@a.DisplayId</a></li>
+        <li aria-current="page">Versions</li>
+    </ol>
+</nav>
+
+<sb-page-header title="Version history" subtitle="@Model.Detail.Latest.Title">
+    <a class="btn btn-outline-secondary" href="/kb/@a.Id">Back to the article</a>
+</sb-page-header>
+
+@if (Model.Right is not null)
+{
+    <section class="sb-pane mb-3" aria-labelledby="kbDiffTitle">
+        <div class="sb-pane-header flex-wrap">
+            <h2 class="sb-pane-title" id="kbDiffTitle">
+                @if (Model.Left is not null) { <text>Changes from version @Model.Left.Number to version @Model.Right.Number</text> }
+                else { <text>Version @Model.Right.Number</text> }
+            </h2>
+            @if (Model.Left is not null)
+            {
+                <div class="kb-diff-legend ms-auto">
+                    <span><ins>Added text</ins></span>
+                    <span><del>Removed text</del></span>
+                </div>
+            }
+        </div>
+        <div class="kb-diff">
+            @if (Model.Left is null)
+            {
+                <div class="kb-prose">@Html.Raw(KbHtml.Render(Model.Right.BodyHtml).Html)</div>
+            }
+            else if (Model.Diff.All(l => l.Op == KbDiffOp.Same && !l.Changed))
+            {
+                <p class="sb-meta">The text of these versions is the same. Formatting or images may differ.</p>
+            }
+            else
+            {
+                @foreach (var line in Model.Diff)
+                {
+                    if (line.Op == KbDiffOp.Added)
+                    {
+                        <p class="kb-diff-added"><span class="visually-hidden">Added: </span>@line.Segments[0].Text</p>
+                    }
+                    else if (line.Op == KbDiffOp.Removed)
+                    {
+                        <p class="kb-diff-removed"><span class="visually-hidden">Removed: </span>@line.Segments[0].Text</p>
+                    }
+                    else
+                    {
+                        <p>@foreach (var s in line.Segments)
+                        {
+                            if (s.Op == KbDiffOp.Added) { <ins>@s.Text</ins> }
+                            else if (s.Op == KbDiffOp.Removed) { <del>@s.Text</del> }
+                            else { @s.Text }
+                        }</p>
+                    }
+                }
+            }
+        </div>
+    </section>
+}
+
+<div class="sb-pane sb-queue-wrap">
+    <table class="sb-queue">
+        <thead>
+            <tr>
+                <th scope="col">Version</th>
+                <th scope="col">State</th>
+                <th scope="col" class="sb-hide-sm">Saved by</th>
+                <th scope="col" class="sb-hide-sm">When</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var v in Model.Versions)
+            {
+                var previous = Model.Versions.FirstOrDefault(x => x.Number < v.Number);
+                var stateClass = v.State switch
+                {
+                    KbVersionState.Published => "kb-state--published",
+                    KbVersionState.InReview => "kb-state--inreview",
+                    KbVersionState.Draft => "kb-state--draft",
+                    _ => "kb-state--archived",
+                };
+                <tr class="@(Model.Right?.Number == v.Number ? "is-selected" : null)">
+                    <td>
+                        <span class="fw-semibold">Version @v.Number</span>
+                        <div class="sb-meta">@v.Title</div>
+                        @if (v.ChangeNote is not null) { <div class="sb-meta">Note: @v.ChangeNote</div> }
+                    </td>
+                    <td>
+                        <span class="kb-state @stateClass">@KbUi.VersionStateLabel(v.State, v.PublishedAt)</span>
+                        @if (v.PublishedAt is { } p && v.State != KbVersionState.Published)
+                        {
+                            <div class="sb-meta mt-1">Published <sb-time value="@p" /></div>
+                        }
+                    </td>
+                    <td class="sb-hide-sm">@(v.AuthorName ?? "Unknown")</td>
+                    <td class="sb-hide-sm"><sb-time value="@(v.PublishedAt ?? v.UpdatedAt)" /></td>
+                    <td class="text-end">
+                        <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                            @if (previous is not null)
+                            {
+                                <a class="btn btn-sm btn-ghost" href="/kb/@a.Id/versions?from=@previous.Number&to=@v.Number">Compare with @previous.Number</a>
+                            }
+                            else
+                            {
+                                <a class="btn btn-sm btn-ghost" href="/kb/@a.Id/versions?to=@v.Number">View</a>
+                            }
+                            @if (Model.CanRestore && v.Number != Model.Detail.Latest.Number)
+                            {
+                                <form method="post" asp-page-handler="Restore" class="d-inline" data-sb-confirm="Restore version @v.Number as a new draft? The current text stays in the history.">
+                                    <input type="hidden" name="number" value="@v.Number">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Restore</button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,50 @@
+@model Switchboard.Modules.Admin.Pages.People.PersonHeaderModel
+@{
+    var u = Model.Detail.User;
+    var agent = u.IsAgent || u.IsOrgAdmin;
+    var tabs = new List<TabModel> { new($"/admin/people/{u.Id}", "Profile", Model.Tab == "profile") };
+    if (agent)
+    {
+        tabs.Add(new($"/admin/people/{u.Id}/access", "Access", Model.Tab == "access"));
+    }
+    tabs.Add(new($"/admin/people/{u.Id}/account", "Account", Model.Tab == "account"));
+    var back = (agent ? "/admin/people?kind=agents" : "/admin/people?kind=requesters", "People");
+    var subtitle = string.Join(", ", new[] { u.Email, u.JobTitle, Model.Detail.DepartmentName }.Where(x => !string.IsNullOrEmpty(x)));
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@u.DisplayName" subtitle="@subtitle" />
+<div class="sb-person-badges">
+    <span class="sb-tag">@(agent ? "Agent" : "Requester")</span>
+    @if (u.IsOrgAdmin)
+    {
+        <span class="sb-tag">Organization admin</span>
+    }
+    @if (u.IsVip)
+    {
+        <span class="sb-vip">VIP</span>
+    }
+    @if (u.IsForgotten)
+    {
+        <span class="sb-status sb-status--closed">Personal data erased</span>
+    }
+    else if (!u.IsActive)
+    {
+        <span class="sb-status sb-status--closed">Deactivated</span>
+    }
+</div>
+@if (Model.Detail.MergedInto is { } merged)
+{
+    <div class="alert alert-info">This duplicate was merged into <a href="/admin/people/@merged.Id">@merged.Name</a>. Their tickets and email addresses are there now.</div>
+}
+else if (u.IsForgotten)
+{
+    <div class="alert alert-info">This person's personal data was erased. The record stays so the tickets and history that mention them still make sense.</div>
+}
+else if (!u.IsActive)
+{
+    <div class="alert alert-warning">
+        Deactivated @if (u.DeactivatedAt is { } at) { <sb-time value="@at" mode="datetime" /> }. They can't sign in, and nobody can assign them work.
+        <a href="/admin/people/@u.Id/account">Reactivate on the Account tab.</a>
+    </div>
+}
+<partial name="_Tabs" model="tabs" />

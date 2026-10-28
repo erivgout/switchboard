@@ -1,0 +1,31 @@
+# Development dependencies only: SQL Server on localhost:14333 and Mailpit
+# (SMTP on localhost:1025, inbox UI on http://localhost:8025).
+# Usage: docker compose -f docker-compose.dev.yml up -d
+name: switchboard-dev
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: "Switchboard-Dev-2026!"
+    ports:
+      - "14333:1433"
+    volumes:
+      - sqldata-dev:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  mail:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  sqldata-dev:

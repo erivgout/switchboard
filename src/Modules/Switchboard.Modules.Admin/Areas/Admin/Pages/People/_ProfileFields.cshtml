@@ -1,0 +1,113 @@
+@model Switchboard.Modules.Admin.Pages.People.ProfileFormModel
+@{
+    var managerPicker = new PersonPickerModel("Input_ManagerId", "Input.ManagerId", "Manager", "all", Model.Manager)
+    {
+        Help = "Approvals and notifications can go to a person's manager.",
+        Disabled = Model.Disabled,
+    };
+}
+<fieldset class="sb-fieldset" disabled="@Model.Disabled">
+    <legend class="sb-section-label">Contact</legend>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label" asp-for="Input.DisplayName">Name</label>
+            <input class="form-control" asp-for="Input.DisplayName" autocomplete="off" required maxlength="200">
+            <partial name="_FieldError" model="@("Input.DisplayName")" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" asp-for="Input.Email">Email</label>
+            <input class="form-control" asp-for="Input.Email" type="email" autocomplete="off" required maxlength="254">
+            <partial name="_FieldError" model="@("Input.Email")" />
+        </div>
+        <div class="col-12">
+            <label class="form-label" asp-for="Input.SecondaryEmails">Other email addresses</label>
+            <textarea class="form-control" asp-for="Input.SecondaryEmails" rows="2" data-sb-autosize aria-describedby="secondaryHelp"></textarea>
+            <div class="form-text" id="secondaryHelp">One per line. Mail from any of these reaches this person's tickets. Each address can belong to one person only.</div>
+            <partial name="_FieldError" model="@("Input.SecondaryEmails")" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" asp-for="Input.Phone">Work phone</label>
+            <input class="form-control" asp-for="Input.Phone" type="tel" maxlength="64">
+            <partial name="_FieldError" model="@("Input.Phone")" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" asp-for="Input.Mobile">Mobile</label>
+            <input class="form-control" asp-for="Input.Mobile" type="tel" maxlength="64">
+            <partial name="_FieldError" model="@("Input.Mobile")" />
+        </div>
+    </div>
+</fieldset>
+
+<fieldset class="sb-fieldset" disabled="@Model.Disabled">
+    <legend class="sb-section-label">Work</legend>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label" asp-for="Input.JobTitle">Job title</label>
+            <input class="form-control" asp-for="Input.JobTitle" maxlength="200">
+            <partial name="_FieldError" model="@("Input.JobTitle")" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" asp-for="Input.DepartmentId">Department</label>
+            <select class="form-select" asp-for="Input.DepartmentId" asp-items="Model.Departments"></select>
+            <partial name="_FieldError" model="@("Input.DepartmentId")" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" asp-for="Input.LocationId">Location</label>
+            <select class="form-select" asp-for="Input.LocationId" asp-items="Model.Locations"></select>
+            <partial name="_FieldError" model="@("Input.LocationId")" />
+        </div>
+        <div class="col-12">
+            <partial name="_PersonPicker" model="managerPicker" />
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                <input class="form-check-input" asp-for="Input.IsVip">
+                <label class="form-check-label" asp-for="Input.IsVip">VIP</label>
+            </div>
+            <div class="form-text">Agents see a VIP marker on this person's tickets.</div>
+        </div>
+    </div>
+</fieldset>
+
+<fieldset class="sb-fieldset" disabled="@Model.Disabled">
+    <legend class="sb-section-label">Preferences</legend>
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label class="form-label" asp-for="Input.TimeZone">Time zone</label>
+            <select class="form-select" asp-for="Input.TimeZone" asp-items="Model.TimeZones"></select>
+            <partial name="_FieldError" model="@("Input.TimeZone")" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" asp-for="Input.Language">Language</label>
+            <select class="form-select" asp-for="Input.Language">
+                @foreach (var (code, name) in AdminSettingsService.Languages)
+                {
+                    <option value="@code">@name</option>
+                }
+            </select>
+        </div>
+    </div>
+</fieldset>
+
+<fieldset class="sb-fieldset" disabled="@Model.Disabled">
+    <legend class="sb-section-label">More about them</legend>
+    <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label" asp-for="Input.Address">Address</label>
+            <textarea class="form-control" asp-for="Input.Address" rows="2" maxlength="500" data-sb-autosize></textarea>
+            <partial name="_FieldError" model="@("Input.Address")" />
+        </div>
+        <div class="col-12">
+            <label class="form-label" asp-for="Input.Background">Background</label>
+            <textarea class="form-control" asp-for="Input.Background" rows="3" maxlength="4000" data-sb-autosize aria-describedby="backgroundHelp"></textarea>
+            <div class="form-text" id="backgroundHelp">Notes agents see when they work this person's tickets, like "Prefers phone calls".</div>
+            <partial name="_FieldError" model="@("Input.Background")" />
+        </div>
+    </div>
+</fieldset>
+
+@if (Model.Custom.Definitions.Count > 0)
+{
+    <partial name="_CustomFields" model="Model.Custom" />
+    <partial name="_FieldError" model="@("Input.CustomFields")" />
+}

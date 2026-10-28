@@ -1,0 +1,335 @@
+/*
+  Automation module. Builds on switchboard.css tokens only.
+  The workflow builder reads as one patched line: When -> If -> Then, joined by a cord.
+*/
+
+/* ------------------------------------------------------------------ local section tabs */
+
+.aut-sections { margin-bottom: 1.25rem; }
+
+/* ------------------------------------------------------------------ summary sentence */
+
+.aut-sentence {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  max-width: 72ch;
+}
+.aut-sentence strong { font-weight: 650; }
+.aut-sentence-muted { color: var(--sb-ink-muted); }
+
+/* ------------------------------------------------------------------ the flow: When / If / Then on a cord */
+
+.aut-flow {
+  --aut-gutter: 4.75rem;
+  --aut-cord-x: 2.25rem;
+  --aut-gap: 1.25rem;
+  --aut-tab-y: 1.75rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--aut-gap);
+}
+.aut-block {
+  position: relative;
+  margin-left: var(--aut-gutter);
+  min-width: 0;
+}
+/* The cord: from each tab down to the next one. */
+.aut-block:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--aut-gutter) + var(--aut-cord-x) - 1px);
+  top: var(--aut-tab-y);
+  bottom: calc(-1 * (var(--aut-gap) + var(--aut-tab-y)));
+  width: 2px;
+  background: var(--sb-cord);
+  opacity: 0.55;
+}
+.aut-tab {
+  position: absolute;
+  left: calc(-1 * var(--aut-gutter) + var(--aut-cord-x));
+  top: var(--aut-tab-y);
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  min-width: 3.5rem;
+  padding: 0.3125rem 0.625rem;
+  border: 2px solid var(--sb-cord);
+  border-radius: 999px;
+  background: var(--sb-cord);
+  color: var(--sb-on-cord);
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1.1;
+  text-align: center;
+}
+/* A block with nothing chosen yet shows a hollow tab. */
+.aut-tab.is-empty {
+  background: var(--sb-surface);
+  color: var(--sb-cord);
+}
+.aut-block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem 0.25rem;
+}
+.aut-block-title { margin: 0; font-size: 1rem; font-weight: 650; }
+.aut-block-hint { margin: 0; color: var(--sb-ink-muted); font-size: 0.875rem; }
+.aut-block-body { padding: 0.75rem 1rem 1rem; container: aut-body / inline-size; }
+.aut-actions-only { container: aut-body / inline-size; }
+
+/* ------------------------------------------------------------------ trigger choices */
+
+.aut-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.aut-choice {
+  position: relative;
+  display: block;
+  padding: 0.625rem 0.75rem 0.625rem 2.25rem;
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius);
+  background: var(--sb-surface);
+  cursor: pointer;
+}
+.aut-choice:hover { border-color: var(--sb-rule-strong); }
+.aut-choice input {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.8125rem;
+}
+.aut-choice:has(input:checked) {
+  border-color: var(--sb-cord);
+  background: var(--sb-cord-tint);
+}
+.aut-choice:has(input:focus-visible) { outline: 2px solid var(--sb-cord); outline-offset: 2px; }
+.aut-choice-label { display: block; font-weight: 600; }
+.aut-choice-hint { display: block; margin-top: 0.125rem; color: var(--sb-ink-muted); font-size: 0.8125rem; line-height: 1.35; }
+
+.aut-trigger-detail {
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--sb-rule);
+}
+
+/* ------------------------------------------------------------------ rows of controls (conditions, filters) */
+
+.aut-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.3fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+.aut-row + .aut-row,
+.aut-joiner + .aut-row { margin-top: 0.25rem; }
+.aut-row--pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.aut-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.aut-inline .form-control,
+.aut-inline .form-select { width: auto; }
+.aut-hours { max-width: 6.5rem; }
+
+/* "and" / "or" between conditions and between groups: the logic spelled out. */
+.aut-joiner {
+  margin: 0.25rem 0 0.25rem 0.75rem;
+  color: var(--sb-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.aut-group-joiner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.625rem 0;
+  color: var(--sb-ink-muted);
+  font-weight: 650;
+  font-size: 0.875rem;
+}
+.aut-group-joiner::before,
+.aut-group-joiner::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--sb-rule-strong);
+}
+
+.aut-group {
+  padding: 0.75rem;
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius);
+  background: var(--sb-surface-2);
+}
+.aut-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+.aut-group-head .form-select { width: auto; display: inline-block; }
+.aut-match-label { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.aut-empty-line {
+  margin: 0 0 0.75rem;
+  color: var(--sb-ink-muted);
+}
+
+/* ------------------------------------------------------------------ actions (an ordered sequence) */
+
+.aut-steps { list-style: none; margin: 0; padding: 0; counter-reset: aut-step; }
+.aut-step {
+  counter-increment: aut-step;
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius);
+  background: var(--sb-surface);
+}
+.aut-step + .aut-step { margin-top: 0.625rem; }
+.aut-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--sb-rule);
+  background: var(--sb-surface-2);
+  border-radius: var(--sb-radius) var(--sb-radius) 0 0;
+}
+.aut-step-head::before {
+  content: counter(aut-step);
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--sb-cord);
+  color: var(--sb-cord);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.aut-step-title { flex: 1; margin: 0; font-size: 0.9375rem; font-weight: 650; }
+.aut-step-tools { display: flex; gap: 0.125rem; }
+.aut-step-tools .btn:disabled,
+.aut-order .btn:disabled { border-color: transparent; opacity: 0.3; }
+.aut-step-body { padding: 0.75rem; display: grid; gap: 0.625rem; }
+.aut-step-note { margin: 0; font-size: 0.8125rem; color: var(--sb-ink-muted); }
+.aut-step-body .form-label { margin-bottom: 0.25rem; font-weight: 600; font-size: 0.875rem; }
+.aut-param-help { margin-top: 0.25rem; font-size: 0.8125rem; color: var(--sb-ink-muted); }
+.aut-insert { max-width: 16rem; margin-top: 0.375rem; }
+.aut-add { max-width: 22rem; margin-top: 0.875rem; }
+
+/* ------------------------------------------------------------------ test report */
+
+.aut-report { display: grid; gap: 0.75rem; }
+.aut-report-head { font-weight: 650; }
+.aut-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.375rem; }
+.aut-checks li {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+.aut-checks .bi { line-height: 1.4; }
+.aut-checks .is-yes { color: var(--sb-success); }
+.aut-checks .is-no { color: var(--sb-danger); }
+.aut-checks .is-skip { color: var(--sb-ink-muted); }
+.aut-checks .is-out { color: var(--sb-cord); }
+.aut-actual { display: block; color: var(--sb-ink-muted); font-size: 0.8125rem; }
+.aut-detail { margin-top: 0.25rem; font-size: 0.8125rem; }
+.aut-detail summary { color: var(--sb-cord); cursor: pointer; }
+.aut-pre {
+  margin: 0.375rem 0 0;
+  padding: 0.5rem 0.625rem;
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius-sm);
+  background: var(--sb-surface-2);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------------------ status words with icons (never colour alone) */
+
+.aut-state { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
+.aut-state--ok { color: var(--sb-success); }
+.aut-state--bad { color: var(--sb-danger); }
+.aut-state--warn { color: var(--sb-warning); }
+.aut-state--off { color: var(--sb-ink-muted); }
+.aut-state--live { color: var(--sb-cord); }
+
+/* ------------------------------------------------------------------ list page */
+
+.aut-order { display: inline-flex; align-items: center; gap: 0.125rem; }
+.aut-order-num { min-width: 1.5rem; text-align: center; font-variant-numeric: tabular-nums; color: var(--sb-ink-muted); }
+.aut-wf-summary { margin-top: 0.125rem; color: var(--sb-ink-muted); font-size: 0.8125rem; max-width: 70ch; }
+.aut-wf-summary strong { font-weight: 600; color: var(--sb-ink); }
+.aut-run-message { max-width: 32rem; }
+
+.aut-kill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.aut-kill.is-paused {
+  border-color: var(--sb-warning);
+  background: var(--sb-warning-tint);
+}
+.aut-kill-text { margin: 0; }
+
+/* ------------------------------------------------------------------ run steps */
+
+.aut-runsteps { list-style: none; margin: 0; padding: 0; }
+.aut-runsteps > li { padding: 0.875rem 1rem; }
+.aut-runsteps > li + li { border-top: 1px solid var(--sb-rule); }
+.aut-runstep-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.aut-runstep-title { margin: 0; font-size: 0.9375rem; font-weight: 650; }
+.aut-error {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.625rem;
+  border-left: 3px solid var(--sb-danger);
+  background: var(--sb-danger-tint);
+  border-radius: 0 var(--sb-radius-sm) var(--sb-radius-sm) 0;
+  font-size: 0.875rem;
+}
+
+/* ------------------------------------------------------------------ small screens */
+
+@media (max-width: 767.98px) {
+  .aut-flow { --aut-gutter: 0px; }
+  .aut-block:not(:last-child)::after { display: none; }
+  .aut-tab {
+    position: static;
+    transform: none;
+    display: inline-block;
+    margin: 0.75rem 0 0 1rem;
+  }
+  .aut-block-head { flex-direction: column; gap: 0.125rem; }
+}
+
+/* Spinner inside a button: takes no room while idle. */
+.aut-busy:not(.htmx-request) { display: none; }
+
+/* Narrow blocks (beside the sidebar, or on phones): the field gets its own line. */
+@container aut-body (max-width: 34rem) {
+  .aut-row { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto; }
+  .aut-row > :nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
+  .aut-row > :nth-child(4) { grid-column: 3; grid-row: 1; }
+  .aut-row--pair { grid-template-columns: minmax(0, 1fr) auto; }
+  .aut-row--pair > :nth-child(1) { grid-column: 1; grid-row: 1; }
+  .aut-row--pair > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .aut-row--pair > :nth-child(3) { grid-column: 2; grid-row: 1; }
+  .aut-row + .aut-row { margin-top: 0.75rem; }
+}

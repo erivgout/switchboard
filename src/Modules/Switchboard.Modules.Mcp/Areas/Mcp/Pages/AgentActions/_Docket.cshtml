@@ -1,0 +1,13 @@
+@model Switchboard.Modules.Mcp.Data.McpPendingAction
+@using Switchboard.Modules.Mcp.Areas.Mcp.Pages.AgentActions
+@using Switchboard.Modules.Mcp.Server
+@{
+    var key = AgentActionsPage.ClassKey(Model.ActionClass);
+}
+<div class="mcp-docket mcp-docket--@key">
+    <p class="mcp-docket-kind">
+        <i class="bi @AgentActionsPage.ClassIcon(Model.ActionClass)" aria-hidden="true"></i>
+        <span>@PendingActionLabels.Class(Model.ActionClass)</span>
+    </p>
+    <pre class="mcp-docket-text">@Model.Description</pre>
+</div>

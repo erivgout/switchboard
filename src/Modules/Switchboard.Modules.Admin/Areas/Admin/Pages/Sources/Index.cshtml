@@ -1,0 +1,62 @@
+@page "/admin/sources"
+@model Switchboard.Modules.Admin.Pages.Sources.IndexModel
+@{
+    ViewData["Title"] = "Ticket sources";
+}
+<sb-page-header title="Ticket sources" subtitle="Where a ticket came from. Built-in sources are set automatically; add your own for agents to pick, like a walk-in desk or a partner hotline." />
+
+<div class="sb-form-narrow">
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead><tr><th scope="col">Source</th><th scope="col" class="sb-hide-sm">Key</th><th scope="col" class="sb-num-cell">Tickets</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Sources)
+                {
+                    var s = row.Source;
+                    <tr data-sb-href="@(s.IsSystem ? null : $"/admin/sources/{s.Id}")">
+                        <td>
+                            <span class="d-inline-flex gap-2 align-items-center">
+                                <i class="bi @s.Icon text-muted" aria-hidden="true"></i>
+                                @if (s.IsSystem)
+                                {
+                                    <span>@s.Name</span>
+                                    <span class="sb-tag">Built-in</span>
+                                }
+                                else
+                                {
+                                    <a class="sb-subject" href="/admin/sources/@s.Id">@s.Name</a>
+                                }
+                            </span>
+                        </td>
+                        <td class="sb-hide-sm"><code>@s.Key</code></td>
+                        <td class="sb-num-cell tabular">@row.Tickets</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <form method="post" class="sb-pane mt-3">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Add a source</h2></div>
+        <div class="sb-pane-body">
+            <partial name="_Errors" />
+            <div class="row g-3">
+                <div class="col-md-7">
+                    <label class="form-label" for="sourceName">Name</label>
+                    <input class="form-control" id="sourceName" name="Name" value="@Model.Name" maxlength="100" placeholder="Walk-in desk">
+                    <partial name="_FieldError" model="@("Name")" />
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="sourceIcon">Icon</label>
+                    <select class="form-select" id="sourceIcon" name="Icon">
+                        @foreach (var icon in TicketConfigService.SourceIcons)
+                        {
+                            <option value="@icon" selected="@(icon == Model.Icon)">@icon.Replace("bi-", "").Replace('-', ' ')</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Add source</button></div>
+    </form>
+</div>

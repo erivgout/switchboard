@@ -1,0 +1,53 @@
+@page "/portal/catalog/requests/{number:int}/edit"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Portal.EditModel
+@using Switchboard.Modules.Approvals.Web
+@{
+    var item = Model.Details.Item;
+    ViewData["Title"] = $"Change {Model.View.DisplayId}";
+    var forPicker = new PeoplePickerModel("requestedFor", "catRequestedFor", "Requesting for someone else? (optional)",
+        Selected: Model.RequestedForId is { } rf && Model.RequestedForName is { } rn ? new List<PersonChoice> { new(rf, rn) } : null,
+        Help: "Leave empty if it's for you.", Error: ViewData.ModelState["requestedFor"]?.Errors.FirstOrDefault()?.ErrorMessage);
+    var quantityError = ViewData.ModelState["quantity"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var title = "Change your request for " + item.Name;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Approvals/js/approvals.js" asp-append-version="true"></script>
+    <script src="~/_content/Switchboard.Modules.Catalog/js/catalog.js" asp-append-version="true"></script>
+}
+<p class="mb-3"><a href="/portal/catalog/requests/@Model.View.TicketNumber" class="small"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to the request</a></p>
+<sb-page-header title="@title" subtitle="Update your answers, then send it for approval again. Your earlier request and its decision stay on record." />
+
+<div class="alert alert-warning d-flex gap-2" role="status">
+    <i class="bi bi-chat-left-quote mt-1" aria-hidden="true"></i>
+    <div><strong>@Model.View.RejectedBy said:</strong> <span style="white-space: pre-line">@Model.View.RejectionReason</span></div>
+</div>
+
+<form method="post" class="sb-pane cat-form sb-form-narrow" novalidate>
+    <div class="sb-pane-body">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        @if (item.AllowRequestedFor)
+        {
+            <div class="cat-q"><partial name="/Areas/Approvals/Pages/Shared/_PeoplePicker.cshtml" model="forPicker" /></div>
+        }
+        @if (item.MaxQuantity > 1)
+        {
+            <div class="cat-q">
+                <label class="form-label" for="catQty">How many</label>
+                <input class="form-control cat-qty tabular @(quantityError is null ? null : "is-invalid")" type="number" id="catQty" name="quantity" min="1" max="@item.MaxQuantity" value="@Model.Quantity">
+                @if (quantityError is not null)
+                {
+                    <div class="invalid-feedback d-block">@quantityError</div>
+                }
+            </div>
+        }
+        <partial name="_FormFields" model="Model.Form" />
+    </div>
+    <div class="sb-pane-footer">
+        <button class="btn btn-primary" type="submit">Send for approval again</button>
+        <a class="btn btn-ghost" href="/portal/catalog/requests/@Model.View.TicketNumber">Cancel</a>
+    </div>
+</form>

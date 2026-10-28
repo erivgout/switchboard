@@ -1,0 +1,159 @@
+@page "/admin/email/simulate"
+@model SimulateModel
+@using Switchboard.Modules.Messaging.Inbound
+@{
+    ViewData["Title"] = "Simulate incoming email";
+    var raw = Model.Mode == "raw";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Messaging/js/messaging.js" asp-append-version="true"></script>
+}
+<sb-page-header title="Email" subtitle="Email to your support addresses becomes tickets. Replies and notifications go out through your mail server." />
+
+<partial name="_EmailNav" model="@("simulate")" />
+
+@if (Model.Mailboxes.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-envelope-plus" title="Add a mailbox first">
+            <p class="sb-empty-text">The simulator delivers a message to one of your mailboxes, so it needs at least one.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="/admin/email/mailboxes/new">Add mailbox</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-split">
+        <form method="post" novalidate class="sb-msg-fill">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <ul class="mb-0 ps-3">
+                        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <li>@error.ErrorMessage</li>
+                        }
+                    </ul>
+                </div>
+            }
+            <section class="sb-pane" aria-labelledby="simTitle">
+                <div class="sb-pane-header">
+                    <h2 class="sb-pane-title" id="simTitle">Message</h2>
+                    <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="How to write the message">
+                        <input type="radio" class="btn-check" name="Mode" id="modeWrite" value="write" checked="@(!raw)" data-sb-reveal="mode">
+                        <label class="btn btn-outline-secondary" for="modeWrite">Fill in a form</label>
+                        <input type="radio" class="btn-check" name="Mode" id="modeRaw" value="raw" checked="@raw" data-sb-reveal="mode">
+                        <label class="btn btn-outline-secondary" for="modeRaw">Paste raw email</label>
+                    </div>
+                </div>
+                <div class="sb-pane-body">
+                    <p class="text-muted">The message goes through exactly the same steps as real mail, so it can create tickets, add replies and send notifications.</p>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" asp-for="MailboxId">Deliver to</label>
+                            <select class="form-select" asp-for="MailboxId">
+                                @foreach (var mb in Model.Mailboxes)
+                                {
+                                    <option value="@mb.Id">@mb.Name (@mb.Address)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-0" data-sb-reveal-for="mode" data-sb-reveal-value="write" hidden="@raw">
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Input.FromName">Sender's name</label>
+                            <input class="form-control" asp-for="Input.FromName" autocomplete="off">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Input.FromAddress">Sender's address</label>
+                            <input class="form-control" asp-for="Input.FromAddress" type="email" autocomplete="off">
+                            <span asp-validation-for="Input.FromAddress" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Input.ReplyTo">Reply to ticket <span class="text-muted fw-normal">(optional)</span></label>
+                            <input class="form-control tabular" asp-for="Input.ReplyTo" placeholder="INC-1042" autocomplete="off" aria-describedby="replyHelp">
+                            <div class="form-text" id="replyHelp">Threads it like a real reply. Leave empty to start a new ticket.</div>
+                            <span asp-validation-for="Input.ReplyTo" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Input.Cc">Copy <span class="text-muted fw-normal">(optional)</span></label>
+                            <input class="form-control" asp-for="Input.Cc" placeholder="alex@example.com" autocomplete="off">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" asp-for="Input.Subject">Subject</label>
+                            <input class="form-control" asp-for="Input.Subject" autocomplete="off" aria-describedby="subjectHelp">
+                            <div class="form-text" id="subjectHelp">Ignored when replying to a ticket.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" asp-for="Input.Body">Message</label>
+                            <textarea class="form-control" asp-for="Input.Body" rows="7" data-sb-autosize></textarea>
+                            <span asp-validation-for="Input.Body" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Input.Authentication">Sender checks (SPF, DKIM, DMARC)</label>
+                            <select class="form-select" asp-for="Input.Authentication">
+                                <option value="pass">Pass</option>
+                                <option value="fail">Fail</option>
+                                <option value="none">Not checked</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" asp-for="Input.AutoReply">
+                                <label class="form-check-label" asp-for="Input.AutoReply">It's an out-of-office reply</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3" data-sb-reveal-for="mode" data-sb-reveal-value="raw" hidden="@(!raw)">
+                        <label class="form-label" asp-for="Input.RawMime">Raw email</label>
+                        <textarea class="form-control sb-raw-mime" asp-for="Input.RawMime" rows="14" spellcheck="false" aria-describedby="rawHelp"
+                                  placeholder="From: Pat Example <pat@example.com>&#10;To: support@example.com&#10;Subject: Printer on floor 3 is jammed&#10;&#10;It jams on every page."></textarea>
+                        <div class="form-text" id="rawHelp">Headers, a blank line, then the body, as saved from a mail client (.eml).</div>
+                        <span asp-validation-for="Input.RawMime" class="text-danger small"></span>
+                    </div>
+                </div>
+                <div class="sb-pane-footer">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-envelope-arrow-down" aria-hidden="true"></i> Process message</button>
+                </div>
+            </section>
+        </form>
+
+        <aside class="sb-sticky">
+            <section class="sb-pane" aria-labelledby="cmdTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="cmdTitle">Email commands</h2></div>
+                <div class="sb-pane-body">
+                    <p class="small text-muted">Verified agents can start a reply with these lines to change the ticket. The rest of the reply becomes a private note.</p>
+                    <dl class="sb-commands mb-0">
+                        @foreach (var c in EmailCommands.Help)
+                        {
+                            <div><dt><code>@c.Example</code></dt><dd>@c.Description</dd></div>
+                        }
+                    </dl>
+                </div>
+            </section>
+            @if (Model.Recent.Count > 0)
+            {
+                <section class="sb-pane" aria-labelledby="recentSimTitle">
+                    <div class="sb-pane-header"><h2 class="sb-pane-title" id="recentSimTitle">Recent tests</h2></div>
+                    <ul class="list-unstyled mb-0 sb-recent-mail">
+                        @foreach (var r in Model.Recent)
+                        {
+                            <li>
+                                <a href="/admin/email/incoming/@r.Id" class="sb-recent-mail-link">
+                                    <span class="sb-recent-mail-subject text-truncate">@(string.IsNullOrEmpty(r.Subject) ? "(no subject)" : r.Subject)</span>
+                                    <span class="small text-muted"><sb-time value="@r.ReceivedAt" /></span>
+                                </a>
+                                <partial name="_OutcomeBadge" model="r.Outcome" />
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
+        </aside>
+    </div>
+}

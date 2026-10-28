@@ -1,0 +1,41 @@
+@model KbVoteModel
+@{
+    var url = $"/portal/kb/{Model.ArticleId}?handler=Vote";
+}
+<div class="kb-vote" id="kbVote" aria-live="polite">
+    <form class="kb-contents" method="post" action="@url" asp-antiforgery="true" hx-post="@url" hx-target="#kbVote" hx-swap="outerHTML">
+        <p class="kb-vote-question" id="kbVoteQuestion">Did this article solve your problem?</p>
+        <div class="kb-vote-buttons" role="group" aria-labelledby="kbVoteQuestion">
+            <button class="btn btn-outline-secondary" type="submit" name="helpful" value="true" aria-pressed="@(Model.Helpful == true ? "true" : "false")">
+                <i class="bi bi-hand-thumbs-up" aria-hidden="true"></i> Yes
+            </button>
+            <button class="btn btn-outline-secondary" type="submit" name="helpful" value="false" aria-pressed="@(Model.Helpful == false ? "true" : "false")">
+                <i class="bi bi-hand-thumbs-down" aria-hidden="true"></i> No
+            </button>
+        </div>
+    </form>
+    @if (Model.Helpful == true && Model.JustVoted)
+    {
+        <p class="kb-vote-thanks">Glad it helped. Thanks for letting us know.</p>
+    }
+    else if (Model.Helpful == false && Model.HasComment)
+    {
+        <p class="kb-vote-thanks">Thanks. The article's owner will read your comment and improve it.</p>
+    }
+    else if (Model.Helpful == false && Model.SignedIn)
+    {
+        <form class="kb-vote-comment" method="post" action="@url" asp-antiforgery="true" hx-post="@url" hx-target="#kbVote" hx-swap="outerHTML">
+            <input type="hidden" name="helpful" value="false">
+            <label class="form-label mb-0" for="kbVoteComment">What was missing or wrong?</label>
+            <textarea id="kbVoteComment" class="form-control" name="comment" rows="3" maxlength="2000" placeholder="For example, the steps don't match what I see on my Mac"></textarea>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary" type="submit">Send comment</button>
+                <a class="btn btn-ghost" href="/portal/new">Report a problem instead</a>
+            </div>
+        </form>
+    }
+    else if (Model.Helpful == false)
+    {
+        <p class="kb-vote-thanks">Thanks for letting us know. <a href="/account/login?returnUrl=%2Fportal%2Fnew">Sign in</a> to tell the service desk what's wrong.</p>
+    }
+</div>

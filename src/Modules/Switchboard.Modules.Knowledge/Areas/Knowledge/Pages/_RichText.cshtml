@@ -1,0 +1,48 @@
+@model KbRichText
+@inject Switchboard.Core.Services.IHtmlContent Sanitizer
+@{
+    var id = Model.IdPrefix;
+    // Re-rendered after a failed post, the HTML came from the browser: sanitize before showing it again.
+    var html = Sanitizer.Sanitize(Model.Html);
+}
+<div class="kb-editor @(Model.Small ? "kb-small-editor" : null)">
+    <div class="kb-toolbar" role="toolbar" aria-label="Formatting" aria-controls="@(id)Body">
+        <label class="visually-hidden" for="@(id)Block">Text style</label>
+        <select id="@(id)Block" class="form-select" data-kb-block>
+            <option value="p">Paragraph</option>
+            <option value="h2">Heading</option>
+            <option value="h3">Subheading</option>
+            @if (!Model.Small) { <option value="pre">Code block</option> }
+        </select>
+        <span class="kb-toolbar-sep" aria-hidden="true"></span>
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="bold" aria-pressed="false" aria-label="Bold" title="Bold (Ctrl+B)"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="italic" aria-pressed="false" aria-label="Italic" title="Italic (Ctrl+I)"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+        @if (!Model.Small)
+        {
+            <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="code" aria-pressed="false" aria-label="Inline code" title="Inline code"><i class="bi bi-code" aria-hidden="true"></i></button>
+        }
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="link" aria-label="Link" title="Link (Ctrl+K)"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
+        <span class="kb-toolbar-sep" aria-hidden="true"></span>
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="insertUnorderedList" aria-pressed="false" aria-label="Bulleted list" title="Bulleted list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="insertOrderedList" aria-pressed="false" aria-label="Numbered steps" title="Numbered steps"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="quote" aria-pressed="false" aria-label="Tip or note" title="Tip or note"><i class="bi bi-chat-square-quote" aria-hidden="true"></i></button>
+        <span class="kb-toolbar-sep" aria-hidden="true"></span>
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="image" aria-label="Insert image" title="Insert image"><i class="bi bi-image" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="removeFormat" aria-label="Clear formatting" title="Clear formatting"><i class="bi bi-eraser" aria-hidden="true"></i></button>
+        <span class="ms-auto d-none d-md-inline-flex gap-1">
+            <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="undo" aria-label="Undo" title="Undo (Ctrl+Z)"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-ghost btn-icon" data-kb-cmd="redo" aria-label="Redo" title="Redo (Ctrl+Y)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+        </span>
+        <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-kb-image-input hidden aria-hidden="true" tabindex="-1">
+    </div>
+    <div class="kb-linkbar sb-pane-footer" data-kb-linkbar hidden>
+        <label class="visually-hidden" for="@(id)LinkUrl">Link address</label>
+        <input id="@(id)LinkUrl" class="form-control form-control-sm" type="url" placeholder="https://… or /portal/kb/…" data-kb-link-url>
+        <button type="button" class="btn btn-sm btn-primary" data-kb-link-apply>Add link</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-kb-link-remove>Remove link</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-kb-link-cancel>Cancel</button>
+    </div>
+    <div id="@(id)Body" class="kb-prose kb-editable" contenteditable="true" role="textbox" aria-multiline="true" aria-label="@Model.Label"
+         data-kb-editable data-placeholder="@Model.Placeholder">@Html.Raw(html)</div>
+    <textarea name="@Model.Name" data-kb-body hidden aria-hidden="true" tabindex="-1">@html</textarea>
+</div>

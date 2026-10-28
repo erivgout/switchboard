@@ -1,0 +1,34 @@
+@model Switchboard.Modules.Insights.Services.BarListModel
+@{
+    var max = Math.Max(1, Math.Max(Model.Items.Count == 0 ? 0 : Model.Items.Max(i => i.Value), Model.Cap ?? 0));
+    string Pct(int v) => (v * 100.0 / max).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}
+<ul class="ins-bars">
+    @foreach (var item in Model.Items)
+    {
+        <li>
+            <span class="ins-bars-label">
+                @if (item.Href is not null)
+                {
+                    <a href="@item.Href">@item.Label</a>
+                }
+                else
+                {
+                    @item.Label
+                }
+                @if (item.Note is not null)
+                {
+                    <span class="sb-meta">@item.Note</span>
+                }
+            </span>
+            <span class="ins-bars-track" aria-hidden="true">
+                <span class="ins-bars-fill" style="width: @Pct(item.Value)%"></span>
+                @if (Model.Cap is { } cap)
+                {
+                    <span class="ins-bars-cap" style="left: @Pct(cap)%" title="Limit of @cap"></span>
+                }
+            </span>
+            <span class="ins-bars-value tabular"><span class="visually-hidden">@Model.ValueLabel: </span>@item.Value</span>
+        </li>
+    }
+</ul>

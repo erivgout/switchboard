@@ -1,0 +1,66 @@
+@page "/admin/catalog/items/{id:guid}"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Admin.ItemModel
+@{
+    var item = Model.Item.Item;
+    ViewData["Title"] = item.Name;
+    string TabHref(string tab) => $"/admin/catalog/items/{item.Id}?tab={tab}";
+    var stateText = item.State switch { CatItemState.Published => "Published", CatItemState.Archived => "Archived", _ => "Draft" };
+    var stateCss = item.State switch { CatItemState.Published => "sb-status--resolved", CatItemState.Archived => "sb-status--closed", _ => "sb-status--pending" };
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Approvals/js/approvals.js" asp-append-version="true"></script>
+    <script src="~/_content/Switchboard.Modules.Catalog/js/catalog.js" asp-append-version="true"></script>
+}
+<p class="mb-2"><a href="/admin/catalog/items" class="small"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Catalog items</a></p>
+<div class="sb-page-header">
+    <div class="d-flex gap-3 align-items-center min-w-0">
+        <span class="cat-icon cat-icon--lg" aria-hidden="true"><i class="bi @item.Icon"></i></span>
+        <div class="min-w-0">
+            <h1 class="sb-title text-truncate">@item.Name</h1>
+            <p class="sb-subtitle d-flex gap-2 align-items-center"><span class="sb-status @stateCss">@stateText</span>@(item.State == CatItemState.Published ? "Requesters can see and request it." : item.State == CatItemState.Archived ? "Hidden. Past requests keep it." : "Only admins can see it.")</p>
+        </div>
+    </div>
+    <div class="sb-page-actions">
+        <form method="post" asp-page-handler="State" asp-route-id="@item.Id" class="d-flex gap-2">
+            <input type="hidden" name="Tab" value="@Model.Tab">
+            @if (item.State == CatItemState.Published)
+            {
+                <a class="btn btn-outline-secondary" href="/portal/catalog/@item.Id" target="_blank" rel="noopener">View in portal</a>
+                <button class="btn btn-ghost" type="submit" name="state" value="Draft">Unpublish</button>
+            }
+            else
+            {
+                <button class="btn btn-primary" type="submit" name="state" value="Published">Publish</button>
+            }
+            @if (item.State != CatItemState.Archived)
+            {
+                <button class="btn btn-ghost" type="submit" name="state" value="Archived" data-sb-confirm="Archive @item.Name? Requesters stop seeing it; past requests are kept.">Archive</button>
+            }
+        </form>
+    </div>
+</div>
+
+<nav aria-label="Item settings">
+    <ul class="sb-views cat-tabs">
+        <li><a href="@TabHref("details")" aria-current="@(Model.Tab == "details" ? "page" : null)">Details</a></li>
+        <li><a href="@TabHref("form")" aria-current="@(Model.Tab == "form" ? "page" : null)">Request form<span class="sb-count">@Model.Item.Fields.Count</span></a></li>
+        <li><a href="@TabHref("access")" aria-current="@(Model.Tab == "access" ? "page" : null)">Audience and approvals</a></li>
+    </ul>
+</nav>
+
+@switch (Model.Tab)
+{
+    case "form":
+        <partial name="_Builder" model="Model" />
+        break;
+    case "access":
+        <partial name="_AccessTab" model="Model" />
+        break;
+    default:
+        <partial name="_DetailsTab" model="Model" />
+        break;
+}

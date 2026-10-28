@@ -1,0 +1,18 @@
+@page "/status/{code:int}"
+@model Switchboard.Web.Pages.StatusModel
+@{
+    ViewData["Title"] = Model.Heading;
+    Layout = User.Identity?.IsAuthenticated == true ? "_AgentLayout" : "_AuthLayout";
+}
+<div class="sb-pane">
+    <sb-empty icon="@Model.Icon" title="@Model.Heading">
+        <p class="sb-empty-text">@Model.Message</p>
+        <div class="sb-empty-actions">
+            <a class="btn btn-primary" href="/">Go to your home page</a>
+            @if (Model.Code == 401)
+            {
+                <a class="btn btn-outline-secondary" href="/account/login">Sign in</a>
+            }
+        </div>
+    </sb-empty>
+</div>

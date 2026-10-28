@@ -1,0 +1,132 @@
+@model Switchboard.Modules.ServiceDesk.Services.TicketPageData
+@using System.Text.Json
+@{
+    var t = Model.Ticket;
+    var can = Model.Can;
+    var requester = t.Requester!;
+    var canEmail = !string.IsNullOrWhiteSpace(requester.Email) && !requester.IsForgotten;
+    var firstMode = can.Reply ? "reply" : "note";
+    var first = requester.DisplayName.Split(' ', 2)[0];
+    var agents = JsonSerializer.Serialize(Model.Options.Agents.Where(a => a.Id != Model.MeId).Select(a => new { id = a.Id, name = a.Name }));
+}
+<form class="sb-composer @(firstMode == "note" ? "is-note" : "")" id="sdComposer" method="post" action="/tickets/@t.Number?handler=Send" novalidate
+      data-sd-composer data-sd-mode="@firstMode" data-sd-requester-first="@first" data-sd-agents="@agents"
+      data-sd-draft-key="sb-draft:@Model.MeId:@t.Id" aria-label="Write a reply or note">
+    <div class="sb-composer-modes" role="group" aria-label="Message type">
+        @if (can.Reply)
+        {
+            <button class="btn btn-sm btn-ghost" type="button" data-sd-mode-btn="reply" aria-pressed="@(firstMode == "reply" ? "true" : "false")"><i class="bi bi-reply me-1" aria-hidden="true"></i>Reply</button>
+        }
+        @if (can.Note)
+        {
+            <button class="btn btn-sm btn-ghost" type="button" data-sd-mode-btn="note" aria-pressed="@(firstMode == "note" ? "true" : "false")"><i class="bi bi-lock me-1" aria-hidden="true"></i>Private note</button>
+        }
+        @if (can.Reply)
+        {
+            <button class="btn btn-sm btn-ghost" type="button" data-sd-mode-btn="public" aria-pressed="false"><i class="bi bi-eye me-1" aria-hidden="true"></i>Public note</button>
+            <button class="btn btn-sm btn-ghost" type="button" data-sd-mode-btn="forward" aria-pressed="false"><i class="bi bi-forward me-1" aria-hidden="true"></i>Forward</button>
+        }
+    </div>
+
+    <input type="hidden" name="Mode" value="@firstMode" data-sd-mode-input>
+    <input type="hidden" name="SeenUntil" value="" data-sd-seen-until>
+    <input type="hidden" name="Force" value="false" data-sd-force>
+    <input type="hidden" name="StatusId" value="" data-sd-status-input>
+
+    <div class="sd-mode-banner" data-sd-banner="reply" @(firstMode == "reply" ? "" : "hidden")>
+        @if (canEmail)
+        {
+            <span><i class="bi bi-envelope me-1" aria-hidden="true"></i>To <strong>@requester.DisplayName</strong> &lt;@requester.Email&gt;@if (t.CcEmails.Count > 0) {<span>, CC @string.Join(", ", t.CcEmails)</span>}</span>
+            <button class="btn btn-link btn-sm p-0 ms-auto" type="button" data-sd-toggle-cc aria-expanded="false" aria-controls="sdCcFields">Add CC or BCC</button>
+        }
+        else
+        {
+            <span class="text-danger"><i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>The requester has no email address, so replies can't be sent. Add a note instead.</span>
+        }
+    </div>
+    <div class="sd-recipients" id="sdCcFields" data-sd-banner-extra="reply" hidden>
+        <label class="form-label" for="sdCc">CC</label>
+        <input class="form-control form-control-sm" id="sdCc" name="Cc" type="text" inputmode="email" autocomplete="off" placeholder="name@example.com, another@example.com" data-sd-draft-field>
+        <label class="form-label" for="sdBcc">BCC</label>
+        <input class="form-control form-control-sm" id="sdBcc" name="Bcc" type="text" inputmode="email" autocomplete="off" data-sd-draft-field>
+    </div>
+    <div class="sd-mode-banner sd-mode-banner--note" data-sd-banner="note" @(firstMode == "note" ? "" : "hidden")>
+        <span class="sb-note-label"><i class="bi bi-lock-fill" aria-hidden="true"></i>Private note: only agents see this.</span>
+        <span class="sb-meta">Type <span class="sb-kbd">@@</span> to mention an agent and notify them.</span>
+    </div>
+    <div class="sd-mode-banner sd-mode-banner--public" data-sd-banner="public" hidden>
+        <span><i class="bi bi-eye me-1" aria-hidden="true"></i><strong>Public note:</strong> @requester.DisplayName can read this in the portal. It isn't emailed.</span>
+    </div>
+    <div class="sd-mode-banner" data-sd-banner="forward" hidden>
+        <span><i class="bi bi-forward me-1" aria-hidden="true"></i><strong>Forward:</strong> sends the ticket to someone outside it. The requester isn't copied.</span>
+    </div>
+    <div class="sd-recipients" data-sd-banner-extra="forward" hidden>
+        <label class="form-label" for="sdTo">To</label>
+        <input class="form-control form-control-sm" id="sdTo" name="To" type="text" inputmode="email" autocomplete="off" placeholder="vendor@example.com" data-sd-draft-field>
+        <label class="form-label" for="sdFwdCc">CC</label>
+        <input class="form-control form-control-sm" id="sdFwdCc" name="ForwardCc" type="text" inputmode="email" autocomplete="off" data-sd-draft-field>
+    </div>
+
+    <div class="sd-editor-wrap" data-sd-editor>
+        <div class="sd-editor-toolbar" role="toolbar" aria-label="Formatting">
+            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="bold" aria-label="Bold (Ctrl+B)"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="italic" aria-label="Italic (Ctrl+I)"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertUnorderedList" aria-label="Bulleted list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertOrderedList" aria-label="Numbered list"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="createLink" aria-label="Add link (Ctrl+K)"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
+        </div>
+        <div class="sd-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" data-sd-editor-area
+             data-placeholder="Write a reply to @first" data-sd-placeholder-reply="Write a reply to @first" data-sd-placeholder-note="Write a note for other agents"
+             data-sd-placeholder-public="Write a note @first can read in the portal" data-sd-placeholder-forward="Add a message for the recipients"></div>
+        <input type="hidden" name="BodyHtml" data-sd-editor-value>
+        <div class="sd-mention-menu dropdown-menu" data-sd-mention-menu role="listbox" aria-label="Agents to mention"></div>
+    </div>
+
+    <div class="sd-upload-list" data-sd-upload-list aria-live="polite"></div>
+
+    <div class="sd-collision alert alert-warning" data-sd-collision role="alert" hidden>
+        <span data-sd-collision-text></span>
+        <div class="sd-collision-actions">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-show-new>Show the new messages</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-send-anyway>Send anyway</button>
+        </div>
+    </div>
+
+    <div class="sb-composer-foot">
+        <label class="btn btn-ghost btn-icon" title="Attach files">
+            <i class="bi bi-paperclip" aria-hidden="true"></i><span class="visually-hidden">Attach files</span>
+            <input type="file" multiple hidden data-sd-upload>
+        </label>
+        <div class="dropdown" data-sd-canned>
+            <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                <i class="bi bi-chat-square-quote me-1" aria-hidden="true"></i>Canned response
+            </button>
+            <div class="dropdown-menu sd-canned-menu">
+                <div class="px-2 pb-2">
+                    <label class="visually-hidden" for="sdCannedSearch">Search canned responses</label>
+                    <input class="form-control form-control-sm" id="sdCannedSearch" type="search" name="q" placeholder="Search responses" autocomplete="off"
+                           hx-get="/tickets/@t.Number?handler=Canned" hx-trigger="input changed delay:200ms, search, focus once" hx-target="#sdCannedList" hx-sync="this:replace">
+                </div>
+                <div id="sdCannedList" class="sd-canned-list" data-sd-canned-list><p class="sb-meta px-3 mb-2">Loading…</p></div>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item small" href="/tickets/canned-responses">Manage canned responses</a>
+            </div>
+        </div>
+        <span class="sd-draft-status sb-meta" data-sd-draft-status aria-live="polite"></span>
+
+        <div class="btn-group ms-auto" data-sd-send-group>
+            <button class="btn btn-primary" type="submit" data-sd-submit>@(firstMode == "reply" ? "Send reply" : "Add private note")</button>
+            <button class="btn btn-primary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-sd-split>
+                <span class="visually-hidden">Send and set the status</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><h3 class="dropdown-header" data-sd-split-header>Send and set status to</h3></li>
+                @foreach (var s in Model.Options.Statuses.Where(s => s.Id != t.StatusId))
+                {
+                    <li><button class="dropdown-item" type="button" data-sd-send-status="@s.Id" data-sd-status-name="@s.Name"><sb-status name="@s.Name" category="@s.Category" /></button></li>
+                }
+            </ul>
+        </div>
+    </div>
+    <p class="sd-composer-hint sb-meta d-none d-lg-block"><span class="sb-kbd">Ctrl</span> <span class="sb-kbd">Enter</span> sends. Drafts save on this device as you type.</p>
+</form>

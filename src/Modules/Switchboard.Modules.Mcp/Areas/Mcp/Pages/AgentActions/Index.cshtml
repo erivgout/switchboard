@@ -1,0 +1,83 @@
+@page "/agent-actions"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.AgentActions.IndexModel
+@using Switchboard.Modules.Mcp.Areas.Mcp.Pages.AgentActions
+@using Switchboard.Modules.Mcp.Server
+@{
+    ViewData["Title"] = "Agent actions";
+    if (!Model.IsAgent)
+    {
+        Layout = "_PortalLayout";
+    }
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Mcp/js/mcp.js" asp-append-version="true"></script>
+}
+
+<div class="@(Model.IsAgent ? "" : "py-4")" data-mcp-reload-on-pending>
+    <sb-page-header title="Agent actions" subtitle="What your AI agents asked to do as you. Nothing waiting here runs until you approve it." />
+
+    <h2 class="h6 fw-semibold mb-2" id="waitingTitle">Waiting for you</h2>
+    @if (Model.Waiting.Count == 0)
+    {
+        <div class="sb-pane mb-4">
+            <sb-empty icon="bi-check2-circle" title="Nothing is waiting for you">
+                <p class="sb-empty-text">When an agent wants to send a message, delete or merge something, or decide for you, it asks here first.</p>
+            </sb-empty>
+        </div>
+    }
+    else
+    {
+        <div class="mb-4">
+            @foreach (var a in Model.Waiting)
+            {
+                <article class="sb-pane" aria-labelledby="req-@a.Id">
+                    <div class="sb-pane-header">
+                        <h3 class="sb-pane-title" id="req-@a.Id"><a href="/agent-actions/@a.Id">@a.ToolTitle</a></h3>
+                        <span class="ms-auto small text-muted">Expires <sb-time value="@a.ExpiresAt" /></span>
+                    </div>
+                    <div class="sb-pane-body">
+                        <p class="mcp-request-meta">
+                            <span>Asked by <strong>@a.ClientName</strong></span>
+                            <span><sb-time value="@a.CreatedAt" /></span>
+                        </p>
+                        <partial name="_Docket" model="a" />
+                        <partial name="_Decide" model="(a, Model.RecentlySignedIn)" />
+                    </div>
+                </article>
+            }
+        </div>
+    }
+
+    <section class="sb-pane" aria-labelledby="recentTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="recentTitle">Recent</h2></div>
+        @if (Model.Recent.Count == 0)
+        {
+            <div class="sb-pane-body text-muted">Requests you decide on are listed here with what happened.</div>
+        }
+        else
+        {
+            <div class="table-responsive position-relative">
+                <table class="table mcp-table mb-0">
+                    <thead>
+                        <tr><th scope="col">Action</th><th scope="col" class="sb-hide-sm">Agent</th><th scope="col">Outcome</th><th scope="col" class="sb-hide-sm">When</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Model.Recent)
+                        {
+                            var (css, icon) = AgentActionsPage.OutcomeStyle(a);
+                            <tr>
+                                <td><a href="/agent-actions/@a.Id">@a.ToolTitle</a></td>
+                                <td class="sb-hide-sm">@a.ClientName</td>
+                                <td><span class="mcp-outcome mcp-outcome--@css"><i class="bi @icon" aria-hidden="true"></i>@PendingActionLabels.Status(a)</span></td>
+                                <td class="sb-hide-sm"><sb-time value="@(a.DecidedAt ?? a.CreatedAt)" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>

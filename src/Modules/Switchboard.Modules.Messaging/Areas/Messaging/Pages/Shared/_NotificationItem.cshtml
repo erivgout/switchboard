@@ -1,0 +1,31 @@
+@model NotificationItemModel
+@{
+    var item = Model.Item;
+}
+<li class="sb-notif@(item.IsRead ? "" : " is-unread")" id="notif-@item.Id">
+    <a class="sb-notif-link" href="/notifications/open/@item.Id">
+        <i class="bi @NotificationIcons.For(item.Type) sb-notif-icon" aria-hidden="true"></i>
+        <span class="sb-notif-text">
+            <span class="sb-notif-title">@if (!item.IsRead)
+                {<span class="visually-hidden">Unread: </span>}@item.Title</span>
+            <span class="sb-notif-meta">
+                @if (!string.IsNullOrEmpty(item.Reference))
+                {
+                    <span class="sb-stamp">@item.Reference</span>
+                }
+                <span class="sb-notif-body">@item.Body</span>
+            </span>
+        </span>
+        <sb-time value="@item.CreatedAt" />
+    </a>
+    @if (Model.WithActions)
+    {
+        <button class="btn btn-ghost btn-icon btn-sm sb-notif-toggle" type="button"
+                hx-post="/notifications?handler=Toggle&amp;id=@item.Id&amp;read=@(item.IsRead ? "false" : "true")"
+                hx-target="#notif-@item.Id" hx-swap="outerHTML"
+                aria-label="@(item.IsRead ? "Mark as unread" : "Mark as read"): @item.Title"
+                title="@(item.IsRead ? "Mark as unread" : "Mark as read")">
+            <i class="bi @(item.IsRead ? "bi-envelope" : "bi-envelope-open")" aria-hidden="true"></i>
+        </button>
+    }
+</li>

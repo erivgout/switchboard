@@ -1,0 +1,102 @@
+@page "/portal/new"
+@model NewModel
+@{
+    ViewData["Title"] = Model.PageTitle;
+    var subjectError = Model.Error("subject");
+    var categoryError = Model.Error("category");
+    var ccError = Model.Error("cc");
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Portal/css/portal.css" asp-append-version="true">
+}
+
+<sb-page-header title="@Model.PageTitle" subtitle="@(Model.IsServiceRequest ? "Tell us what you need and who it's for. We'll take it from there." : "Tell us what's going wrong. The more detail you give, the faster we can help.")" />
+
+<div class="sb-split prt-new">
+    <form method="post" class="sb-pane prt-form" novalidate>
+        @if (Model.IsServiceRequest)
+        {
+            <input type="hidden" name="type" value="request">
+        }
+        <partial name="_ErrorSummary" />
+
+        <div class="prt-field">
+            <label class="form-label" for="prtSubject">@(Model.IsServiceRequest ? "What do you need?" : "What's the problem?")</label>
+            <input id="prtSubject" name="Subject" value="@Model.Subject" class="form-control form-control-lg @(subjectError is null ? null : "is-invalid")"
+                   required maxlength="500" autocomplete="off" data-sb-deflect-source
+                   placeholder="@(Model.IsServiceRequest ? "For example, a second monitor" : "For example, Wi-Fi keeps dropping")"
+                   aria-describedby="@(subjectError is null ? null : "prtSubjectError")">
+            @if (subjectError is not null)
+            {
+                <div class="invalid-feedback" id="prtSubjectError">@subjectError</div>
+            }
+        </div>
+
+        <div class="prt-field">
+            <label class="form-label" for="prtDescription">Tell us more <span class="prt-optional">Optional</span></label>
+            <textarea id="prtDescription" name="Description" class="form-control" rows="6" maxlength="20000" data-sb-autosize
+                      placeholder="@(Model.IsServiceRequest ? "Who is it for, and when do you need it?" : "What were you doing when it happened? Did you see an error message?")">@Model.Description</textarea>
+        </div>
+
+        @if (Model.Categories.Count > 0)
+        {
+            <div class="prt-field">
+                <label class="form-label" for="prtCategory">What's it about? <span class="prt-optional">Optional</span></label>
+                <select id="prtCategory" name="Category" class="form-select @(categoryError is null ? null : "is-invalid")"
+                        aria-describedby="@(categoryError is null ? null : "prtCategoryError")">
+                    <option value="">I'm not sure</option>
+                    @foreach (var c in Model.Categories)
+                    {
+                        <optgroup label="@c.Name">
+                            <option value="c:@c.Id" selected="@(Model.Category == $"c:{c.Id}")">@c.Name, something else</option>
+                            @foreach (var s in c.Children)
+                            {
+                                <option value="s:@c.Id:@s.Id" selected="@(Model.Category == $"s:{c.Id}:{s.Id}")">@s.Name</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+                @if (categoryError is not null)
+                {
+                    <div class="invalid-feedback" id="prtCategoryError">@categoryError</div>
+                }
+            </div>
+        }
+
+        @foreach (var field in Model.Fields)
+        {
+            <partial name="_CustomField" model="@(new CustomFieldModel(field, Model.Value(field), Model.Error("custom." + field.Key)))" />
+        }
+
+        <div class="prt-field" role="group" aria-labelledby="prtFilesLabel">
+            <span class="form-label d-block" id="prtFilesLabel">Files or screenshots <span class="prt-optional">Optional</span></span>
+            <partial name="_Uploader" model="@(new UploaderModel("prtFiles", "Attach files", Model.Uploaded))" />
+            <noscript><p class="form-text mb-0">Turn on JavaScript to attach files, or send them in a reply later.</p></noscript>
+        </div>
+
+        <div class="prt-field">
+            <partial name="_PeoplePicker" model="@(new PeoplePickerModel("prtCc", "Cc", "CcText", "Copy in colleagues", "They'll get copies of replies by email.", Model.Cc, ccError))" />
+        </div>
+
+        <div class="prt-form-actions">
+            <button class="btn btn-primary btn-lg" type="submit">Send request</button>
+            <a class="btn btn-ghost" href="/portal">Cancel</a>
+        </div>
+    </form>
+
+    <aside class="prt-new-aside" aria-label="Help with your request">
+        <sb-slot name="portal.newticket.aside" />
+        <section class="prt-next" aria-labelledby="prtNextTitle">
+            <h2 class="prt-section-title" id="prtNextTitle">What happens next</h2>
+            <ol class="prt-steps">
+                <li>Someone from the service desk picks up your request.</li>
+                <li>They reply on the request page, and you can answer there.</li>
+                <li>When it's sorted, you can close the request from the same page.</li>
+            </ol>
+        </section>
+    </aside>
+</div>
+
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Portal/js/portal.js" asp-append-version="true"></script>
+}

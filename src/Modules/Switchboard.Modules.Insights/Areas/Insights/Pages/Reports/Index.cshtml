@@ -1,0 +1,95 @@
+@page "/reports"
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Reports.IndexModel
+@using Switchboard.Modules.Insights.Areas.Insights.Pages.Reports
+@{
+    ViewData["Title"] = "Reports";
+
+    async Task Row(Switchboard.Modules.Insights.Services.SavedReportView v)
+    {
+        var r = v.Report;
+        <li>
+            <form method="post" asp-page-handler="Favorite" class="d-inline">
+                <input type="hidden" name="id" value="@r.Id">
+                <button class="btn btn-ghost btn-icon ins-star" type="submit" aria-pressed="@(v.IsFavorite ? "true" : "false")"
+                        aria-label="@(v.IsFavorite ? $"Unstar {r.Name}" : $"Star {r.Name}")">
+                    <i class="bi @(v.IsFavorite ? "bi-star-fill" : "bi-star")" aria-hidden="true"></i>
+                </button>
+            </form>
+            <div class="min-w-0 flex-grow-1">
+                <a class="ins-saved-name" href="@r.Href">@r.Name</a>
+                <div class="sb-meta">@ReportPage.ReportName(r.Path), @(v.IsMine ? IndexModel.Sharing(v).ToLowerInvariant() : $"from {v.OwnerName}")</div>
+            </div>
+            @if (v.IsMine)
+            {
+                <a class="btn btn-ghost btn-sm" href="/reports/saved/@r.Id">Edit</a>
+                <form method="post" asp-page-handler="Trash" class="d-inline">
+                    <input type="hidden" name="id" value="@r.Id">
+                    <button class="btn btn-ghost btn-icon" type="submit" aria-label="Move @r.Name to trash"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                </form>
+            }
+        </li>
+    }
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Insights/css/insights.css" asp-append-version="true">
+}
+
+<sb-page-header title="Reports" subtitle="Curated reports over the tickets you can see. Filter them, download them as CSV, or save them for later.">
+    <a class="btn btn-ghost" href="/reports/trash"><i class="bi bi-trash" aria-hidden="true"></i> Trash</a>
+</sb-page-header>
+
+<div class="ins-reports">
+    <section class="sb-pane" aria-labelledby="repCatalog">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="repCatalog">Curated reports</h2></div>
+        <ul class="ins-catalog">
+            <li>
+                <a href="/reports/volume">
+                    <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                    <strong>Ticket volume</strong>
+                    <span>How many tickets came in and were resolved, by status, priority, group, category, source or type.</span>
+                </a>
+            </li>
+            <li>
+                <a href="/reports/agents">
+                    <i class="bi bi-person-badge" aria-hidden="true"></i>
+                    <strong>Agent performance</strong>
+                    <span>Tickets assigned and resolved per agent, open work, and the median time to a first response.</span>
+                </a>
+            </li>
+            <sb-slot name="reports.catalog" model="null" />
+        </ul>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="repSaved">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="repSaved">Saved reports</h2></div>
+        @if (Model.SavedCount == 0)
+        {
+            <sb-empty icon="bi-bookmark" title="No saved reports yet">
+                <p class="sb-empty-text">Open a report, set its filters, and choose Save report to keep it here. You can share it with your team.</p>
+            </sb-empty>
+        }
+        else
+        {
+            @if (Model.Starred.Count > 0)
+            {
+                <div class="sb-pane-body pb-0"><p class="sb-section-label mb-0">Starred</p></div>
+                <ul class="ins-saved">
+                    @foreach (var v in Model.Starred)
+                    {
+                        await Row(v);
+                    }
+                </ul>
+            }
+            @foreach (var folder in Model.Folders)
+            {
+                <div class="sb-pane-body pb-0"><p class="sb-section-label mb-0">@(folder.Key.Length == 0 ? "Not in a folder" : folder.Key)</p></div>
+                <ul class="ins-saved">
+                    @foreach (var v in folder)
+                    {
+                        await Row(v);
+                    }
+                </ul>
+            }
+        }
+    </section>
+</div>

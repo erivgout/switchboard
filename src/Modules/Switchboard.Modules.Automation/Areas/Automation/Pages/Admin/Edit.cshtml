@@ -1,0 +1,216 @@
+@page "/admin/automations/{id}"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "New workflow" : Model.Name;
+    Layout = "_AdminLayout";
+    var wf = Model.Workflow;
+    var wsQuery = Model.ManyWorkspaces ? $"&ws={Model.Workspace.Id}" : "";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Automation/js/automation-builder.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="@(Model.IsNew ? "New workflow" : Model.Name)" subtitle="When something happens to a ticket, check whether it applies, then act.">
+    <button class="btn btn-outline-secondary" type="submit" form="autForm" asp-page-handler="Save">Save draft</button>
+    <button class="btn btn-primary" type="submit" form="autForm" asp-page-handler="Publish">Publish</button>
+    @if (wf is not null)
+    {
+        <div class="dropdown">
+            <button class="btn btn-ghost btn-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More workflow actions"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <form method="post" asp-page-handler="Clone">
+                        <button class="dropdown-item" type="submit"><i class="bi bi-copy me-2" aria-hidden="true"></i>Copy workflow</button>
+                    </form>
+                </li>
+                <li><a class="dropdown-item" href="@Model.PageUrl?handler=Export"><i class="bi bi-download me-2" aria-hidden="true"></i>Export as a file</a></li>
+                <li><a class="dropdown-item" href="/admin/automations/@wf.Id/runs"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Run history</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="post" asp-page-handler="Delete" data-sb-confirm="Delete this workflow and its versions? Its run history stays. This can't be undone.">
+                        <button class="dropdown-item text-danger" type="submit"><i class="bi bi-trash3 me-2" aria-hidden="true"></i>Delete workflow</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    }
+</sb-page-header>
+
+<p class="mb-3"><a href="/admin/automations@(Model.WsQuery)"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>All workflows</a></p>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <p class="fw-semibold mb-1">@(Model.ErrorIntro ?? "Fix these first:")</p>
+        <ul class="mb-0">
+            @foreach (var error in Model.Errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="sb-split">
+    <div class="min-w-0">
+        <form id="autForm" method="post">
+            <input type="hidden" name="ws" value="@Model.Workspace.Id">
+            <div class="sb-pane sb-pane-body mb-3">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="autName">Name</label>
+                        <input class="form-control" id="autName" name="Name" value="@Model.Name" maxlength="200" required placeholder="Route network problems">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="autDescription">Description (optional)</label>
+                        <input class="form-control" id="autDescription" name="Description" value="@Model.Description" maxlength="1000" placeholder="Why this workflow exists">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sb-pane sb-pane-body mb-3">
+                <p class="aut-sentence" id="autSentence" aria-live="polite"
+                   hx-post="@Model.PageUrl?handler=Describe@(wsQuery)" hx-trigger="aut:changed from:body delay:400ms"
+                   hx-include="#autDefinition" hx-swap="innerHTML">@Html.Raw(Model.SentenceHtml)</p>
+            </div>
+
+            <input type="hidden" id="autDefinition" name="DefinitionJson" value="@Model.EditorJson">
+            <div id="autBuilder" data-output="autDefinition" data-catalog="@Model.CatalogJson" data-definition="@Model.EditorJson"></div>
+            <noscript><div class="alert alert-warning">The workflow builder needs JavaScript. Turn it on to edit this workflow.</div></noscript>
+        </form>
+    </div>
+
+    <aside class="sb-sticky" aria-label="Workflow status, tests and history">
+        @if (wf is not null)
+        {
+            <div class="sb-pane">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">Status</h2></div>
+                <dl class="sb-props sb-pane-body">
+                    <div>
+                        <dt>Live version</dt>
+                        <dd>
+                            @if (wf.PublishedVersion is null)
+                            {
+                                <span class="aut-state aut-state--off"><i class="bi bi-pencil" aria-hidden="true"></i>Not published yet</span>
+                            }
+                            else
+                            {
+                                <span>Version @wf.PublishedVersion</span>
+                                @if (wf.HasUnpublishedChanges)
+                                {
+                                    <div class="small text-muted">The draft has changes that aren't live.</div>
+                                }
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Running</dt>
+                        <dd>
+                            @if (wf.IsEnabled)
+                            {
+                                <span class="aut-state aut-state--live"><i class="bi bi-broadcast" aria-hidden="true"></i>On</span>
+                            }
+                            else if (wf.AutoDisabledAt is not null)
+                            {
+                                <span class="aut-state aut-state--bad"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i>Turned off after failures</span>
+                                <div class="small text-muted mt-1">@wf.DisabledReason</div>
+                            }
+                            else
+                            {
+                                <span class="aut-state aut-state--off"><i class="bi bi-pause-circle" aria-hidden="true"></i>Off</span>
+                            }
+                        </dd>
+                    </div>
+                    @if (wf.ConsecutiveFailures > 0)
+                    {
+                        <div><dt>Failures</dt><dd class="text-danger">@wf.ConsecutiveFailures in a row</dd></div>
+                    }
+                </dl>
+                @if (wf.PublishedVersion is not null)
+                {
+                    <div class="sb-pane-footer">
+                        <form method="post" asp-page-handler="Enable">
+                            <input type="hidden" name="enabled" value="@(wf.IsEnabled ? "false" : "true")">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">@(wf.IsEnabled ? "Turn off" : "Turn on")</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="sb-pane">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Test on a ticket</h2></div>
+            <div class="sb-pane-body">
+                <form hx-post="@Model.PageUrl?handler=Test@(wsQuery)" hx-target="#autTestResult" hx-include="#autDefinition, #autName" hx-indicator="#autTestBusy">
+                    <label class="form-label" for="autTestTicket">Ticket number</label>
+                    <div class="d-flex gap-2">
+                        <input class="form-control" id="autTestTicket" name="TestTicket" placeholder="INC-1042" required autocomplete="off" aria-describedby="autTestHelp">
+                        <button class="btn btn-outline-secondary text-nowrap" type="submit">
+                            <span id="autTestBusy" class="htmx-indicator aut-busy spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Run test
+                        </button>
+                    </div>
+                    <div class="form-text" id="autTestHelp">Shows what this draft would do. Nothing is changed or sent.</div>
+                </form>
+                <div id="autTestResult" class="mt-3"></div>
+            </div>
+        </div>
+
+        @if (wf is not null)
+        {
+            <div class="sb-pane">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">Recent runs</h2></div>
+                @if (Model.RecentRuns.Count == 0)
+                {
+                    <p class="sb-pane-body mb-0 text-muted">No runs yet. Runs appear here once the workflow is live and a ticket matches.</p>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0 sb-pane-body d-grid gap-2">
+                        @foreach (var run in Model.RecentRuns)
+                        {
+                            <li class="d-flex justify-content-between gap-2">
+                                <a href="/admin/automations/runs/@run.Id"><partial name="_RunState" model="(RunStatus?)run.Status" /></a>
+                                <sb-time value="run.StartedAt" />
+                            </li>
+                        }
+                    </ul>
+                    <div class="sb-pane-footer"><a href="/admin/automations/@wf.Id/runs">See all runs</a></div>
+                }
+            </div>
+
+            <div class="sb-pane">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">Versions</h2></div>
+                @if (Model.Versions.Count == 0)
+                {
+                    <p class="sb-pane-body mb-0 text-muted">Publishing creates the first version. Each publish keeps the previous one, so you can roll back.</p>
+                }
+                else
+                {
+                    <ul class="sb-timeline sb-pane-body">
+                        @foreach (var v in Model.Versions)
+                        {
+                            <li>
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <strong>Version @v.Number</strong>@(v.Number == wf.PublishedVersion ? ", live" : "")
+                                        <div class="small text-muted">@v.Note. @v.CreatedByName, <sb-time value="v.CreatedAt" /></div>
+                                    </div>
+                                    @if (v.Number != wf.PublishedVersion)
+                                    {
+                                        <form method="post" asp-page-handler="Rollback" data-sb-confirm="Make version @v.Number live again? Your current draft is replaced by it.">
+                                            <input type="hidden" name="number" value="@v.Number">
+                                            <button class="btn btn-sm btn-ghost" type="submit">Roll back</button>
+                                        </form>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+    </aside>
+</div>

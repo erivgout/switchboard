@@ -1,0 +1,10 @@
+@page "/portal/catalog"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Portal.IndexModel
+@{
+    ViewData["Title"] = "Request catalog";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+<sb-page-header title="Request something" subtitle="Devices, software and access you can ask for. Pick an item, answer a few questions, and the right team takes it from there." />
+<partial name="_Directory" model="Model.Directory" />

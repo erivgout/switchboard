@@ -1,0 +1,22 @@
+@{
+    var errors = ViewContext.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Where(m => m.Length > 0).Distinct().ToList();
+}
+@if (errors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        @if (errors.Count == 1)
+        {
+            <p class="mb-0">@errors[0]</p>
+        }
+        else
+        {
+            <p class="fw-semibold mb-1">Fix these before saving:</p>
+            <ul class="mb-0">
+                @foreach (var e in errors)
+                {
+                    <li>@e</li>
+                }
+            </ul>
+        }
+    </div>
+}

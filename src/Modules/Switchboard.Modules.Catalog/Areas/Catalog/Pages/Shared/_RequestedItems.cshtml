@@ -1,0 +1,76 @@
+@model RequestedItemsModel
+@{
+    var stages = Enum.GetValues<RequestedItemStage>();
+    string StageText(RequestedItemStage s) => Model.ForRequester ? CatalogFormBinding.StageForRequester(s) : CatalogRequestService.StageLabel(s);
+}
+<ul class="cat-req">
+    @foreach (var item in Model.View.Items)
+    {
+        var row = item.Row;
+        <li>
+            <div class="cat-req-head">
+                <span class="cat-icon cat-icon--sm" aria-hidden="true"><i class="bi @row.Icon"></i></span>
+                <div class="min-w-0">
+                    <div class="cat-req-name">@row.ItemName@(row.Quantity > 1 ? $" (x{row.Quantity})" : "")</div>
+                    <div class="cat-req-sub tabular">
+                        @(row.CostMinor is { } cost ? CatalogForm.Money(cost, row.Currency) : "No charge")@if (item.RequestedForName is not null) {<text>, for @item.RequestedForName</text>}
+                    </div>
+                </div>
+                @if (Model.ShowStageControls)
+                {
+                    <select class="form-select form-select-sm cat-stage-select" name="stage" aria-label="Stage of @row.ItemName"
+                            hx-post="/catalog/requested/@row.Id?handler=Stage" hx-trigger="change" hx-target="closest .cat-panel" hx-swap="outerHTML">
+                        @foreach (var s in stages)
+                        {
+                            <option value="@s" selected="@(s == row.Stage)">@CatalogRequestService.StageLabel(s)</option>
+                        }
+                    </select>
+                }
+                else if (Model.ShowStage)
+                {
+                    <span class="@CatalogFormBinding.StageCss(row.Stage)">@StageText(row.Stage)</span>
+                }
+            </div>
+            @if (item.Answers.Count > 0)
+            {
+                <dl class="cat-answers">
+                    @foreach (var a in item.Answers)
+                    {
+                        <dt>@a.Label</dt>
+                        <dd>@a.Display</dd>
+                    }
+                </dl>
+            }
+            @if (item.Children.Count > 0)
+            {
+                <p class="small text-muted mt-2 mb-0">Includes</p>
+                <ul class="cat-children">
+                    @foreach (var child in item.Children)
+                    {
+                        <li>
+                            <span><i class="bi @child.Icon text-muted me-1" aria-hidden="true"></i>@child.ItemName</span>
+                            @if (Model.ShowStageControls)
+                            {
+                                <select class="form-select form-select-sm cat-stage-select" name="stage" aria-label="Stage of @child.ItemName"
+                                        hx-post="/catalog/requested/@child.Id?handler=Stage" hx-trigger="change" hx-target="closest .cat-panel" hx-swap="outerHTML">
+                                    @foreach (var s in stages)
+                                    {
+                                        <option value="@s" selected="@(s == child.Stage)">@CatalogRequestService.StageLabel(s)</option>
+                                    }
+                                </select>
+                            }
+                            else if (Model.ShowStage)
+                            {
+                                <span class="@CatalogFormBinding.StageCss(child.Stage)">@StageText(child.Stage)</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </li>
+    }
+</ul>
+@if (Model.View.TotalMinor is { } total && (Model.View.Items.Count > 1 || Model.View.Items[0].Row.Quantity > 1))
+{
+    <div class="d-flex justify-content-between border-top mt-3 pt-2 small"><span class="text-muted">Total</span><strong class="tabular">@CatalogForm.Money(total, Model.View.Currency)</strong></div>
+}

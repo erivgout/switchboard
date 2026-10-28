@@ -1,0 +1,15 @@
+@page "/catalog"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Agent.IndexModel
+@{
+    ViewData["Title"] = "Service catalog";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+<sb-page-header title="Service catalog" subtitle="Request an item on someone's behalf. They get the updates, and approvals run as if they asked.">
+    @if (Model.CanManage)
+    {
+        <a class="btn btn-outline-secondary" href="/admin/catalog/items"><i class="bi bi-sliders me-1" aria-hidden="true"></i>Manage catalog</a>
+    }
+</sb-page-header>
+<partial name="_Directory" model="Model.Directory" />

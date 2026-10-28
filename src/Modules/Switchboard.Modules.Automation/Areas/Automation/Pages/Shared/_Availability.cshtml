@@ -1,0 +1,25 @@
+@model AvailabilityState
+@{
+    var available = Model.Availability == AgentAvailability.Available;
+    var away = Model.Availability == AgentAvailability.Away;
+}
+<div class="px-3 pt-1 pb-2" id="autAvailability">
+    <div class="small text-muted mb-1" id="autAvailabilityLabel">New tickets</div>
+    <form method="post" action="/automations/availability" asp-antiforgery="true"
+          hx-post="/automations/availability" hx-target="#autAvailability" hx-select="#autAvailability" hx-swap="outerHTML">
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl">
+        <div class="btn-group btn-group-sm w-100" role="group" aria-labelledby="autAvailabilityLabel">
+            <button type="submit" name="status" value="Available" class="btn btn-outline-secondary @(available ? "active" : null)" aria-pressed="@(available ? "true" : "false")">
+                <i class="bi @(available ? "bi-check-circle-fill" : "bi-circle") me-1" aria-hidden="true"></i>Available
+            </button>
+            <button type="submit" name="status" value="Away" class="btn btn-outline-secondary @(away ? "active" : null)" aria-pressed="@(away ? "true" : "false")">
+                <i class="bi @(away ? "bi-moon-fill" : "bi-moon") me-1" aria-hidden="true"></i>Away
+            </button>
+        </div>
+        @if (!available)
+        {
+            <div class="small text-muted mt-1">Automatic assignment skips you.</div>
+        }
+    </form>
+</div>
+<a class="dropdown-item" href="/automations/scenarios"><i class="bi bi-lightning-charge me-2" aria-hidden="true"></i>Scenarios</a>

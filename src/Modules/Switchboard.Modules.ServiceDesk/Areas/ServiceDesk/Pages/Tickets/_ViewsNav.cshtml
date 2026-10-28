@@ -1,0 +1,79 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.IndexModel
+@using Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var q = Model.Queue;
+    string CountText(string key) => Model.Counts.TryGetValue(key, out var n) && n is { } c ? c.ToString("N0") : "";
+    var activeKey = q.ActiveSaved?.Id.ToString() ?? q.ActiveView?.Key;
+}
+<label class="visually-hidden" for="sdViewPicker">View</label>
+<select id="sdViewPicker" class="form-select d-lg-none" data-sd-view-picker>
+    @if (activeKey is null)
+    {
+        <option value="" selected>Filtered tickets</option>
+    }
+    @foreach (var view in QueueViews.All)
+    {
+        <option value="/tickets?view=@view.Key" selected="@(activeKey == view.Key)">@view.Title (@CountText(view.Key))</option>
+    }
+    @foreach (var saved in Model.SavedViews)
+    {
+        <option value="/tickets?saved=@saved.Id" selected="@(activeKey == saved.Id.ToString())">@saved.Name (@CountText(saved.Id.ToString()))</option>
+    }
+</select>
+
+<nav class="sb-pane d-none d-lg-block" aria-label="Views">
+    @foreach (var group in new[] { QueueViews.All.Where(v => v.Key is not (QueueViews.Spam or QueueViews.Trash)), QueueViews.All.Where(v => v.Key is QueueViews.Spam or QueueViews.Trash) })
+    {
+        <ul class="sb-views">
+            @foreach (var view in group)
+            {
+                var current = activeKey == view.Key;
+                <li>
+                    <a href="/tickets?view=@view.Key" aria-current="@(current ? "page" : null)">
+                        @if (view.Key == QueueViews.Waiting)
+                        {
+                            <sb-lamp lit="@(Model.Counts.GetValueOrDefault(view.Key) > 0)" aria-hidden="true" />
+                        }
+                        else
+                        {
+                            <i class="bi @view.Icon text-muted" aria-hidden="true"></i>
+                        }
+                        <span>@view.Title</span>
+                        <span class="sb-count">@CountText(view.Key)</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+</nav>
+
+<div class="sb-pane d-none d-lg-block">
+    <div class="sd-views-head">
+        <h2 class="sb-section-label m-0">Saved views</h2>
+    </div>
+    @if (Model.SavedViews.Count == 0)
+    {
+        <p class="sd-views-empty">Filter the queue, then choose <strong>Save view</strong> to keep it here.</p>
+    }
+    else
+    {
+        <ul class="sb-views">
+            @foreach (var saved in Model.SavedViews)
+            {
+                var current = activeKey == saved.Id.ToString();
+                <li>
+                    <a href="/tickets?saved=@saved.Id" aria-current="@(current ? "page" : null)">
+                        <i class="bi @(saved.IsShared ? "bi-people" : "bi-bookmark") text-muted" aria-hidden="true"></i>
+                        <span class="text-truncate">@saved.Name</span>
+                        @if (saved.IsShared)
+                        {
+                            <span class="visually-hidden">(shared)</span>
+                        }
+                        <span class="sb-count">@CountText(saved.Id.ToString())</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+</div>

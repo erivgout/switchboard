@@ -1,0 +1,93 @@
+@page "/reports/volume"
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Reports.VolumeModel
+@using Switchboard.Modules.Insights.Services
+@{
+    ViewData["Title"] = "Ticket volume";
+    var r = Model.Report;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Insights/css/insights.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Insights/js/insights.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="Ticket volume" subtitle="Tickets created and resolved in the period, broken down by one field. Only tickets you can see are counted.">
+    <a class="btn btn-outline-secondary" href="/reports/volume?handler=Csv&amp;@Model.Query"><i class="bi bi-download" aria-hidden="true"></i> Download CSV</a>
+    <a class="btn btn-outline-secondary" href="@Model.SaveHref("/reports/volume")"><i class="bi bi-bookmark" aria-hidden="true"></i> Save report</a>
+    <a class="btn btn-ghost" href="/reports">All reports</a>
+</sb-page-header>
+
+<form method="get" class="ins-filters" aria-label="Report filters" data-period-form>
+    <partial name="_Filters" model="Model" />
+    <div>
+        <label class="form-label" for="insBy">Break down by</label>
+        <select class="form-select form-select-sm" id="insBy" name="by">
+            @foreach (var (key, label) in InsightsQueries.VolumeDimensions)
+            {
+                <option value="@key" selected="@(r.By == key)">@label</option>
+            }
+        </select>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit">Show report</button>
+</form>
+<p class="sb-meta">@Model.Range.Sentence</p>
+
+<div class="sb-metrics ins-metrics mb-4">
+    <div class="sb-metric"><div class="sb-num">@r.Created</div><div class="sb-metric-label">Created</div></div>
+    <div class="sb-metric"><div class="sb-num">@r.Resolved</div><div class="sb-metric-label">Resolved</div></div>
+    <div class="sb-metric"><div class="sb-num">@r.StillOpen</div><div class="sb-metric-label">Created and still open</div></div>
+</div>
+
+@if (r.Rows.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-bar-chart" title="No tickets in this period">
+            <p class="sb-empty-text">Try a longer period or a different group.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <section class="sb-pane mb-4" aria-labelledby="volChart">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="volChart">Created, by @Model.DimensionLabel.ToLowerInvariant()</h2></div>
+        <div class="sb-pane-body">
+            @{ var bars = new BarListModel(r.Rows.Where(x => x.Created > 0).Select(x => new BarItem(x.Label, x.Created)).ToList(), "Created"); }
+            <partial name="_BarList" model="bars" />
+        </div>
+    </section>
+
+    <section class="sb-pane sb-queue-wrap" aria-labelledby="volTable">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="volTable">All figures</h2></div>
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th>@Model.DimensionLabel</th>
+                <th class="text-end">Created</th>
+                <th class="text-end">Resolved</th>
+                <th class="text-end">Created and still open</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in r.Rows)
+            {
+                <tr>
+                    <td>
+                        @if (r.By == "priority" && Enum.TryParse<Priority>(row.Label, out var p))
+                        {
+                            <sb-priority value="@p" />
+                        }
+                        else
+                        {
+                            @row.Label
+                        }
+                    </td>
+                    <td class="text-end tabular">@row.Created</td>
+                    <td class="text-end tabular">@row.Resolved</td>
+                    <td class="text-end tabular">@row.StillOpen</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}

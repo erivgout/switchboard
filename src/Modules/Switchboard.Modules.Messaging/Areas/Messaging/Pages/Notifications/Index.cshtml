@@ -1,0 +1,83 @@
+@page "/notifications"
+@model NotificationsModel
+@{
+    ViewData["Title"] = "Notifications";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+<sb-page-header title="Notifications" subtitle="Assignments, replies on your tickets and mentions.">
+    <a class="btn btn-ghost" href="/profile#notifications"><i class="bi bi-sliders" aria-hidden="true"></i> Notification settings</a>
+    @if (Model.UnreadCount > 0)
+    {
+        <form method="post" asp-page-handler="MarkAllRead" asp-route-view="@Model.Filter" class="d-inline">
+            <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-check2-all" aria-hidden="true"></i> Mark all as read</button>
+        </form>
+    }
+</sb-page-header>
+
+<div class="sb-notif-layout">
+    <nav aria-label="Filter notifications">
+        <ul class="sb-views sb-pane">
+            <li>
+                <a href="/notifications" aria-current="@(Model.UnreadOnly ? null : "page")">
+                    <i class="bi bi-bell text-muted" aria-hidden="true"></i><span>All</span><span class="sb-count tabular">@Model.TotalCount</span>
+                </a>
+            </li>
+            <li>
+                <a href="/notifications?view=unread" aria-current="@(Model.UnreadOnly ? "page" : null)">
+                    <i class="bi bi-envelope text-muted" aria-hidden="true"></i><span>Unread</span><span class="sb-count tabular">@Model.UnreadCount</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="sb-msg-fill">
+        @if (Model.Items.Count == 0)
+        {
+            <div class="sb-pane">
+                @if (Model.UnreadOnly && Model.TotalCount > 0)
+                {
+                    <sb-empty icon="bi-check2-circle" title="You're all caught up">
+                        <p class="sb-empty-text">Nothing unread. New assignments, replies and mentions will appear here.</p>
+                        <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/notifications">Show all notifications</a></div>
+                    </sb-empty>
+                }
+                else
+                {
+                    <sb-empty icon="bi-bell" title="No notifications yet">
+                        <p class="sb-empty-text">When a ticket is assigned to you or your group, a requester replies on your ticket, or someone mentions you, you'll hear about it here.</p>
+                        <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/profile#notifications">Choose what you hear about</a></div>
+                    </sb-empty>
+                }
+            </div>
+        }
+        else
+        {
+            <section class="sb-pane" aria-label="@(Model.UnreadOnly ? "Unread notifications" : "All notifications")">
+                <ul class="sb-notif-list sb-notif-list--page">
+                    @foreach (var item in Model.Items)
+                    {
+                        <partial name="_NotificationItem" model="new NotificationItemModel(item, true)" />
+                    }
+                </ul>
+                @if (Model.PageNumber > 1 || Model.HasMore)
+                {
+                    <div class="sb-pane-footer d-flex justify-content-between align-items-center">
+                        <span class="small text-muted tabular">Page @Model.PageNumber</span>
+                        <div class="d-flex gap-2">
+                            @if (Model.PageNumber > 1)
+                            {
+                                <a class="btn btn-outline-secondary btn-sm" href="/notifications?view=@Model.Filter&amp;p=@(Model.PageNumber - 1)">Newer</a>
+                            }
+                            @if (Model.HasMore)
+                            {
+                                <a class="btn btn-outline-secondary btn-sm" href="/notifications?view=@Model.Filter&amp;p=@(Model.PageNumber + 1)">Older</a>
+                            }
+                        </div>
+                    </div>
+                }
+            </section>
+        }
+    </div>
+</div>

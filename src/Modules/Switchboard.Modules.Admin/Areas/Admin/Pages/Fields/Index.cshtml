@@ -1,0 +1,86 @@
+@page "/admin/fields"
+@model Switchboard.Modules.Admin.Pages.Fields.IndexModel
+@{
+    ViewData["Title"] = "Custom fields";
+    var tabs = FieldEntities.All.Select(e => new TabModel(AdminPageModel.Link("/admin/fields", ("entity", e.Key), ("ws", FieldEntities.IsWorkspaceScoped(e.Key) ? Model.Workspace.Key : null)), e.Title, e.Key == Model.Entity)).ToList();
+    var newHref = AdminPageModel.Link("/admin/fields/new", ("entity", Model.Entity), ("ws", Model.Ws));
+    var requesterColumn = FieldEntities.HasRequesterSettings(Model.Entity);
+    var keep = new List<(string, string)> { ("entity", Model.Entity) };
+}
+<sb-page-header title="Custom fields" subtitle="Extra information to collect on tickets, people and departments. Fields that hold data are deactivated rather than deleted, so nothing is lost.">
+    <a class="btn btn-primary" href="@newHref"><i class="bi bi-plus-lg" aria-hidden="true"></i> New field</a>
+</sb-page-header>
+
+<partial name="_Tabs" model="tabs" />
+@if (Model.Scoped)
+{
+    <partial name="_WorkspacePicker" model="new WorkspacePickerModel(Model.Workspace, Model.Workspaces, keep)" />
+}
+
+@if (Model.Fields.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-input-cursor-text" title="No custom fields yet">
+            <p class="sb-empty-text">Add a field for anything the built-in properties don't cover, such as an asset tag or cost center.</p>
+            <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="@newHref">New field</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+                <tr>
+                    <th scope="col"><span class="visually-hidden">Order</span></th>
+                    <th scope="col">Field</th>
+                    <th scope="col" class="sb-hide-sm">Type</th>
+                    <th scope="col" class="sb-hide-sm">Required</th>
+                    @if (requesterColumn)
+                    {
+                        <th scope="col" class="sb-hide-sm">Requesters</th>
+                    }
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < Model.Fields.Count; i++)
+                {
+                    var f = Model.Fields[i].Field;
+                    var required = new[] { f.RequiredForAgents ? "agents" : null, f.RequiredOnResolve ? "on resolve" : null, f.RequiredForRequesters ? "requesters" : null }.OfType<string>().ToList();
+                    <tr id="field-@f.Id" data-sb-href="/admin/fields/@f.Id">
+                        <td class="sb-col-check">
+                            <form method="post" asp-page-handler="Move" class="sb-order">
+                                <input type="hidden" name="fieldId" value="@f.Id">
+                                <input type="hidden" name="Entity" value="@Model.Entity">
+                                <input type="hidden" name="Ws" value="@Model.Ws">
+                                <button class="btn btn-ghost btn-icon" type="submit" name="delta" value="-1" aria-label="Move @f.Label up" disabled="@(i == 0)"><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
+                                <button class="btn btn-ghost btn-icon" type="submit" name="delta" value="1" aria-label="Move @f.Label down" disabled="@(i == Model.Fields.Count - 1)"><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+                            </form>
+                        </td>
+                        <td>
+                            <a class="sb-subject" href="/admin/fields/@f.Id">@f.Label</a>
+                            <div class="sb-meta"><code>@f.Key</code>@(f.Section is null ? "" : $", in {f.Section}")</div>
+                        </td>
+                        <td class="sb-hide-sm">@Switchboard.Modules.Admin.Pages.Fields.IndexModel.TypeTitle(f.FieldType)</td>
+                        <td class="sb-hide-sm">@(required.Count == 0 ? "No" : "For " + string.Join(", ", required))</td>
+                        @if (requesterColumn)
+                        {
+                            <td class="sb-hide-sm">@(f.EditableByRequesters ? "Can edit" : f.VisibleToRequesters ? "Can see" : "Hidden")</td>
+                        }
+                        <td>
+                            @if (f.IsActive)
+                            {
+                                <span class="sb-status sb-status--resolved">Active</span>
+                            }
+                            else
+                            {
+                                <span class="sb-status sb-status--closed">Inactive</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

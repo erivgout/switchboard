@@ -1,0 +1,22 @@
+@page "/admin/people/lookup"
+@model Switchboard.Modules.Admin.Pages.People.LookupModel
+@{
+    Layout = null;
+    var selected = Request.Query["selected"].ToString();
+}
+@if (Model.None is not null)
+{
+    <option value="">@Model.None</option>
+}
+@if (Model.Selected is { } s)
+{
+    <option value="@s.Id" selected>@s.Name@(s.Email is null ? "" : $" ({s.Email})")</option>
+}
+@foreach (var p in Model.Results)
+{
+    <option value="@p.Id" selected="@(p.Id.ToString() == selected)">@p.Name@(p.Email is null ? "" : $" ({p.Email})")</option>
+}
+@if (Model.Results.Count == 0)
+{
+    <option value="" disabled>Nobody matches</option>
+}

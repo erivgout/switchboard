@@ -1,0 +1,82 @@
+@inject IShellContext Shell
+@{
+    var shell = await Shell.GetAsync();
+    var title = ViewData["Title"] as string;
+    var path = Context.Request.Path.Value ?? "/";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <partial name="_ShellHead" />
+    <title>@(string.IsNullOrEmpty(title) ? $"Help | {shell.OrganizationName}" : $"{title} | {shell.OrganizationName}")</title>
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="sb-portal" data-sb-watch-ticket="@ViewData["WatchTicket"]">
+    <a class="sb-skip visually-hidden-focusable" href="#main">Skip to content</a>
+    <header class="sb-portal-header">
+        <div class="container">
+            <a class="sb-brand px-0" href="/portal">
+                @if (!string.IsNullOrEmpty(shell.LogoUrl))
+                {
+                    <img src="@shell.LogoUrl" alt="" height="28">
+                }
+                else
+                {
+                    <img class="sb-brand-mark" src="~/_content/Switchboard.UI/img/mark.svg" alt="">
+                }
+                <span class="sb-wordmark">@shell.OrganizationName</span>
+            </a>
+            <nav aria-label="Portal" class="d-none d-md-block">
+                <ul class="sb-portal-nav">
+                    <li><a href="/portal" aria-current="@(path.Equals("/portal", StringComparison.OrdinalIgnoreCase) ? "page" : null)">Home</a></li>
+                    @foreach (var item in shell.PortalNav)
+                    {
+                        var current = path.StartsWith(item.Href, StringComparison.OrdinalIgnoreCase);
+                        <li><a href="@item.Href" aria-current="@(current ? "page" : null)">@item.Title</a></li>
+                    }
+                </ul>
+            </nav>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                @if (shell.User?.IsAgent == true)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" href="/tickets">Agent console</a>
+                }
+                @if (shell.User is not null)
+                {
+                    <partial name="_UserMenu" model="shell" />
+                }
+                else
+                {
+                    <a class="btn btn-sm btn-primary" href="/account/login?returnUrl=@Uri.EscapeDataString(Context.Request.Path + Context.Request.QueryString)">Sign in</a>
+                }
+            </div>
+        </div>
+        <nav aria-label="Portal" class="d-md-none border-top" style="border-color: var(--sb-rail-rule) !important">
+            <ul class="sb-portal-nav container py-1 overflow-auto">
+                <li><a href="/portal">Home</a></li>
+                @foreach (var item in shell.PortalNav)
+                {
+                    <li><a href="@item.Href">@item.Title</a></li>
+                }
+            </ul>
+        </nav>
+    </header>
+
+    <main id="main" class="sb-portal-main" tabindex="-1">
+        <div class="container">
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="sb-portal-footer">
+        <div class="container d-flex flex-wrap gap-3 justify-content-between">
+            <span>@shell.OrganizationName service desk</span>
+            <span>Runs on Switchboard, open source under the MIT License</span>
+        </div>
+    </footer>
+
+    <partial name="_Toasts" />
+    <partial name="_ShellScripts" />
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

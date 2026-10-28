@@ -1,0 +1,92 @@
+@page "/portal/kb/{id:guid}"
+@model PortalArticleModel
+@{
+    var a = Model.Article;
+    ViewData["Title"] = a.SeoTitle ?? a.Title;
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+    <meta name="description" content="@(a.SeoDescription ?? a.Excerpt)">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/portal/kb">Knowledge</a></li>
+        <li>@a.CategoryName</li>
+        <li><a href="/portal/kb/folders/@(a.Folder.ParentId is null ? a.Folder.Id : a.Folder.RootId)">@a.FolderPath</a></li>
+    </ol>
+</nav>
+
+<div class="kb-portal-article">
+    <article class="sb-pane kb-reading" aria-labelledby="kbTitle">
+        <header class="kb-article-head">
+            <h1 class="kb-article-title" id="kbTitle">@a.Title</h1>
+            <div class="kb-article-meta">
+                <span>Updated <sb-time value="@a.UpdatedAt" mode="datetime" /></span>
+                @if (a.Type == KbArticleType.Workaround)
+                {
+                    <span title="A temporary way around the problem while a permanent fix is on its way"><i class="bi bi-bandaid" aria-hidden="true"></i>Workaround</span>
+                }
+                <span class="sb-stamp">@a.DisplayId</span>
+            </div>
+        </header>
+
+        @if (a.ExternalUrl is not null)
+        {
+            <div class="kb-banner kb-banner--draft">
+                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                <div class="kb-banner-body">
+                    <p class="kb-banner-title">The full answer is on another page</p>
+                    <p><a href="@a.ExternalUrl" rel="noopener noreferrer nofollow" target="_blank">Open @(Uri.TryCreate(a.ExternalUrl, UriKind.Absolute, out var u) ? u.Host : "the page")<span class="visually-hidden"> (opens in a new tab)</span></a></p>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.Body.Html))
+        {
+            <div class="kb-prose">@Html.Raw(Model.Body.Html)</div>
+        }
+
+        @if (a.Attachments.Count > 0)
+        {
+            <div class="kb-reading-foot">
+                <p class="sb-section-label">Files</p>
+                <div class="sb-attachments">
+                    @foreach (var file in a.Attachments)
+                    {
+                        <a class="sb-attachment" href="/files/@file.Id/@Uri.EscapeDataString(file.FileName)?download=1"><i class="bi bi-paperclip" aria-hidden="true"></i><span>@file.FileName</span></a>
+                    }
+                </div>
+            </div>
+        }
+
+        <footer class="kb-reading-foot">
+            <partial name="_Vote" model="Model.Vote" />
+        </footer>
+    </article>
+
+    <aside class="kb-portal-aside" aria-label="More help">
+        @if (Model.Body.Outline.Count >= 3)
+        {
+            <nav class="sb-pane" aria-labelledby="kbOutlineTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbOutlineTitle">On this page</h2></div>
+                <ul class="kb-outline sb-pane-body">
+                    @foreach (var h in Model.Body.Outline)
+                    {
+                        <li class="@(h.Level == 3 ? "kb-outline-sub" : null)"><a href="#@h.Id">@h.Text</a></li>
+                    }
+                </ul>
+            </nav>
+        }
+        @if (a.Related.Count > 0)
+        {
+            <section class="sb-pane" aria-labelledby="kbRelatedTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbRelatedTitle">Related articles</h2></div>
+                <ul class="kb-linklist sb-pane-body py-2">
+                    @foreach (var r in a.Related) { <li><a href="/portal/kb/@r.Id">@r.Title</a></li> }
+                </ul>
+            </section>
+        }
+        <partial name="_StillNeedHelp" model="Model.SignedIn" />
+    </aside>
+</div>

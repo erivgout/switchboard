@@ -1,0 +1,23 @@
+@model Switchboard.Modules.Approvals.Web.PeoplePickerModel
+@{
+    var helpId = Model.Id + "Help";
+    var describedBy = Model.Help is null && Model.Error is null ? null : helpId;
+}
+<div class="apr-picker" data-apr-picker data-name="@Model.Name" data-multiple="@(Model.Multiple ? "true" : "false")"
+     data-agents="@(Model.AgentsOnly ? "true" : "false")" data-required="@(Model.Required ? "true" : "false")">
+    <label class="form-label" for="@Model.Id">@Model.Label@if (Model.Required) {<span class="apr-required" aria-hidden="true">*</span>}</label>
+    <div class="apr-picker-chips" data-apr-picker-chips>@foreach (var p in Model.Selected ?? [])
+        {<span class="apr-chip"><input type="hidden" name="@Model.Name" value="@p.Id"><span>@p.Name</span><button type="button" data-apr-remove aria-label="Remove @p.Name"><i class="bi bi-x-lg" aria-hidden="true"></i></button></span>}</div>
+    <input id="@Model.Id" class="form-control apr-picker-input @(Model.Error is null ? null : "is-invalid")" type="search" data-apr-picker-input
+           role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" aria-describedby="@describedBy"
+           placeholder="@(Model.Placeholder ?? "Search by name or email")">
+    <ul class="apr-picker-list" role="listbox" aria-label="Matching people" data-apr-picker-list hidden></ul>
+    @if (Model.Error is not null)
+    {
+        <div id="@helpId" class="invalid-feedback d-block">@Model.Error</div>
+    }
+    else if (Model.Help is not null)
+    {
+        <div id="@helpId" class="form-text">@Model.Help</div>
+    }
+</div>

@@ -1,0 +1,84 @@
+@page "/admin/categories/{id:guid}"
+@model Switchboard.Modules.Admin.Pages.Categories.EditModel
+@{
+    var c = Model.Category;
+    ViewData["Title"] = c.Name;
+    var parent = Model.Path.Count > 0 ? Model.Path[^1] : default;
+    var back = parent.Category is not null ? ($"/admin/categories/{parent.Category.Id}", parent.Category.Name) : ($"/admin/categories?ws={Model.WorkspaceKey}", "Categories");
+    var children = Model.Node?.Children ?? [];
+    var tickets = Model.Node?.Tickets ?? 0;
+    var childName = c.Level == 1 ? "sub-category" : "item";
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@c.Name" subtitle="@(Model.Path.Count == 0 ? "Top-level category" : $"Inside {string.Join(" › ", Model.Path.Select(p => p.Category.Name))}")" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" asp-page-handler="Rename" class="sb-pane">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Name</h2></div>
+        <div class="sb-pane-body">
+            <label class="form-label" for="categoryName">Name</label>
+            <div class="d-flex gap-2">
+                <input class="form-control" id="categoryName" name="Name" value="@Model.Name" maxlength="200" required>
+                <button class="btn btn-primary text-nowrap" type="submit">Save name</button>
+            </div>
+            <partial name="_FieldError" model="@("Name")" />
+        </div>
+    </form>
+
+    @if (c.Level < TicketConfigService.MaxCategoryLevel)
+    {
+        <section class="sb-pane" aria-labelledby="childrenTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="childrenTitle">@(c.Level == 1 ? "Sub-categories" : "Items")</h2></div>
+            @if (children.Count > 0)
+            {
+                <div class="sb-tree border-bottom">
+                    <partial name="_Nodes" model="new Switchboard.Modules.Admin.Pages.Categories.CategoryNodesModel(children, c.Id, Model.WorkspaceKey)" />
+                </div>
+            }
+            <form method="post" asp-page-handler="Add" class="sb-pane-body">
+                <label class="form-label" for="childName">Add a @childName</label>
+                <div class="d-flex gap-2">
+                    <input class="form-control" id="childName" name="ChildName" value="@Model.ChildName" maxlength="200">
+                    <button class="btn btn-outline-secondary text-nowrap" type="submit">Add @childName</button>
+                </div>
+                <partial name="_FieldError" model="@("Child.Name")" />
+                <partial name="_FieldError" model="@("Child.ParentId")" />
+            </form>
+        </section>
+    }
+
+    <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Delete @Model.LevelName</h2></div>
+        <div class="sb-pane-body">
+            @if (children.Count > 0)
+            {
+                <p class="mb-0">@c.Name has @children.Count @(c.Level == 1 ? "sub-categories" : "items") under it. Delete or move those first.</p>
+            }
+            else if (tickets > 0)
+            {
+                <p>@tickets @(tickets == 1 ? "ticket uses" : "tickets use") this @Model.LevelName, including closed ones. Choose what happens to them.</p>
+                <label class="form-label" for="replacement">Move them to</label>
+                <select class="form-select" id="replacement" name="Replacement">
+                    <option value="">Choose…</option>
+                    @foreach (var (id, label) in Model.SameLevel)
+                    {
+                        <option value="@id" selected="@(Model.Replacement == id.ToString())">@label</option>
+                    }
+                    <option value="clear" selected="@(Model.Replacement == "clear")">Leave them without a @Model.LevelName</option>
+                </select>
+                <partial name="_FieldError" model="@("ReplacementId")" />
+            }
+            else
+            {
+                <p class="mb-0">No tickets use this @Model.LevelName.</p>
+            }
+        </div>
+        @if (children.Count == 0)
+        {
+            <div class="sb-pane-footer">
+                <button class="btn btn-danger" type="submit" data-sb-confirm="Delete @c.Name?@(tickets > 0 ? $" {tickets} tickets are updated as you chose." : "")">Delete @Model.LevelName</button>
+            </div>
+        }
+    </form>
+</div>

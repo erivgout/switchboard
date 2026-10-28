@@ -1,0 +1,96 @@
+@page "/admin/catalog/items"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Admin.ItemsModel
+@{
+    ViewData["Title"] = "Catalog items";
+    int Count(CatItemState s) => Model.All.Count(i => i.State == s);
+    string Href(string? state) => state is null ? "/admin/catalog/items" : $"/admin/catalog/items?state={state}";
+    var categoryNames = Model.Categories.ToDictionary(c => c.Id, c => c.Name);
+    var emptyTitle = Model.All.Count == 0 ? "No catalog items yet" : "Nothing here";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+<sb-page-header title="Catalog items" subtitle="What people can request, the questions they answer, and who approves it." />
+
+<form method="post" asp-page-handler="Create" class="sb-pane sb-pane-body d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div class="flex-grow-1" style="min-width: 14rem">
+        <label class="form-label" for="newItemName">New item</label>
+        <input class="form-control" id="newItemName" name="name" maxlength="200" required placeholder="For example: Standard laptop">
+    </div>
+    <div>
+        <label class="form-label" for="newItemCategory">Category</label>
+        <select class="form-select" id="newItemCategory" name="categoryId">
+            <option value="">Choose later</option>
+            @foreach (var c in Model.Categories)
+            {
+                <option value="@c.Id">@c.Name</option>
+            }
+        </select>
+    </div>
+    <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create draft</button>
+</form>
+
+<nav aria-label="Filter by state" class="mb-3">
+    <ul class="sb-views cat-tabs mb-0">
+        <li><a href="@Href(null)" aria-current="@(Model.State is null ? "page" : null)">Current<span class="sb-count">@(Count(CatItemState.Published) + Count(CatItemState.Draft))</span></a></li>
+        <li><a href="@Href("published")" aria-current="@(Model.State == "published" ? "page" : null)">Published<span class="sb-count">@Count(CatItemState.Published)</span></a></li>
+        <li><a href="@Href("draft")" aria-current="@(Model.State == "draft" ? "page" : null)">Drafts<span class="sb-count">@Count(CatItemState.Draft)</span></a></li>
+        <li><a href="@Href("archived")" aria-current="@(Model.State == "archived" ? "page" : null)">Archived<span class="sb-count">@Count(CatItemState.Archived)</span></a></li>
+    </ul>
+</nav>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-bag" title="@emptyTitle">
+            <p class="sb-empty-text">@(Model.All.Count == 0 ? "Create the first item above. Start with what people ask the service desk for most." : "No items are in this state.")</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr><th>Item</th><th class="sb-hide-sm">Category</th><th>State</th><th class="sb-hide-sm">Cost</th><th class="sb-hide-sm">Approval</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var i in Model.Items)
+            {
+                var href = $"/admin/catalog/items/{i.Id}";
+                <tr data-sb-href="@href">
+                    <td>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="cat-icon cat-icon--sm" aria-hidden="true"><i class="bi @i.Icon"></i></span>
+                            <div class="min-w-0">
+                                <a class="sb-subject fw-semibold" href="@href">@i.Name</a>
+                                @if (!string.IsNullOrEmpty(i.ShortDescription))
+                                {
+                                    <div class="sb-meta text-truncate">@i.ShortDescription</div>
+                                }
+                            </div>
+                        </div>
+                    </td>
+                    <td class="sb-hide-sm text-muted">@(string.Join(", ", i.CategoryIds.Where(categoryNames.ContainsKey).Select(id => categoryNames[id])) is { Length: > 0 } names ? names : "None")</td>
+                    <td>
+                        @switch (i.State)
+                        {
+                            case CatItemState.Published:
+                                <span class="sb-status sb-status--resolved">Published</span>
+                                break;
+                            case CatItemState.Archived:
+                                <span class="sb-status sb-status--closed">Archived</span>
+                                break;
+                            default:
+                                <span class="sb-status sb-status--pending">Draft</span>
+                                break;
+                        }
+                    </td>
+                    <td class="sb-hide-sm tabular">@(i.CostMinor is { } c ? CatalogForm.Money(c, i.Currency) : "No charge")</td>
+                    <td class="sb-hide-sm text-muted">@(i.NeedsApproval ? "Yes" : "No")@(i.IsLimited ? ", some people only" : "")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

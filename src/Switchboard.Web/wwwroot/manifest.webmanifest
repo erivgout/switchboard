@@ -1,0 +1,20 @@
+{
+  "name": "Switchboard",
+  "short_name": "Switchboard",
+  "description": "Service desk: tickets, requests, knowledge and approvals.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#16201e",
+  "theme_color": "#16201e",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "My queue", "url": "/tickets?view=waiting" },
+    { "name": "Get help", "url": "/portal" }
+  ]
+}

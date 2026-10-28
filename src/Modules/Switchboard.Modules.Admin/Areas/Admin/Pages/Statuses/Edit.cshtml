@@ -1,0 +1,103 @@
+@page "/admin/statuses/{id:guid}"
+@model Switchboard.Modules.Admin.Pages.Statuses.EditModel
+@{
+    var s = Model.Status;
+    ViewData["Title"] = s.Name;
+    var back = ($"/admin/statuses?ws={Model.WorkspaceKey}", "Ticket statuses");
+    var categories = new[] { StatusCategory.Open, StatusCategory.Pending, StatusCategory.Resolved, StatusCategory.Closed };
+    var inUse = Model.Tickets > 0;
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@s.Name" subtitle="@(s.IsSystem ? "Built-in status. Its name and kind stay the same." : $"{Model.Tickets} tickets use this status.")" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" class="sb-pane" novalidate>
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.Name">Name agents see</label>
+                    <input class="form-control" asp-for="Input.Name" maxlength="100" disabled="@s.IsSystem">
+                    <partial name="_FieldError" model="@("Input.Name")" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.RequesterLabel">Name requesters see</label>
+                    <input class="form-control" asp-for="Input.RequesterLabel" maxlength="100" placeholder="@s.Name">
+                    <partial name="_FieldError" model="@("Input.RequesterLabel")" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.Category">Kind</label>
+                    <select class="form-select" asp-for="Input.Category" disabled="@(s.IsSystem || inUse)" aria-describedby="kindHelp">
+                        @foreach (var c in categories)
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </select>
+                    @if (!s.IsSystem && inUse)
+                    {
+                        <div class="form-text" id="kindHelp">Tickets use this status, so its kind can't change.</div>
+                        <input type="hidden" name="Input.Category" value="@s.Category">
+                    }
+                    <partial name="_FieldError" model="@("Input.Category")" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Input.SlaTimerOn">
+                        <label class="form-check-label" asp-for="Input.SlaTimerOn">Keep the SLA clock running in this status</label>
+                    </div>
+                    @if (s.IsDefault)
+                    {
+                        <input type="hidden" name="Input.IsDefault" value="true">
+                        <p class="form-text mb-0"><i class="bi bi-check2 me-1" aria-hidden="true"></i>New tickets start in this status. To change that, open another status and make it the default.</p>
+                    }
+                    else
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" asp-for="Input.IsDefault">
+                            <label class="form-check-label" asp-for="Input.IsDefault">New tickets start in this status</label>
+                        </div>
+                    }
+                    <partial name="_FieldError" model="@("Input.IsDefault")" />
+                </div>
+            </div>
+            @if (s.IsSystem)
+            {
+                <input type="hidden" name="Input.Name" value="@s.Name">
+            }
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save status</button></div>
+    </form>
+
+    @if (!s.IsSystem && !s.IsDefault)
+    {
+        <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Delete status</h2></div>
+            <div class="sb-pane-body">
+                @if (inUse)
+                {
+                    @if (Model.Replacements.Count <= 1)
+                    {
+                        <p class="mb-0">@Model.Tickets @(Model.Tickets == 1 ? "ticket uses" : "tickets use") this status, and there's no other @s.Category status to move them to. Add one first.</p>
+                    }
+                    else
+                    {
+                        <p>@Model.Tickets @(Model.Tickets == 1 ? "ticket uses" : "tickets use") this status, including closed and deleted ones. They move to the status you choose; each ticket's history records the change.</p>
+                        <label class="form-label" for="replacement">Move them to</label>
+                        <select class="form-select" id="replacement" name="ReplacementId" asp-items="Model.Replacements"></select>
+                        <partial name="_FieldError" model="@("ReplacementId")" />
+                    }
+                }
+                else
+                {
+                    <p class="mb-0">No tickets use this status.</p>
+                }
+            </div>
+            @if (!inUse || Model.Replacements.Count > 1)
+            {
+                <div class="sb-pane-footer">
+                    <button class="btn btn-danger" type="submit" data-sb-confirm="Delete the status @s.Name?@(inUse ? $" {Model.Tickets} tickets move to the status you chose." : "")">Delete status</button>
+                </div>
+            }
+        </form>
+    }
+</div>

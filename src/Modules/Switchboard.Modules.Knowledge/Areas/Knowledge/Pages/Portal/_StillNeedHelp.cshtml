@@ -1,0 +1,16 @@
+@model bool
+<section class="sb-pane" aria-labelledby="kbNeedHelpTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbNeedHelpTitle">Still stuck?</h2></div>
+    <div class="sb-pane-body">
+        @if (Model)
+        {
+            <p class="mb-3">Tell the service desk what's going wrong. Mention what you've already tried.</p>
+            <a class="btn btn-primary" href="/portal/new">Report a problem</a>
+        }
+        else
+        {
+            <p class="mb-3">Sign in to ask the service desk for help.</p>
+            <a class="btn btn-primary" href="/account/login?returnUrl=%2Fportal%2Fnew">Sign in</a>
+        }
+    </div>
+</section>

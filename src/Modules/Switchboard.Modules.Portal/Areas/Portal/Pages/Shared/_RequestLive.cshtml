@@ -1,0 +1,128 @@
+@model PortalRequestView
+@{
+    var v = Model;
+    var own = v.IsOwn;
+    string text;
+    if (v.IsMerged)
+    {
+        text = v.MergedIntoDisplayId is null
+            ? "It's being handled together with another request."
+            : $"It's being handled together with {v.MergedIntoDisplayId}. Updates continue there.";
+    }
+    else
+    {
+        text = v.StatusCategory switch
+        {
+            StatusCategory.Open => v.HandledBy is null
+                ? "The service desk has it. Replies will show up below."
+                : $"{v.HandledBy} is looking into it. Replies will show up below.",
+            StatusCategory.Pending => own
+                ? "Check the latest reply. If the service desk asked you something, answer below so they can keep going."
+                : "The service desk is waiting for an update before they can continue.",
+            StatusCategory.Resolved when !own => "The service desk marked this request as resolved.",
+            StatusCategory.Resolved => (v.CanClose, v.ReplyReopens) switch
+            {
+                (true, true) => "We think this is fixed. If everything works, close the request. If not, reply below and we'll pick it up again.",
+                (true, false) => "We think this is fixed. If everything works, close the request.",
+                (false, true) => "We think this is fixed. If it still isn't working, reply below and we'll pick it up again.",
+                _ => "We think this is fixed. If you still need help, report a new problem.",
+            },
+            _ when !own => "This request is closed.",
+            _ => v.ReplyCreatesFollowUp ? "This request is closed. Need more help? Reply below and we'll open a follow-up request."
+                : v.ReplyReopens ? "This request is closed. Need more help? Reply below to reopen it."
+                : "This request is closed. If you need more help, report a new problem.",
+        };
+    }
+    var stateClass = v.IsMerged ? "closed" : v.StatusCategory.ToString().ToLowerInvariant();
+    var you = v.Relation == ViewerRelation.Requester;
+}
+<div class="prt-live" id="prtLive" data-prt-live="/portal/requests/@v.Number?handler=Live" data-prt-reply-mode="@v.ReplyMode">
+    <section class="prt-state prt-state--@stateClass" aria-labelledby="prtStateTitle" aria-live="polite">
+        <div class="prt-state-main">
+            <h2 class="prt-state-title" id="prtStateTitle">@(v.IsMerged ? "Merged" : v.StatusLabel)</h2>
+            <p class="prt-state-text">@text</p>
+        </div>
+        @if (v.IsMerged && v.MergedIntoNumber is { } primary)
+        {
+            <div class="prt-state-actions">
+                <a class="btn btn-primary" href="/portal/requests/@primary">Go to @v.MergedIntoDisplayId</a>
+            </div>
+        }
+        else if (v.CanClose || v.ReplyReopens || (own && !v.CanReply && v.StatusCategory is StatusCategory.Resolved or StatusCategory.Closed))
+        {
+            <div class="prt-state-actions">
+                @if (v.CanClose)
+                {
+                    <form method="post" action="/portal/requests/@v.Number?handler=Close" asp-antiforgery="true"
+                          data-sb-confirm="@(v.ClosingIsFinal ? "Close this request? You won't be able to reopen it from here." : null)">
+                        <button class="btn @(v.StatusCategory == StatusCategory.Resolved ? "btn-primary" : "btn-outline-secondary")" type="submit">Close request</button>
+                    </form>
+                }
+                @if (v.ReplyReopens)
+                {
+                    <a class="btn btn-outline-secondary" href="#reply" data-prt-focus-reply>Reopen request</a>
+                }
+                else if (!v.CanReply && !v.ReplyCreatesFollowUp)
+                {
+                    <a class="btn btn-outline-secondary" href="/portal/new">Report a new problem</a>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="sb-pane prt-conversation" aria-labelledby="prtConversationTitle">
+        <h2 class="visually-hidden" id="prtConversationTitle">Conversation</h2>
+        <ol class="prt-thread">
+            <li class="sb-msg prt-msg prt-msg--requester">
+                <sb-avatar name="@v.RequesterName" />
+                <div class="prt-msg-main">
+                    <div class="sb-msg-head">
+                        <span class="sb-msg-author">@(you ? "You" : v.RequesterName)</span>
+                        <span class="sb-msg-kind">opened this request</span>
+                        <sb-time value="@v.CreatedAt" />
+                    </div>
+                    @if (string.IsNullOrWhiteSpace(v.DescriptionHtml))
+                    {
+                        <p class="prt-muted mb-0">No details were added.</p>
+                    }
+                    else
+                    {
+                        <div class="sb-msg-body">@Html.Raw(v.DescriptionHtml)</div>
+                    }
+                    <partial name="_Files" model="v.Files" />
+                </div>
+            </li>
+            @foreach (var m in v.Messages)
+            {
+                if (m.Kind == PortalMessageKind.System)
+                {
+                    <li class="sb-msg--system prt-msg-system"><i class="bi bi-info-circle" aria-hidden="true"></i><div class="prt-msg-system-body">@Html.Raw(m.BodyHtml)</div></li>
+                    continue;
+                }
+                var support = m.Kind == PortalMessageKind.Support;
+                <li class="sb-msg prt-msg @(support ? "sb-msg--agent prt-msg--support" : "prt-msg--requester")">
+                    @if (m.AvatarName is null)
+                    {
+                        <span class="sb-avatar prt-desk-avatar" aria-hidden="true"><i class="bi bi-headset"></i></span>
+                    }
+                    else
+                    {
+                        <sb-avatar name="@m.AvatarName" />
+                    }
+                    <div class="prt-msg-main">
+                        <div class="sb-msg-head">
+                            <span class="sb-msg-author">@m.AuthorName</span>
+                            @if (support && m.AvatarName is not null)
+                            {
+                                <span class="sb-msg-kind">Service desk</span>
+                            }
+                            <sb-time value="@m.CreatedAt" />
+                        </div>
+                        <div class="sb-msg-body">@Html.Raw(m.BodyHtml)</div>
+                        <partial name="_Files" model="m.Files" />
+                    </div>
+                </li>
+            }
+        </ol>
+    </section>
+</div>

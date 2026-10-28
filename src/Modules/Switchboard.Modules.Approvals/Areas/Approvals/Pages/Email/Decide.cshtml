@@ -1,0 +1,74 @@
+@page "/approvals/email/{token}"
+@model Switchboard.Modules.Approvals.Areas.Approvals.Pages.Email.DecideModel
+@using Switchboard.Modules.Approvals.Domain
+@{
+    Layout = "_PortalLayout";
+    ViewData["Title"] = "Approval";
+    var d = Model.Details;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+    <meta name="referrer" content="no-referrer">
+}
+@if (d is null)
+{
+    <div class="sb-pane mt-4">
+        <sb-empty icon="bi-link-45deg" title="This link doesn't work anymore">
+            <p class="sb-empty-text">@Model.Problem</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="/portal/approvals">Sign in to your approvals</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    var r = d.Request;
+    <sb-page-header title="@r.Title" subtitle="@($"Requested by {d.NameOf(r.RequesterId)}")">
+        <partial name="_Status" model="r.Status" />
+    </sb-page-header>
+
+    <div class="sb-split">
+        <div class="min-w-0">
+            @if (Model.Recorded is { } recorded)
+            {
+                <div class="alert alert-success d-flex gap-2" role="status">
+                    <i class="bi bi-check2-circle mt-1" aria-hidden="true"></i>
+                    <div>Your decision is recorded: <strong>@(recorded == ApprovalVerdict.Approved ? "approved" : "rejected")</strong>. You can close this page.</div>
+                </div>
+            }
+            else if (Model.Problem is not null)
+            {
+                <div class="alert alert-warning" role="status">@Model.Problem</div>
+            }
+
+            <sb-slot name="approval.subject" model="r" />
+
+            @if (Model.Recorded is null && Model.Problem is null)
+            {
+                <section class="sb-pane apr-decide" aria-labelledby="aprDecideTitle">
+                    <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprDecideTitle">Confirm your decision</h2></div>
+                    <form method="post" class="sb-pane-body">
+                        <p>
+                            Deciding as <strong>@Model.RecipientName</strong>@if (Model.OnBehalfOfId is { } o)
+                            {<text>, on behalf of <strong>@d.NameOf(o)</strong></text>}.
+                        </p>
+                        <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+                        <label class="form-label" for="aprComment">Comment</label>
+                        <textarea class="form-control" id="aprComment" name="Comment" rows="3" maxlength="2000" aria-describedby="aprCommentHelp">@Model.Comment</textarea>
+                        <div id="aprCommentHelp" class="form-text">The requester sees this. Required if you reject.</div>
+                        <div class="apr-decide-actions">
+                            <button class="btn btn-primary" type="submit" name="verdict" value="Approved"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Approve</button>
+                            <button class="btn btn-outline-secondary" type="submit" name="verdict" value="Rejected"><i class="bi bi-x-lg me-1" aria-hidden="true"></i>Reject</button>
+                        </div>
+                        <p class="small text-muted mt-3 mb-0">This link works once. Decisions are final.</p>
+                    </form>
+                </section>
+            }
+        </div>
+        <aside class="sb-sticky">
+            <section class="sb-pane" aria-labelledby="aprChainTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprChainTitle">Who approves</h2></div>
+                <div class="sb-pane-body"><partial name="_Chain" model="d" /></div>
+            </section>
+        </aside>
+    </div>
+}

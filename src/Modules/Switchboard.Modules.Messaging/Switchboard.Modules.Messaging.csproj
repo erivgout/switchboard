@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <RootNamespace>Switchboard.Modules.Messaging</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\Switchboard.Core\Switchboard.Core.csproj" />
+    <ProjectReference Include="..\..\Switchboard.UI\Switchboard.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MIT licensed. MimeKit comes with MailKit. -->
+    <PackageReference Include="MailKit" Version="4.18.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Switchboard.Modules.Messaging.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,308 @@
+@page "/tickets/new"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.NewModel
+@using System.Text.Json
+@using Switchboard.Modules.ServiceDesk.Services
+@using Switchboard.Core.Tickets
+@{
+    var o = Model.Options;
+    var i = Model.Input;
+    var incident = i.Type == TicketType.Incident;
+    var title = incident ? "New incident" : "New service request";
+    ViewData["Title"] = title;
+    var categories = JsonSerializer.Serialize(o.Categories.Select(c => new { id = c.Id, parent = c.ParentId, name = c.Name, level = c.Level }));
+    var typeKey = incident ? "incident" : "request";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+
+<sb-page-header title="@title" subtitle="@(incident ? "Log something that's broken or not working as it should." : "Log a request for something new: access, equipment or a change.")">
+    <a class="btn btn-ghost" href="/tickets/new?type=@(incident ? "request" : "incident")@(Model.ParentTicket is { } pt ? $"&parent={pt.Number}" : "")">
+        Switch to @(incident ? "service request" : "incident")
+    </a>
+</sb-page-header>
+
+@if (Model.Templates.Count > 0)
+{
+    <form class="sd-template-bar" method="get" action="/tickets/new" data-sd-template-form>
+        <input type="hidden" name="type" value="@typeKey">
+        @if (Model.ParentTicket is { } p0)
+        {
+            <input type="hidden" name="parent" value="@p0.Number">
+        }
+        <label class="form-label m-0" for="sdTemplate"><i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>Start from a template</label>
+        <select class="form-select" id="sdTemplate" name="template" data-sd-autosubmit>
+            <option value="">Blank form</option>
+            @foreach (var tpl in Model.Templates)
+            {
+                <option value="@tpl.Id" selected="@(tpl.Id == i.TemplateId)">@tpl.Name@(tpl.Type != i.Type ? (tpl.Type == TicketType.Incident ? " (incident)" : " (service request)") : "")</option>
+            }
+        </select>
+        <noscript><button class="btn btn-outline-secondary" type="submit">Use template</button></noscript>
+        @if (Model.AppliedTemplate is { } applied && !string.IsNullOrWhiteSpace(applied.Description))
+        {
+            <span class="sb-meta">@applied.Description</span>
+        }
+    </form>
+}
+
+<form method="post" class="sd-new" novalidate data-sd-new-ticket>
+    <input type="hidden" asp-for="Input.Type">
+    <input type="hidden" asp-for="Input.TemplateId">
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert" tabindex="-1" data-sd-error-summary>
+            <strong>The ticket wasn't created.</strong>
+            <ul class="mb-0 mt-1">
+                @foreach (var error in ViewData.ModelState.Where(e => e.Value!.Errors.Count > 0).SelectMany(e => e.Value!.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (Model.ParentTicket is { } parent)
+    {
+        <div class="alert alert-secondary sd-banner" role="status">
+            <i class="bi bi-diagram-2" aria-hidden="true"></i>
+            <span>This will be a child of <a href="/tickets/@parent.Number">@parent.DisplayId: @parent.Subject</a>. The parent can't close until it's resolved.</span>
+        </div>
+    }
+
+    <div class="sb-split">
+        <div class="sd-new-main">
+            <section class="sb-pane sb-pane-body">
+                <div class="mb-3" data-sd-requester-picker data-sd-people-url="/tickets/new?handler=People">
+                    <label class="form-label" for="sdRequester">Requester</label>
+                    <input type="hidden" asp-for="Input.RequesterId" data-sd-requester-id>
+                    <input type="hidden" asp-for="Input.RequesterEmail" data-sd-requester-email>
+                    <input type="hidden" asp-for="Input.RequesterLabel" data-sd-requester-label>
+                    <div class="sd-picked" data-sd-picked @(string.IsNullOrEmpty(i.RequesterLabel) && string.IsNullOrEmpty(i.RequesterEmail) ? "hidden" : "")>
+                        <i class="bi bi-person" aria-hidden="true"></i>
+                        <span data-sd-picked-text>@(i.RequesterLabel ?? i.RequesterEmail)</span>
+                        <button class="btn btn-link btn-sm p-0 ms-auto" type="button" data-sd-change-requester>Change</button>
+                    </div>
+                    <div class="sd-combobox" data-sd-combobox @(string.IsNullOrEmpty(i.RequesterLabel) && string.IsNullOrEmpty(i.RequesterEmail) ? "" : "hidden")>
+                        <input class="form-control @(ViewData.ModelState["Input.RequesterId"]?.Errors.Count > 0 ? "is-invalid" : "")" id="sdRequester" type="text" autocomplete="off"
+                               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sdPeople" aria-describedby="sdRequesterHelp"
+                               placeholder="Search by name or email" data-sd-people-input>
+                        <ul class="dropdown-menu sd-people" id="sdPeople" role="listbox" aria-label="Matching people" data-sd-people></ul>
+                    </div>
+                    <div class="form-text" id="sdRequesterHelp">Type at least two letters. For someone new, type their email address.</div>
+                    <div class="sd-new-name" data-sd-new-name @(string.IsNullOrEmpty(i.RequesterEmail) ? "hidden" : "")>
+                        <label class="form-label mt-2" for="sdRequesterName">Their name (optional)</label>
+                        <input class="form-control" id="sdRequesterName" asp-for="Input.RequesterName" maxlength="200">
+                    </div>
+                    <span class="text-danger small" asp-validation-for="Input.RequesterId"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="sdSubjectNew">Subject</label>
+                    <input class="form-control @(ViewData.ModelState["Input.Subject"]?.Errors.Count > 0 ? "is-invalid" : "")" id="sdSubjectNew" asp-for="Input.Subject" maxlength="500" required
+                           placeholder="@(incident ? "Laptop won't connect to Wi-Fi" : "Access to the finance shared drive")">
+                    <span class="invalid-feedback" asp-validation-for="Input.Subject"></span>
+                </div>
+
+                <div class="mb-1">
+                    <span class="form-label d-block" id="sdDescLabel">Description</span>
+                    <div class="sb-composer sd-editor-wrap" data-sd-editor>
+                        <div class="sd-editor-toolbar" role="toolbar" aria-label="Formatting">
+                            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="bold" aria-label="Bold (Ctrl+B)"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+                            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="italic" aria-label="Italic (Ctrl+I)"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+                            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertUnorderedList" aria-label="Bulleted list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
+                            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertOrderedList" aria-label="Numbered list"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
+                            <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="createLink" aria-label="Add link (Ctrl+K)"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
+                        </div>
+                        <div class="sd-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="sdDescLabel" data-sd-editor-area
+                             data-placeholder="What happened, what they tried, and how it affects their work">@Html.Raw(i.DescriptionHtml)</div>
+                        <input type="hidden" name="Input.DescriptionHtml" data-sd-editor-value>
+                        <div class="sd-upload-list" data-sd-upload-list data-sd-upload-name="Input.AttachmentIds">
+                            @foreach (var (name, id) in Model.PendingFiles)
+                            {
+                                <span class="sd-upload" data-sd-upload-item>
+                                    <i class="bi bi-paperclip" aria-hidden="true"></i><span>@name</span>
+                                    <input type="hidden" name="Input.AttachmentIds" value="@id">
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-remove-upload aria-label="Remove @name"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                </span>
+                            }
+                        </div>
+                        <div class="sb-composer-foot">
+                            <label class="btn btn-ghost btn-sm">
+                                <i class="bi bi-paperclip me-1" aria-hidden="true"></i>Attach files
+                                <input type="file" multiple hidden data-sd-upload>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            @if (o.CustomFields.Count > 0)
+            {
+                <section class="sb-pane" aria-labelledby="sdMoreTitle">
+                    <div class="sb-pane-header"><h2 class="sb-pane-title" id="sdMoreTitle">More details</h2></div>
+                    <div class="sb-pane-body sd-custom-grid">
+                        @foreach (var def in o.CustomFields)
+                        {
+                            <partial name="_CustomFieldInput" model="new Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.CustomFieldInputModel(def, Model.CustomValues.GetValueOrDefault(def.Key) ?? (def.DefaultValue is null ? [] : [def.DefaultValue]), ViewData.ModelState[CustomFieldForm.InputPrefix + def.Key]?.Errors.FirstOrDefault()?.ErrorMessage)" />
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+
+        <aside class="sd-new-side">
+            <section class="sb-pane sb-pane-body" aria-label="Ticket properties">
+                @if (Model.Workspaces.Count > 1)
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="sdWorkspace">Workspace</label>
+                        <select class="form-select" id="sdWorkspace" asp-for="Input.WorkspaceId" data-sd-workspace-switch data-sd-url="/tickets/new?type=@typeKey">
+                            @foreach (var w in Model.Workspaces)
+                            {
+                                <option value="@w.Id">@w.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
+                else
+                {
+                    <input type="hidden" asp-for="Input.WorkspaceId">
+                }
+
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label" for="sdImpact">Impact</label>
+                        <select class="form-select" id="sdImpact" asp-for="Input.Impact" data-sd-impact aria-describedby="sdPriorityHint">
+                            @foreach (var l in Enum.GetValues<Level>())
+                            {
+                                <option value="@l">@l</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="sdUrgency">Urgency</label>
+                        <select class="form-select" id="sdUrgency" asp-for="Input.Urgency" data-sd-urgency aria-describedby="sdPriorityHint">
+                            @foreach (var l in Enum.GetValues<Level>())
+                            {
+                                <option value="@l">@l</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="sdPriority">Priority</label>
+                    <select class="form-select" id="sdPriority" asp-for="Input.Priority" data-sd-priority aria-describedby="sdPriorityHint">
+                        <option value="">From impact and urgency</option>
+                        @foreach (var p in Enum.GetValues<Priority>().Reverse())
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    </select>
+                    <div class="form-text" id="sdPriorityHint" data-sd-priority-hint aria-live="polite"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="sdStatus">Status</label>
+                    <select class="form-select" id="sdStatus" asp-for="Input.StatusId">
+                        <option value="">Default (new ticket)</option>
+                        @foreach (var s in o.Statuses)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="sdSource">Source</label>
+                    <select class="form-select" id="sdSource" asp-for="Input.SourceKey">
+                        @foreach (var s in o.Sources)
+                        {
+                            <option value="@s.Key">@s.Name</option>
+                        }
+                    </select>
+                    <div class="form-text">How the request reached you.</div>
+                </div>
+
+                <p class="sb-section-label">Assignment</p>
+                <div class="mb-3">
+                    <label class="form-label" for="sdGroup">Group</label>
+                    <select class="form-select" id="sdGroup" asp-for="Input.GroupId" disabled="@(!Model.CanAssign)" data-sd-group>
+                        <option value="">No group</option>
+                        @foreach (var g in o.Groups)
+                        {
+                            <option value="@g.Id">@g.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="sdAgent">Agent</label>
+                    <select class="form-select" id="sdAgent" asp-for="Input.AgentId" disabled="@(!Model.CanAssign)" data-sd-agent>
+                        <option value="">Unassigned</option>
+                        @foreach (var a in o.Agents)
+                        {
+                            <option value="@a.Id" data-sd-groups="@string.Join(" ", o.Groups.Where(g => g.MemberIds.Contains(a.Id)).Select(g => g.Id))">@a.Name</option>
+                        }
+                    </select>
+                    @if (!Model.CanAssign)
+                    {
+                        <div class="form-text">Your role can't assign tickets.</div>
+                    }
+                </div>
+
+                <p class="sb-section-label">Classification</p>
+                <div data-sd-categories="@categories">
+                    <div class="mb-2">
+                        <label class="form-label" for="sdCategory">Category</label>
+                        <select class="form-select" id="sdCategory" asp-for="Input.CategoryId" data-sd-cat-level="1">
+                            <option value="">None</option>
+                            @foreach (var c in o.ChildrenOf(null, 1))
+                            {
+                                <option value="@c.Id">@c.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-2" data-sd-cat-wrap="2">
+                        <label class="form-label" for="sdSubCategory">Sub-category</label>
+                        <select class="form-select" id="sdSubCategory" asp-for="Input.SubCategoryId" data-sd-cat-level="2" data-sd-selected="@i.SubCategoryId">
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" data-sd-cat-wrap="3">
+                        <label class="form-label" for="sdItem">Item</label>
+                        <select class="form-select" id="sdItem" asp-for="Input.ItemCategoryId" data-sd-cat-level="3" data-sd-selected="@i.ItemCategoryId">
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="sdTags">Tags</label>
+                    <input class="form-control" id="sdTags" asp-for="Input.Tags" placeholder="vip, travel">
+                    <div class="form-text">Separate tags with commas.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="sdCcNew">CC</label>
+                    <input class="form-control @(ViewData.ModelState["Input.Cc"]?.Errors.Count > 0 ? "is-invalid" : "")" id="sdCcNew" asp-for="Input.Cc" inputmode="email" placeholder="manager@example.com">
+                    <div class="form-text">People copied on every reply.</div>
+                </div>
+                <div class="mb-1">
+                    <label class="form-label" for="sdParent">Parent ticket</label>
+                    <input class="form-control @(ViewData.ModelState["Input.Parent"]?.Errors.Count > 0 ? "is-invalid" : "")" id="sdParent" asp-for="Input.Parent" placeholder="INC-1042">
+                    <div class="form-text">Optional. Makes this a child of another ticket.</div>
+                </div>
+            </section>
+        </aside>
+    </div>
+
+    <div class="sd-new-actions">
+        <a class="btn btn-ghost" href="/tickets">Cancel</a>
+        <button class="btn btn-primary" type="submit">Create @(incident ? "incident" : "service request")</button>
+    </div>
+</form>
+
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/editor.js" asp-append-version="true"></script>
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/newticket.js" asp-append-version="true"></script>
+}

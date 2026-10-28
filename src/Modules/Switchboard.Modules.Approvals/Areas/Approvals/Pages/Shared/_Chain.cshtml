@@ -1,0 +1,68 @@
+@using Switchboard.Modules.Approvals.Domain
+@using Switchboard.Modules.Approvals.Services
+@using Switchboard.Modules.Approvals.Web
+@model ApprovalDetails
+@{
+    var r = Model.Request;
+    var levels = r.Levels.OrderBy(l => l.Order).ToList();
+    var numbered = levels.Count > 1;
+}
+<ol class="apr-chain" aria-label="Approval chain">
+    @foreach (var level in levels)
+    {
+        var eval = Model.Evaluation.Levels.First(e => e.Order == level.Order);
+        var state = eval.Outcome.ToString().ToLowerInvariant();
+        <li class="apr-level is-@state" style="@(numbered ? null : "padding-left: 0")">
+            @if (numbered)
+            {
+                <span class="apr-marker" aria-hidden="true">@level.Order</span>
+            }
+            <div class="apr-level-head">
+                <span>@(level.Name ?? (numbered ? $"Level {level.Order}" : "Approvers"))</span>
+                <span class="apr-level-rule">@ApprovalText.Rule(level.Rule, level.Approvers.Count, eval.Needed)</span>
+                <span class="apr-level-state">@ApprovalText.Level(eval.Outcome, r.Status)</span>
+            </div>
+            <ul class="apr-approvers">
+                @foreach (var a in level.Approvers)
+                {
+                    var decision = r.Decisions.FirstOrDefault(d => d.LevelId == level.Id && d.ApproverId == a.UserId);
+                    var name = Model.NameOf(a.UserId);
+                    <li class="apr-approver">
+                        <sb-avatar name="@name" size="sm" />
+                        <span class="min-w-0">
+                            <span class="apr-approver-name">@name</span>
+                            <span class="apr-approver-meta">
+                                @if (decision?.OnBehalfOfId is not null)
+                                {
+                                    @:Decided by @Model.NameOf(decision.DecidedById) on their behalf
+                                }
+                                else if (decision is null && eval.Outcome == LevelOutcome.Pending && Model.Delegates.TryGetValue(a.UserId, out var cover))
+                                {
+                                    @:@a.Source. Covered by @Model.NameOf(cover)
+                                }
+                                else
+                                {
+                                    @a.Source
+                                }
+                            </span>
+                        </span>
+                        @if (decision is not null)
+                        {
+                            <span class="apr-verdict apr-verdict--@decision.Verdict.ToString().ToLowerInvariant()">
+                                <i class="bi @(decision.Verdict == ApprovalVerdict.Approved ? "bi-check2" : "bi-x-lg")" aria-hidden="true"></i>@decision.Verdict
+                            </span>
+                        }
+                        else if (eval.Outcome == LevelOutcome.Pending)
+                        {
+                            <span class="apr-verdict apr-verdict--waiting"><i class="bi bi-hourglass" aria-hidden="true"></i>Waiting</span>
+                        }
+                        else if (eval.Outcome is LevelOutcome.Approved or LevelOutcome.Rejected)
+                        {
+                            <span class="apr-verdict apr-verdict--waiting">Not needed</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </li>
+    }
+</ol>

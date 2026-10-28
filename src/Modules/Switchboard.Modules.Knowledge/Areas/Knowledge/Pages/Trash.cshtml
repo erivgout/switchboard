@@ -1,0 +1,80 @@
+@page "/kb/trash"
+@model TrashModel
+@{
+    ViewData["Title"] = "Knowledge trash";
+    var canPurgeAny = Model.Items.Any(i => i.CanPurge);
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li aria-current="page">Trash</li>
+    </ol>
+</nav>
+
+<sb-page-header title="Trash" subtitle="Restore categories, folders and articles, or delete them for good." />
+
+@if (Model.Items.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-trash3" title="The trash is empty">
+            <p class="sb-empty-text">Articles, folders and categories you move to the trash wait here until someone restores or deletes them.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <form method="post" data-sb-select-scope="#kbTrashBar">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2" id="kbTrashBar" hidden>
+            <span class="fw-semibold me-2" data-sb-selected-count>0 selected</span>
+            <button class="btn btn-sm btn-outline-secondary" type="submit" asp-page-handler="Restore">Restore</button>
+            @if (canPurgeAny)
+            {
+                <button class="btn btn-sm btn-danger" type="submit" asp-page-handler="Purge"
+                        data-sb-confirm="Delete the selected items permanently? Folders and categories take their articles with them. This can't be undone.">Delete permanently</button>
+            }
+        </div>
+        <div class="sb-pane sb-queue-wrap">
+            <table class="sb-queue">
+                <thead>
+                    <tr>
+                        <th scope="col" class="sb-col-check"><input class="form-check-input" type="checkbox" data-sb-select-all aria-label="Select everything in the trash"></th>
+                        <th scope="col">Item</th>
+                        <th scope="col" class="sb-hide-sm">Was in</th>
+                        <th scope="col" class="sb-hide-sm">Deleted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        var label = item.Kind switch { "category" => "Category", "folder" => "Folder", _ => "Article" };
+                        var icon = item.Kind switch { "category" => "bi-collection", "folder" => "bi-folder2", _ => "bi-file-earmark-text" };
+                        <tr>
+                            <td class="sb-col-check">
+                                @if (item.CanRestore || item.CanPurge)
+                                {
+                                    <input class="form-check-input" type="checkbox" name="items" value="@item.Kind:@item.Id" data-sb-select aria-label="Select @item.Title">
+                                }
+                            </td>
+                            <td>
+                                <span class="d-inline-flex align-items-center gap-2">
+                                    <i class="bi @icon text-body-secondary" aria-hidden="true"></i>
+                                    @if (item.Kind == "article") { <a href="/kb/@item.Id">@item.Title</a> } else { <span class="fw-semibold">@item.Title</span> }
+                                </span>
+                                <div class="sb-meta">@label</div>
+                            </td>
+                            <td class="sb-hide-sm">@item.Location</td>
+                            <td class="sb-hide-sm">
+                                <sb-time value="@item.DeletedAt" />
+                                @if (item.DeletedByName is not null) { <div class="sb-meta">by @item.DeletedByName</div> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </form>
+}

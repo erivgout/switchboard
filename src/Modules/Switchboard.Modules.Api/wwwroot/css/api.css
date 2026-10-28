@@ -1,0 +1,90 @@
+/* API keys and webhooks. Tokens only; see docs/DESIGN_SYSTEM.md. */
+
+/* A secret shown once: the cord rule marks a connection just made. */
+.sb-secret {
+  margin-bottom: 1rem;
+  padding: 0.875rem 1rem;
+  background: var(--sb-surface-2);
+  border: 1px solid var(--sb-rule);
+  border-left: 3px solid var(--sb-cord);
+  border-radius: var(--sb-radius);
+}
+
+.sb-secret-title { margin: 0; font-weight: 650; }
+.sb-secret-title .bi { color: var(--sb-success); }
+
+.sb-secret-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.625rem 0; }
+
+/* Atkinson, not monospace: it keeps I l 1 and O 0 apart, which matters when a key is read aloud. */
+.sb-secret-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4375rem 0.625rem;
+  font-family: var(--sb-font-ui);
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--sb-ink);
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius-sm);
+  word-break: break-all;
+  user-select: all;
+}
+
+.sb-api-prefix { font-variant-numeric: tabular-nums; color: var(--sb-ink); }
+.sb-api-inactive td { color: var(--sb-ink-muted); }
+.sb-api-scopes { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; }
+
+.sb-api-create > summary { list-style: none; display: inline-flex; align-items: center; gap: 0.375rem; }
+.sb-api-create > summary::-webkit-details-marker { display: none; }
+.sb-api-create[open] > summary { color: var(--sb-ink-muted); }
+
+.sb-api-scope-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius);
+}
+.sb-api-scope-list[hidden] { display: none; }
+.sb-api-scope-list > .form-text { grid-column: 1 / -1; }
+.sb-api-scope-group .sb-section-label { margin-bottom: 0.25rem; }
+
+/* Webhooks */
+.sb-hook-url { color: var(--sb-ink-muted); word-break: break-all; }
+.sb-hook-state { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
+.sb-hook-state--ok .bi { color: var(--sb-success); }
+.sb-hook-state--bad .bi { color: var(--sb-danger); }
+.sb-hook-state--wait .bi { color: var(--sb-warning); }
+.sb-hook-events { columns: 2 14rem; column-gap: 1.5rem; }
+.sb-hook-events .form-check { break-inside: avoid; }
+
+.sb-hook-payload {
+  max-height: 18rem;
+  overflow: auto;
+  margin: 0.5rem 0 0;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  background: var(--sb-surface-2);
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sb-api-docs-method {
+  display: inline-block;
+  min-width: 3.75rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--sb-cord-hover);
+}
+[data-bs-theme="dark"] .sb-api-docs-method { color: var(--sb-cord); }
+.sb-api-docs-path { font-variant-numeric: tabular-nums; word-break: break-all; }
+
+@media (max-width: 575.98px) {
+  .sb-secret-row { flex-direction: column; align-items: stretch; }
+}

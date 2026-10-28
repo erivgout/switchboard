@@ -1,0 +1,177 @@
+@page "/admin/automations"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Automations";
+    Layout = "_AdminLayout";
+    var paused = Model.InstancePaused || Model.WorkspacePaused;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+
+<sb-page-header title="Automations" subtitle="Workflows act on tickets for you: routing, reminders, notifications and follow-ups.">
+    <a class="btn btn-primary" href="/admin/automations/new@(Model.WsQuery)"><i class="bi bi-plus-lg" aria-hidden="true"></i> New workflow</a>
+</sb-page-header>
+
+<partial name="_AutomationTabs" model="@(("workflows", Model.WsQuery))" />
+
+@if (Model.ManyWorkspaces)
+{
+    <form method="get" class="d-flex gap-2 align-items-center mb-3">
+        <label class="form-label mb-0" for="autWs">Workspace</label>
+        <select class="form-select w-auto" id="autWs" name="ws">
+            @foreach (var ws in Model.Workspaces)
+            {
+                <option value="@ws.Id" selected="@(ws.Id == Model.Workspace.Id)">@ws.Name</option>
+            }
+        </select>
+        <button class="btn btn-outline-secondary" type="submit">Show</button>
+    </form>
+}
+
+<div class="sb-pane sb-pane-body aut-kill @(paused ? "is-paused" : null) mb-3">
+    @if (paused)
+    {
+        <p class="aut-kill-text">
+            <i class="bi bi-pause-circle-fill me-1" aria-hidden="true"></i>
+            <strong>Automations are paused@(Model.InstancePaused ? " everywhere" : Model.ManyWorkspaces ? $" in {Model.Workspace.Name}" : "").</strong>
+            @if (Model.QueueMode)
+            {
+                <span>@(Model.Queued == 1 ? "1 event is" : $"{Model.Queued} events are") waiting and will run when you resume.</span>
+            }
+            else
+            {
+                <span>New events are being ignored.</span>
+            }
+        </p>
+        @if (!Model.InstancePaused || Model.CanPauseInstance)
+        {
+            <form method="post" asp-page-handler="Resume">
+                <input type="hidden" name="ws" value="@Model.Workspace.Id">
+                <input type="hidden" name="everywhere" value="@(Model.InstancePaused ? "true" : "false")">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-play-fill" aria-hidden="true"></i> Resume automations</button>
+            </form>
+        }
+    }
+    else
+    {
+        <p class="aut-kill-text"><i class="bi bi-play-circle me-1 text-muted" aria-hidden="true"></i>Automations are running. Pausing stops workflows, scheduled tickets and auto-assignment at once.</p>
+        <form method="post" asp-page-handler="Pause" data-sb-confirm="Pause all automations? Workflows, scheduled tickets and auto-assignment stop until you resume.">
+            <input type="hidden" name="ws" value="@Model.Workspace.Id">
+            <input type="hidden" name="everywhere" value="@(Model.CanPauseInstance && !Model.ManyWorkspaces ? "true" : "false")">
+            <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-pause-fill" aria-hidden="true"></i> Pause all automations</button>
+        </form>
+    }
+</div>
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-diagram-3" title="No workflows yet">
+            <p class="sb-empty-text">Start with one job your team repeats every day, like routing network problems to the Network group.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="/admin/automations/new@(Model.WsQuery)">New workflow</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <caption class="visually-hidden">Workflows in the order they run</caption>
+            <thead>
+            <tr>
+                <th scope="col">Order</th>
+                <th scope="col">Workflow</th>
+                <th scope="col" class="sb-hide-sm">Status</th>
+                <th scope="col" class="sb-hide-sm">Last run</th>
+                <th scope="col"><span class="visually-hidden">On or off</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            @for (var i = 0; i < Model.Rows.Count; i++)
+            {
+                var row = Model.Rows[i];
+                var wf = row.Workflow;
+                <tr data-sb-href="/admin/automations/@wf.Id">
+                    <td>
+                        <div class="aut-order">
+                            <form method="post" asp-page-handler="Move">
+                                <input type="hidden" name="id" value="@wf.Id"><input type="hidden" name="direction" value="-1">
+                                <button class="btn btn-ghost btn-icon btn-sm" type="submit" aria-label="Run @wf.Name earlier" title="Run earlier" disabled="@(i == 0)"><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
+                            </form>
+                            <span class="aut-order-num">@(i + 1)</span>
+                            <form method="post" asp-page-handler="Move">
+                                <input type="hidden" name="id" value="@wf.Id"><input type="hidden" name="direction" value="1">
+                                <button class="btn btn-ghost btn-icon btn-sm" type="submit" aria-label="Run @wf.Name later" title="Run later" disabled="@(i == Model.Rows.Count - 1)"><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                    <td>
+                        <a class="sb-subject" href="/admin/automations/@wf.Id">@wf.Name</a>
+                        <div class="aut-wf-summary">@Html.Raw(row.SentenceHtml)</div>
+                    </td>
+                    <td class="sb-hide-sm">
+                        @if (wf.AutoDisabledAt is not null && !wf.IsEnabled)
+                        {
+                            <span class="aut-state aut-state--bad" title="@wf.DisabledReason"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i>Turned off after failures</span>
+                        }
+                        else if (wf.PublishedVersion is null)
+                        {
+                            <span class="aut-state aut-state--off"><i class="bi bi-pencil" aria-hidden="true"></i>Draft</span>
+                        }
+                        else if (!wf.IsEnabled)
+                        {
+                            <span class="aut-state aut-state--off"><i class="bi bi-pause-circle" aria-hidden="true"></i>Off</span>
+                        }
+                        else
+                        {
+                            <span class="aut-state aut-state--live"><i class="bi bi-broadcast" aria-hidden="true"></i>Live, version @wf.PublishedVersion</span>
+                        }
+                        @if (wf.PublishedVersion is not null && wf.HasUnpublishedChanges)
+                        {
+                            <div class="small text-muted">Unpublished changes</div>
+                        }
+                    </td>
+                    <td class="sb-hide-sm">
+                        @if (wf.LastRunAt is { } last)
+                        {
+                            <partial name="_RunState" model="wf.LastRunStatus" />
+                            <div class="small text-muted"><sb-time value="last" /></div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Not yet</span>
+                        }
+                        @if (wf.ConsecutiveFailures > 0)
+                        {
+                            <div class="small text-danger">@(wf.ConsecutiveFailures == 1 ? "1 failure" : $"{wf.ConsecutiveFailures} failures") in a row</div>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (wf.PublishedVersion is not null)
+                        {
+                            <form method="post" asp-page-handler="Enable">
+                                <input type="hidden" name="id" value="@wf.Id">
+                                <input type="hidden" name="enabled" value="@(wf.IsEnabled ? "false" : "true")">
+                                <button class="btn btn-sm btn-outline-secondary text-nowrap" type="submit" aria-label="@(wf.IsEnabled ? "Turn off" : "Turn on") @wf.Name">@(wf.IsEnabled ? "Turn off" : "Turn on")</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <p class="aut-block-hint mt-2">Workflows run top to bottom for each event. A later workflow sees the changes an earlier one made.</p>
+}
+
+<details class="mt-4">
+    <summary class="text-primary">Import a workflow</summary>
+    <form method="post" asp-page-handler="Import" enctype="multipart/form-data" class="sb-pane sb-pane-body mt-2 sb-form-narrow">
+        <input type="hidden" name="ws" value="@Model.Workspace.Id">
+        <label class="form-label" for="autImport">Workflow file (.json)</label>
+        <input class="form-control" type="file" id="autImport" name="file" accept=".json,application/json" required>
+        <div class="form-text">Imported workflows start as turned-off drafts. Web request keys are never included in exports, so add them again.</div>
+        <button class="btn btn-outline-secondary mt-3" type="submit">Import workflow</button>
+    </form>
+</details>

@@ -1,0 +1,55 @@
+@using Switchboard.Modules.Approvals.Domain
+@using Switchboard.Modules.Approvals.Web
+@using Switchboard.Modules.Approvals.Services
+@model TicketApprovalsModel
+@{
+    var current = Model.Approvals[0];
+    var r = current.Request;
+    var basePath = Model.ForRequester ? "/portal/approvals" : "/approvals";
+    var older = Model.Approvals.Skip(1).ToList();
+}
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+<section class="sb-pane" aria-labelledby="aprPanel-@r.Id">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="aprPanel-@r.Id">Approval</h2>
+        <span class="ms-auto"><partial name="/Areas/Approvals/Pages/Shared/_Status.cshtml" model="r.Status" /></span>
+    </div>
+    <div class="sb-pane-body">
+        <partial name="/Areas/Approvals/Pages/Shared/_Chain.cshtml" model="current" />
+        @if (r.Status == ApprovalStatus.Rejected && r.Decisions.LastOrDefault(d => d.Verdict == ApprovalVerdict.Rejected) is { Comment: { } reason } rejection)
+        {
+            <div class="alert alert-light border mt-3 mb-0 small">
+                <strong>@current.NameOf(rejection.DecidedById) said:</strong>
+                <p class="apr-history-comment mb-0">@reason</p>
+            </div>
+        }
+    </div>
+    <div class="sb-pane-footer flex-wrap">
+        @if (current.CanDecideFor.Count > 0)
+        {
+            <a class="btn btn-primary btn-sm" href="@basePath/@r.Id">Decide</a>
+        }
+        else
+        {
+            <a class="btn btn-ghost btn-sm" href="@basePath/@r.Id">Details</a>
+        }
+        @if (r.Status == ApprovalStatus.Requested && current.CanManage)
+        {
+            <form method="post" action="@basePath/@r.Id?handler=Remind" class="ms-auto" asp-antiforgery="true">
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl">
+                <button class="btn btn-ghost btn-sm" type="submit"><i class="bi bi-bell me-1" aria-hidden="true"></i>Remind</button>
+            </form>
+        }
+    </div>
+    @if (older.Count > 0)
+    {
+        <div class="sb-pane-footer small text-muted d-block">
+            Earlier:
+            @for (var i = 0; i < older.Count; i++)
+            {
+                var o = older[i].Request;
+                <a href="@basePath/@o.Id">@ApprovalService.StatusWord(o.Status) <sb-time value="@o.CreatedAt" /></a>@(i < older.Count - 1 ? ", " : "")
+            }
+        </div>
+    }
+</section>

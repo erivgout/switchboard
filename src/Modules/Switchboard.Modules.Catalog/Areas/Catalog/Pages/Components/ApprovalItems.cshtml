@@ -1,0 +1,14 @@
+@model TicketCatalogView
+@{
+    var forName = Model.Items.Select(i => i.RequestedForName).FirstOrDefault(n => n is not null);
+}
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+<section class="sb-pane" aria-labelledby="catApproval-@Model.TicketId">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="catApproval-@Model.TicketId">What's being requested</h2>
+        <span class="ms-auto small text-muted">@(forName is null ? $"For {Model.RequesterName}" : $"For {forName}, asked by {Model.RequesterName}")</span>
+    </div>
+    <div class="sb-pane-body">
+        <partial name="/Areas/Catalog/Pages/Shared/_RequestedItems.cshtml" model="new RequestedItemsModel(Model, true, false, ShowStage: false)" />
+    </div>
+</section>

@@ -1,0 +1,46 @@
+@page "/admin/locations"
+@model Switchboard.Modules.Admin.Pages.Locations.IndexModel
+@{
+    ViewData["Title"] = "Locations";
+}
+<sb-page-header title="Locations" subtitle="Offices and sites. Put a location inside another to build regions, like EMEA, then London.">
+    <a class="btn btn-primary" href="/admin/locations/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> New location</a>
+</sb-page-header>
+
+@if (Model.Locations.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-geo-alt" title="No locations yet">
+            <p class="sb-empty-text">Add the places your people work so tickets and assets can be routed by site.</p>
+            <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/locations/new">New location</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead><tr><th scope="col">Location</th><th scope="col" class="sb-hide-sm">Address</th><th scope="col" class="sb-num-cell">People</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Locations)
+                {
+                    var l = row.Location;
+                    var address = string.Join(", ", new[] { l.City, l.State, l.Country }.Where(x => !string.IsNullOrEmpty(x)));
+                    <tr data-sb-href="/admin/locations/@l.Id">
+                        <td>
+                            <span style="padding-left: @(row.Depth * 1.25)rem">
+                                @if (row.Depth > 0)
+                                {
+                                    <i class="bi bi-arrow-return-right text-muted me-1" aria-hidden="true"></i>
+                                }
+                                <a class="sb-subject" href="/admin/locations/@l.Id">@l.Name</a>
+                            </span>
+                        </td>
+                        <td class="sb-hide-sm text-muted">@address</td>
+                        <td class="sb-num-cell tabular">@row.People</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

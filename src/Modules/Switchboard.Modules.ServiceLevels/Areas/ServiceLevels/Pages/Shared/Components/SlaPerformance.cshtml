@@ -1,0 +1,31 @@
+@model Switchboard.Modules.ServiceLevels.Components.SlaPerformanceModel
+@{
+    // Rendered into other modules' pages, so layout stays inline rather than in a module stylesheet.
+    static string Rate(int met, int total) => total == 0 ? "–" : $"{Math.Floor(met * 100.0 / total):0}%";
+    const string Row = "display: grid; grid-template-columns: 5rem 1fr; align-items: center; gap: 0.75rem; padding: 0.75rem 0;";
+}
+<section class="sb-pane" aria-labelledby="slaPerformanceTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="slaPerformanceTitle">Service levels, last 7 days</h2>
+        <a class="ms-auto small" href="/reports/sla">SLA report</a>
+    </div>
+    @if (Model.FirstResponseTotal == 0 && Model.ResolutionTotal == 0)
+    {
+        <div class="sb-pane-body">
+            <p class="mb-0 text-muted">No targets came due in the last 7 days. Results appear here as tickets are answered and resolved.</p>
+        </div>
+    }
+    else
+    {
+        <div class="px-3 pb-1">
+            <div style="@Row">
+                <span class="sb-num" style="font-size: 2rem; line-height: 1;">@Rate(Model.FirstResponseMet, Model.FirstResponseTotal)</span>
+                <span>First responses on time<span class="sb-meta d-block">@Model.FirstResponseMet of @Model.FirstResponseTotal</span></span>
+            </div>
+            <div style="@Row border-top: 1px solid var(--sb-rule);">
+                <span class="sb-num" style="font-size: 2rem; line-height: 1;">@Rate(Model.ResolutionMet, Model.ResolutionTotal)</span>
+                <span>Resolved on time<span class="sb-meta d-block">@Model.ResolutionMet of @Model.ResolutionTotal</span></span>
+            </div>
+        </div>
+    }
+</section>

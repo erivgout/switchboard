@@ -1,0 +1,123 @@
+@model CustomFieldsModel
+@foreach (var section in Model.Definitions.GroupBy(d => d.Section ?? ""))
+{
+    <fieldset class="sb-fieldset" disabled="@Model.Disabled">
+        <legend class="sb-section-label">@(section.Key.Length > 0 ? section.Key : "Other details")</legend>
+        <div class="row g-3">
+            @foreach (var d in section)
+            {
+                var name = CustomFieldForm.Name(d);
+                var id = "cf_" + d.Key;
+                var text = CustomFieldForm.Text(d, Model.Values);
+                var wide = d.FieldType is CustomFieldType.Paragraph or CustomFieldType.Content or CustomFieldType.MultiSelect;
+                var required = d.RequiredForAgents ? " (required)" : "";
+                <div class="@(wide ? "col-12" : "col-md-6")">
+                    @if (d.FieldType == CustomFieldType.Content)
+                    {
+                        <div class="sb-field-content">@d.HelpText</div>
+                    }
+                    else if (d.FieldType == CustomFieldType.Checkbox)
+                    {
+                        <input type="hidden" name="@name" value="false">
+                        <div class="form-check mt-md-4">
+                            <input class="form-check-input" type="checkbox" id="@id" name="@name" value="true" checked="@(text == "true")">
+                            <label class="form-check-label" for="@id">@d.Label@required</label>
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="form-label" for="@id">@d.Label<span class="text-muted">@required</span></label>
+                        @switch (d.FieldType)
+                        {
+                            case CustomFieldType.Paragraph:
+                                <textarea class="form-control" id="@id" name="@name" rows="3" data-sb-autosize>@text</textarea>
+                                break;
+                            case CustomFieldType.Number:
+                                <input class="form-control" type="number" step="1" id="@id" name="@name" value="@text">
+                                break;
+                            case CustomFieldType.Decimal:
+                                <input class="form-control" type="number" step="any" id="@id" name="@name" value="@text">
+                                break;
+                            case CustomFieldType.Date:
+                                <input class="form-control" type="date" id="@id" name="@name" value="@text">
+                                break;
+                            case CustomFieldType.DateTime:
+                                <input class="form-control" type="datetime-local" id="@id" name="@name" value="@text" aria-describedby="@(id)_utc">
+                                <div class="form-text" id="@(id)_utc">In UTC.</div>
+                                break;
+                            case CustomFieldType.Dropdown:
+                                <select class="form-select" id="@id" name="@name">
+                                    <option value="">Not set</option>
+                                    @foreach (var o in CustomFieldForm.Options(d))
+                                    {
+                                        <option value="@o" selected="@(o == text)">@o</option>
+                                    }
+                                </select>
+                                break;
+                            case CustomFieldType.MultiSelect:
+                                var picked = CustomFieldForm.List(d, Model.Values);
+                                var options = CustomFieldForm.Options(d);
+                                <select class="form-select" id="@id" name="@name" multiple size="@Math.Min(6, Math.Max(3, options.Count))">
+                                    @foreach (var o in options)
+                                    {
+                                        <option value="@o" selected="@picked.Contains(o)">@o</option>
+                                    }
+                                </select>
+                                break;
+                            case CustomFieldType.DependentDropdown:
+                                <select class="form-select" id="@id" name="@name">
+                                    <option value="">Not set</option>
+                                    @foreach (var (label, value) in CustomFieldForm.Paths(d))
+                                    {
+                                        <option value="@value" selected="@(value == text)">@label</option>
+                                    }
+                                </select>
+                                break;
+                            case CustomFieldType.Lookup:
+                                var target = FieldAdminService.LookupTarget(d) ?? "";
+                                if (Model.Lookups.TryGetValue(target, out var choices))
+                                {
+                                    <select class="form-select" id="@id" name="@name">
+                                        <option value="">Not set</option>
+                                        @foreach (var choice in choices)
+                                        {
+                                            <option value="@choice.Id" selected="@(choice.Id.ToString() == text)">@choice.Name</option>
+                                        }
+                                    </select>
+                                }
+                                else if (target is "user" or "agent")
+                                {
+                                    var current = Guid.TryParse(text, out var pid) && Model.People.TryGetValue(pid, out var p) ? p : null;
+                                    <div class="sb-picker-row">
+                                        <input class="form-control" type="search" placeholder="Search by name or email" aria-label="Search for @d.Label.ToLowerInvariant()"
+                                               data-sb-person-search="@id" data-sb-kind="@(target == "agent" ? "agents" : "all")" data-sb-none="Not set" autocomplete="off">
+                                        <select class="form-select" id="@id" name="@name">
+                                            <option value="">Not set</option>
+                                            @if (current is not null)
+                                            {
+                                                <option value="@current.Id" selected>@current.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <input class="form-control tabular" id="@id" name="@name" value="@text" aria-describedby="@(id)_help">
+                                    <div class="form-text" id="@(id)_help">Paste the record's ID.</div>
+                                }
+                                break;
+                            default:
+                                <input class="form-control" id="@id" name="@name" value="@text" maxlength="500">
+                                break;
+                        }
+                        @if (!string.IsNullOrWhiteSpace(d.HelpText))
+                        {
+                            <div class="form-text">@d.HelpText</div>
+                        }
+                    }
+                    <partial name="_FieldError" model="name" />
+                </div>
+            }
+        </div>
+    </fieldset>
+}

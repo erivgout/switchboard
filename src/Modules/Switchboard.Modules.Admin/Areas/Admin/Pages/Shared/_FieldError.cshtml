@@ -1,0 +1,8 @@
+@model string
+@{
+    var entry = ViewContext.ModelState[Model];
+}
+@if (entry is { Errors.Count: > 0 })
+{
+    <div class="invalid-feedback d-block">@entry.Errors[0].ErrorMessage</div>
+}

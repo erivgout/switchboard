@@ -1,0 +1,131 @@
+@page "/admin/email/rules"
+@model SenderRulesModel
+@{
+    ViewData["Title"] = "Sender rules";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+<sb-page-header title="Email" subtitle="Email to your support addresses becomes tickets. Replies and notifications go out through your mail server." />
+
+<partial name="_EmailNav" model="@("rules")" />
+
+<section class="sb-pane" aria-labelledby="rulesTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="rulesTitle">Allow and block</h2></div>
+    <div class="sb-pane-body">
+        <p class="text-muted sb-msg-measure">
+            Block stops mail from an address or domain before it becomes a ticket. Blocked mail is kept under Incoming mail, where you can still process it.
+            Allow overrides a block for something more specific, such as one address in a blocked domain.
+        </p>
+        <form method="post" class="row g-2 align-items-end" novalidate>
+            <div class="col-sm-5 col-lg-4">
+                <label class="form-label" for="Pattern">Address or domain</label>
+                <input class="form-control" id="Pattern" name="Pattern" value="@Model.Pattern" placeholder="spam.example.com" autocomplete="off" required>
+            </div>
+            <div class="col-sm-3 col-lg-2">
+                <label class="form-label" for="RuleAction">Rule</label>
+                <select class="form-select" id="RuleAction" name="RuleAction">
+                    <option value="@AddressRuleAction.Block" selected="@(Model.RuleAction == AddressRuleAction.Block)">Block</option>
+                    <option value="@AddressRuleAction.Allow" selected="@(Model.RuleAction == AddressRuleAction.Allow)">Allow</option>
+                </select>
+            </div>
+            <div class="col-sm-4 col-lg-4">
+                <label class="form-label" for="Note">Note <span class="text-muted fw-normal">(optional)</span></label>
+                <input class="form-control" id="Note" name="Note" value="@Model.Note" maxlength="300" placeholder="Why this rule exists">
+            </div>
+            <div class="col-12 col-lg-2">
+                <button class="btn btn-primary w-100" type="submit">Add rule</button>
+            </div>
+            <div class="col-12">
+                <span asp-validation-for="Pattern" class="text-danger small"></span>
+                <span asp-validation-for="RuleAction" class="text-danger small"></span>
+            </div>
+        </form>
+    </div>
+    @if (Model.Rules.Count == 0)
+    {
+        <div class="sb-pane-body border-top text-muted">No rules yet. All senders can create tickets.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table sb-msg-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Sender</th>
+                        <th scope="col">Rule</th>
+                        <th scope="col" class="sb-hide-sm">Note</th>
+                        <th scope="col" class="sb-hide-sm">Added</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var rule in Model.Rules)
+                    {
+                        <tr>
+                            <td class="text-break fw-semibold">@rule.Pattern</td>
+                            <td>
+                                @if (rule.Action == AddressRuleAction.Block)
+                                {
+                                    <span class="sb-delivery sb-delivery--warn"><i class="bi bi-shield-x" aria-hidden="true"></i>Block</span>
+                                }
+                                else
+                                {
+                                    <span class="sb-delivery sb-delivery--ok"><i class="bi bi-shield-check" aria-hidden="true"></i>Allow</span>
+                                }
+                            </td>
+                            <td class="sb-hide-sm text-muted">@rule.Note</td>
+                            <td class="sb-hide-sm"><sb-time value="@rule.CreatedAt" /></td>
+                            <td class="text-end">
+                                <form method="post" asp-page-handler="Remove" asp-route-id="@rule.Id" data-sb-confirm="Remove the rule for @rule.Pattern?">
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="submit" aria-label="Remove the rule for @rule.Pattern"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="sb-pane" aria-labelledby="bouncedTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="bouncedTitle">Addresses that bounced</h2></div>
+    @if (Model.Bounced.Count == 0)
+    {
+        <div class="sb-pane-body text-muted">No bounces. When an address can't receive mail it appears here, and automatic emails to it pause for 30 days.</div>
+    }
+    else
+    {
+        <div class="sb-pane-body pb-0"><p class="text-muted mb-2">Automatic emails to these addresses are paused for 30 days after the last bounce. Replies from agents still go out.</p></div>
+        <div class="table-responsive">
+            <table class="table sb-msg-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Address</th>
+                        <th scope="col" class="sb-hide-sm">What the server said</th>
+                        <th scope="col" class="text-end">Bounces</th>
+                        <th scope="col">Last bounced</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Bounced)
+                    {
+                        <tr>
+                            <td class="text-break">@b.Address</td>
+                            <td class="sb-hide-sm small text-muted">@b.Reason</td>
+                            <td class="text-end tabular">@b.Count</td>
+                            <td><sb-time value="@b.LastBouncedAt" /></td>
+                            <td class="text-end">
+                                <form method="post" asp-page-handler="ClearBounce" asp-route-id="@b.Id">
+                                    <button class="btn btn-ghost btn-sm" type="submit">Clear<span class="visually-hidden"> @b.Address</span></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

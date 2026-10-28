@@ -1,0 +1,63 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.JobModel
+@using Switchboard.Modules.ServiceDesk.Data
+@{
+    var job = Model.Job;
+    var done = job.Succeeded + job.Failed;
+    var running = job.Status != BulkJobStatus.Completed;
+    var percent = job.Total == 0 ? 100 : done * 100 / job.Total;
+    var poll = running ? $"/tickets/jobs/{job.Id}?handler=Progress&back={Uri.EscapeDataString(Model.Back)}" : null;
+}
+<div id="sdJob" hx-get="@poll" hx-trigger="@(running ? "every 1500ms" : null)" hx-swap="outerHTML">
+    <div class="sb-metrics mb-3">
+        <div class="sb-metric"><div class="sb-num">@done.ToString("N0") <span class="sd-num-of">of @job.Total.ToString("N0")</span></div><div class="sb-metric-label">@(running ? "Processed so far" : "Processed")</div></div>
+        <div class="sb-metric"><div class="sb-num">@job.Succeeded.ToString("N0")</div><div class="sb-metric-label">Updated</div></div>
+        <div class="sb-metric"><div class="sb-num @(job.Failed > 0 ? "text-danger" : "")">@job.Failed.ToString("N0")</div><div class="sb-metric-label">Couldn't be changed</div></div>
+    </div>
+    @if (running)
+    {
+        <div class="progress mb-3" role="progressbar" aria-label="Progress" aria-valuenow="@percent" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: @percent%"></div>
+        </div>
+    }
+    <p class="sb-meta" role="status">
+        @if (job.Status == BulkJobStatus.Queued)
+        {
+            <span>Waiting to start. You can leave this page; the update keeps running.</span>
+        }
+        else if (running)
+        {
+            <span>Working through the tickets. You can leave this page; the update keeps running.</span>
+        }
+        else
+        {
+            <span>Finished <sb-time value="job.CompletedAt" />.</span>
+        }
+    </p>
+    @if (Model.Items.Any(i => i.Status == BulkItemStatus.Failed))
+    {
+        <section class="sb-pane" aria-labelledby="sdJobFailed">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="sdJobFailed">Couldn't be changed</h2></div>
+            <ul class="sd-mini-list">
+                @foreach (var item in Model.Items.Where(i => i.Status == BulkItemStatus.Failed))
+                {
+                    <li class="sd-mini-row">
+                        <a class="sb-stamp" href="/tickets/@item.Number">@item.DisplayId</a>
+                        <span class="text-danger">@item.Error</span>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+    @if (!running && job.Succeeded > 0)
+    {
+        <details class="sb-pane mt-3 sd-job-done">
+            <summary>Updated tickets (@job.Succeeded.ToString("N0"))</summary>
+            <ul class="sd-mini-list">
+                @foreach (var item in Model.Items.Where(i => i.Status == BulkItemStatus.Succeeded).Take(500))
+                {
+                    <li class="sd-mini-row"><a class="sb-stamp" href="/tickets/@item.Number">@item.DisplayId</a></li>
+                }
+            </ul>
+        </details>
+    }
+</div>

@@ -1,0 +1,34 @@
+@model (DirectoryModel Directory, IReadOnlyList<CatalogItemSummary> Items)
+<ul class="cat-list">
+    @foreach (var item in Model.Items)
+    {
+        <li class="cat-row">
+            <span class="cat-icon" aria-hidden="true"><i class="bi @item.Icon"></i></span>
+            <div class="min-w-0">
+                <a class="cat-row-name" href="@Model.Directory.BasePath/@item.Id">@item.Name</a>
+                <p class="cat-row-summary">@item.ShortDescription</p>
+                @if (item.NeedsApproval || (Model.Directory.ForAgent && item.IsLimited) || item.Kind == CatItemKind.Bundle)
+                {
+                    <div class="cat-row-flags">
+                        @if (item.Kind == CatItemKind.Bundle)
+                        {
+                            <span class="cat-flag"><i class="bi bi-boxes" aria-hidden="true"></i>Bundle</span>
+                        }
+                        @if (item.NeedsApproval)
+                        {
+                            <span class="cat-flag"><i class="bi bi-check2-square" aria-hidden="true"></i>Needs approval</span>
+                        }
+                        @if (Model.Directory.ForAgent && item.IsLimited)
+                        {
+                            <span class="cat-flag"><i class="bi bi-people" aria-hidden="true"></i>Some people only</span>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="cat-row-meta tabular">
+                <strong>@(item.CostMinor is { } cost ? CatalogForm.Money(cost, item.Currency) : "No charge")</strong>
+                @CatalogForm.Delivery(item.DeliveryDays)
+            </div>
+        </li>
+    }
+</ul>

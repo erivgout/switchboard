@@ -1,0 +1,25 @@
+@model Switchboard.Modules.Admin.Pages.Categories.CategoryNodesModel
+<ul data-sb-sortable="/admin/categories?handler=Reorder" data-sb-parent="@Model.ParentId" data-sb-ws="@Model.Ws" aria-label="@(Model.ParentId is null ? "Categories" : "Sub-categories")">
+    @for (var i = 0; i < Model.Nodes.Count; i++)
+    {
+        var node = Model.Nodes[i];
+        var c = node.Category;
+        <li draggable="true" data-id="@c.Id" id="cat-@c.Id">
+            <div class="sb-tree-item">
+                <span class="sb-drag" aria-hidden="true" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></span>
+                <span class="sb-tree-name"><a href="/admin/categories/@c.Id">@c.Name</a></span>
+                <span class="sb-meta tabular">@(node.Tickets == 1 ? "1 ticket" : $"{node.Tickets} tickets")</span>
+                <form method="post" asp-page="/Categories/Index" asp-page-handler="Move" class="sb-order">
+                    <input type="hidden" name="categoryId" value="@c.Id">
+                    <input type="hidden" name="Ws" value="@Model.Ws">
+                    <button class="btn btn-ghost btn-icon" type="submit" name="delta" value="-1" aria-label="Move @c.Name up" disabled="@(i == 0)"><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
+                    <button class="btn btn-ghost btn-icon" type="submit" name="delta" value="1" aria-label="Move @c.Name down" disabled="@(i == Model.Nodes.Count - 1)"><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+                </form>
+            </div>
+            @if (node.Children.Count > 0)
+            {
+                <partial name="_Nodes" model="new Switchboard.Modules.Admin.Pages.Categories.CategoryNodesModel(node.Children, c.Id, Model.Ws)" />
+            }
+        </li>
+    }
+</ul>

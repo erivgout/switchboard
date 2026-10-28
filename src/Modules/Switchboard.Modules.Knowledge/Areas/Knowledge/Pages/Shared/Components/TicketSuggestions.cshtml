@@ -1,0 +1,40 @@
+@model KbTicketSuggestionsModel
+@{
+    var origin = $"{Context.Request.Scheme}://{Context.Request.Host}";
+}
+<link rel="stylesheet" href="@Url.Content(KbUi.Css)" asp-append-version="true">
+<section class="sb-pane" aria-labelledby="kbSuggestedTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbSuggestedTitle">Suggested articles</h2></div>
+    <div class="sb-pane-body py-1">
+        @if (Model.Items.Count == 0)
+        {
+            <p class="sb-meta my-2">No published article matches this subject.@if (Model.CanWrite) { <text> Once it's solved, <a href="/kb/new?ticket=@Model.TicketId">write one from this ticket</a>.</text> }</p>
+        }
+        else
+        {
+            <ul class="kb-suggest">
+                @foreach (var s in Model.Items)
+                {
+                    var link = s.RequestersCanRead ? $"{origin}/portal/kb/{s.Hit.Id}" : $"{origin}/kb/{s.Hit.Id}";
+                    <li>
+                        <a href="/kb/@s.Hit.Id">@s.Hit.Title</a>
+                        <span class="d-inline-flex gap-1">
+                            @if (s.RequestersCanRead)
+                            {
+                                <button type="button" class="btn btn-ghost btn-sm" data-kb-insert="@($"{s.Hit.Title}: {link}")" title="Add the link to your reply, or copy it">
+                                    <i class="bi bi-link-45deg" aria-hidden="true"></i> Copy link<span class="visually-hidden"> to @s.Hit.Title</span>
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="sb-meta" title="Requesters can't open this article">Agents only</span>
+                            }
+                        </span>
+                        <p class="kb-snippet">@s.Hit.Snippet</p>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</section>
+<script src="@Url.Content(KbUi.PagesJs)" asp-append-version="true" defer></script>

@@ -1,0 +1,152 @@
+@page "/admin/people"
+@model Switchboard.Modules.Admin.Pages.People.IndexModel
+@{
+    ViewData["Title"] = "People";
+    var agents = Model.Kind == "agents";
+    var tabs = new TabModel[] { new("/admin/people?kind=agents", "Agents", agents), new("/admin/people?kind=requesters", "Requesters", !agents) };
+}
+<sb-page-header title="People" subtitle="Agents work tickets; requesters raise them. Open someone to change their profile, access or account.">
+    @if (Model.CanManage)
+    {
+        @if (!agents)
+        {
+            <a class="btn btn-outline-secondary" href="/admin/import"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i> Import requesters</a>
+        }
+        <a class="btn btn-primary" href="/admin/people/new?kind=@(agents ? "agent" : "requester")"><i class="bi bi-plus-lg" aria-hidden="true"></i> @(agents ? "Add agent" : "Add requester")</a>
+    }
+</sb-page-header>
+
+<partial name="_Tabs" model="tabs" />
+
+<form method="get" class="sb-toolbar" role="search">
+    <input type="hidden" name="kind" value="@Model.Kind">
+    <div class="sb-toolbar-grow">
+        <label class="form-label" for="peopleSearch">Search</label>
+        <input class="form-control" id="peopleSearch" type="search" name="q" value="@Model.Q" placeholder="Name, email or job title">
+    </div>
+    <div>
+        <label class="form-label" for="peopleStatus">Status</label>
+        <select class="form-select" id="peopleStatus" name="status">
+            <option value="active" selected="@(Model.Status == "active")">Active</option>
+            <option value="inactive" selected="@(Model.Status == "inactive")">Deactivated</option>
+            <option value="all" selected="@(Model.Status == "all")">Everyone</option>
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="peopleDept">Department</label>
+        <select class="form-select" id="peopleDept" name="department" asp-items="Model.Departments"></select>
+    </div>
+    <div>
+        <label class="form-label" for="peopleGroup">@(agents ? "Group" : "Requester group")</label>
+        <select class="form-select" id="peopleGroup" name="group" asp-items="Model.Groups"></select>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" type="submit">Filter</button>
+        @if (Model.Filtered)
+        {
+            <a class="btn btn-ghost" href="/admin/people?kind=@Model.Kind">Clear</a>
+        }
+    </div>
+</form>
+
+@if (Model.Result.Items.Count == 0)
+{
+    <div class="sb-pane">
+        @if (Model.Filtered)
+        {
+            <sb-empty icon="bi-search" title="Nobody matches">
+                <p class="sb-empty-text">Try a shorter search, or clear the filters.</p>
+                <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/people?kind=@Model.Kind">Clear filters</a></div>
+            </sb-empty>
+        }
+        else
+        {
+            <sb-empty icon="bi-people" title="@(agents ? "No agents yet" : "No requesters yet")">
+                <p class="sb-empty-text">@(agents ? "Add the people who will work tickets." : "Requesters appear when they email the service desk or sign in. You can also add or import them.")</p>
+            </sb-empty>
+        }
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col" class="sb-hide-sm">@(agents ? "Roles" : "Department")</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="sb-hide-sm">Last seen</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model.Result.Items)
+                {
+                    <tr data-sb-href="/admin/people/@p.Id">
+                        <td>
+                            <div class="d-flex gap-2 align-items-start">
+                                <sb-avatar name="@p.Name" size="sm" />
+                                <div class="min-w-0">
+                                    <div class="sb-name-row">
+                                        <a class="sb-subject" href="/admin/people/@p.Id">@p.Name</a>
+                                        @if (p.IsVip)
+                                        {
+                                            <span class="sb-vip">VIP</span>
+                                        }
+                                    </div>
+                                    <div class="sb-meta text-break">@(p.Email ?? "No email address")@(p.JobTitle is null ? "" : $", {p.JobTitle}")</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="sb-hide-sm">
+                            @if (agents)
+                            {
+                                @if (p.IsOrgAdmin)
+                                {
+                                    <span class="sb-tag">Organization admin</span>
+                                }
+                                @if (p.Roles.Count > 0)
+                                {
+                                    <span>@string.Join(", ", p.Roles)</span>
+                                }
+                                else if (!p.IsOrgAdmin)
+                                {
+                                    <span class="text-muted">No role</span>
+                                }
+                            }
+                            else
+                            {
+                                @(p.Department ?? "")
+                            }
+                        </td>
+                        <td>
+                            @if (p.IsForgotten)
+                            {
+                                <span class="sb-status sb-status--closed">Erased</span>
+                            }
+                            else if (!p.IsActive)
+                            {
+                                <span class="sb-status sb-status--closed">Deactivated</span>
+                            }
+                            else
+                            {
+                                <span class="sb-status sb-status--resolved">Active</span>
+                            }
+                        </td>
+                        <td class="sb-hide-sm text-muted">
+                            @if (p.LastSeenAt is { } seen)
+                            {
+                                <sb-time value="@seen" />
+                            }
+                            else
+                            {
+                                <span>Never</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="new PagerModel(Model.Result.Page, Model.Result.Pages, Model.Result.Total, Model.PageUrl)" />
+}

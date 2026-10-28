@@ -1,0 +1,9 @@
+@page "/tickets/jobs/{id:guid}"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.JobModel
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+<sb-page-header title="Bulk update" subtitle="@($"{Model.Job.Summary}, started by {Model.Job.CreatedByName}.")">
+    <a class="btn btn-outline-secondary" href="@Model.Back"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to the queue</a>
+</sb-page-header>
+<partial name="_JobProgress" model="Model" />

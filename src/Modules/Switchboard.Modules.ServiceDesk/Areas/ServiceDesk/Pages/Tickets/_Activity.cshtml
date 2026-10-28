@@ -1,0 +1,94 @@
+@model Switchboard.Modules.ServiceDesk.Services.TicketPageData
+@using System.Globalization
+@functions {
+    static string Kind(string action) => action switch
+    {
+        "replied" or "noted" or "forwarded" or "requester_replied" or "note_edited" or "conversation_hidden" => "conversation",
+        "task_added" or "task_updated" or "task_deleted" => "tasks",
+        "linked" or "unlinked" or "shared" or "unshared" or "merged" => "links",
+        _ => "changes",
+    };
+
+    static bool IsDate(string? value, out DateTimeOffset date) =>
+        DateTimeOffset.TryParseExact(value, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out date);
+
+    static string ChannelText(Channel channel) => channel switch
+    {
+        Channel.Email => "by email",
+        Channel.Portal => "in the portal",
+        Channel.Api => "through the API",
+        Channel.Mcp => "through an AI agent",
+        Channel.Automation => "by an automation",
+        Channel.Chat => "by chat",
+        Channel.Import => "by an import",
+        _ => "",
+    };
+}
+<div class="sb-pane">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title">Activity</h2>
+        <label class="visually-hidden" for="sdActivityFilter">Show</label>
+        <select class="form-select form-select-sm sd-activity-filter ms-auto" id="sdActivityFilter" data-sd-activity-filter>
+            <option value="">Everything</option>
+            <option value="changes">Property changes</option>
+            <option value="conversation">Conversation</option>
+            <option value="tasks">Tasks</option>
+            <option value="links">Links and merges</option>
+        </select>
+    </div>
+    <div class="sb-pane-body">
+        @if (Model.Activity.Count == 0)
+        {
+            <p class="text-muted m-0">No activity yet.</p>
+        }
+        else
+        {
+            <ul class="sb-timeline sd-activity" data-sd-activity>
+                @foreach (var item in Model.Activity)
+                {
+                    var e = item.Entry;
+                    <li data-sd-kind="@Kind(e.Action)">
+                        <div class="sd-activity-line">
+                            <strong>@e.ActorName</strong> <span>@(e.Summary.Length > 0 ? char.ToLowerInvariant(e.Summary[0]) + e.Summary[1..] : e.Action)</span>
+                            @if (ChannelText(e.Channel) is { Length: > 0 } via)
+                            {
+                                <span class="sb-meta">@via</span>
+                            }
+                            <sb-time value="e.CreatedAt" />
+                        </div>
+                        @if (item.Changes.Count > 0)
+                        {
+                            <ul class="sd-changes">
+                                @foreach (var change in item.Changes)
+                                {
+                                    <li>
+                                        <span class="sd-change-field">@change.Field</span>
+                                        @if (change.From is null && change.To is null)
+                                        {
+                                            <span>changed</span>
+                                        }
+                                        else if (change.From is null)
+                                        {
+                                            <span>set to</span> @if (IsDate(change.To, out var to)) {<sb-time value="to" mode="datetime" />} else {<span class="sd-change-value">@change.To</span>}
+                                        }
+                                        else if (change.To is null)
+                                        {
+                                            <span>cleared, was</span> @if (IsDate(change.From, out var from)) {<sb-time value="from" mode="datetime" />} else {<span class="sd-change-value">@change.From</span>}
+                                        }
+                                        else
+                                        {
+                                            <span>from</span>
+                                            @if (IsDate(change.From, out var from2)) {<sb-time value="from2" mode="datetime" />} else {<span class="sd-change-value">@change.From</span>}
+                                            <span>to</span>
+                                            @if (IsDate(change.To, out var to2)) {<sb-time value="to2" mode="datetime" />} else {<span class="sd-change-value">@change.To</span>}
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>

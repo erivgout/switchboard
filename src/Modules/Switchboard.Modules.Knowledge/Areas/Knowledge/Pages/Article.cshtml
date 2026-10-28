@@ -1,0 +1,363 @@
+@page "/kb/{id:guid}"
+@model ArticleModel
+@{
+    var d = Model.Detail;
+    var a = d.Article;
+    var access = d.Access;
+    var shown = Model.Shown;
+    ViewData["Title"] = $"{a.DisplayId} {shown.Title}";
+    var trashed = a.DeletedAt is not null;
+    var portalLink = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/portal/kb/{a.Id}";
+    var canShare = a.Status == KbArticleStatus.Published && d.Folder.RequestersCanRead && !trashed;
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li><a href="/kb?category=@d.Folder.CategoryId">@d.CategoryName</a></li>
+        <li><a href="/kb?folder=@d.Folder.Id">@d.FolderPath</a></li>
+    </ol>
+</nav>
+
+<div class="sb-split">
+    <div>
+        @if (trashed)
+        {
+            <div class="kb-banner kb-banner--rejected" role="status">
+                <i class="bi bi-trash3" aria-hidden="true"></i>
+                <div class="kb-banner-body">
+                    <p class="kb-banner-title">This article is in the trash</p>
+                    <p>Nobody can read it until it's restored.</p>
+                </div>
+                <div class="kb-banner-actions">
+                    @if (access.CanRestore)
+                    {
+                        <form method="post" asp-page-handler="Restore"><button class="btn btn-outline-secondary" type="submit">Restore</button></form>
+                    }
+                    @if (access.CanPurge)
+                    {
+                        <form method="post" asp-page-handler="Purge" data-sb-confirm="Delete @a.DisplayId permanently? This can't be undone.">
+                            <button class="btn btn-danger" type="submit">Delete permanently</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+        else if (d.PendingReview is { } review)
+        {
+            <div class="kb-banner kb-banner--review" role="status">
+                <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+                <div class="kb-banner-body">
+                    <p class="kb-banner-title">Waiting for review</p>
+                    <p>
+                        @(d.SubmitterName ?? "Someone") sent version @d.Latest.Number for review <sb-time value="@review.SubmittedAt" />.
+                        @if (d.ApproverNames.Count > 0) { <text>Approvers: @string.Join(", ", d.ApproverNames).</text> }
+                        else { <text>Anyone who can publish may approve it.</text> }
+                    </p>
+                    @if (!string.IsNullOrWhiteSpace(review.SubmitNote))
+                    {
+                        <p>“@review.SubmitNote”</p>
+                    }
+                </div>
+                @if (access.CanWithdraw && !access.CanApprove)
+                {
+                    <form method="post" asp-page-handler="Withdraw" class="kb-banner-actions">
+                        <button class="btn btn-outline-secondary" type="submit">Withdraw from review</button>
+                    </form>
+                }
+                @if (access.CanApprove)
+                {
+                    <form method="post" class="kb-decision">
+                        <label class="form-label mb-0" for="kbDecision">Comment for @(d.SubmitterName ?? "the author")</label>
+                        <textarea id="kbDecision" name="comment" class="form-control" rows="2" maxlength="2000" placeholder="Required when you send it back: say what needs to change"></textarea>
+                        <div class="kb-banner-actions">
+                            <button class="btn btn-primary" type="submit" asp-page-handler="Approve">Approve and publish</button>
+                            <button class="btn btn-outline-secondary" type="submit" asp-page-handler="Reject">Send back for changes</button>
+                            @if (access.CanWithdraw) { <button class="btn btn-ghost" type="submit" asp-page-handler="Withdraw">Withdraw</button> }
+                        </div>
+                    </form>
+                }
+            </div>
+        }
+        else if (d.LastDecision is { Decision: KbReviewDecision.Rejected } rejected && d.Latest.State == KbVersionState.Draft && d.Latest.Id == rejected.VersionId)
+        {
+            <div class="kb-banner kb-banner--rejected" role="status">
+                <i class="bi bi-arrow-return-left" aria-hidden="true"></i>
+                <div class="kb-banner-body">
+                    <p class="kb-banner-title">@(d.DeciderName ?? "The approver") sent this back <sb-time value="@rejected.DecidedAt" /></p>
+                    <p>“@rejected.DecisionComment”</p>
+                </div>
+                @if (access.CanEdit) { <a class="btn btn-outline-secondary" href="/kb/@a.Id/edit">Make changes</a> }
+            </div>
+        }
+        @if (!trashed && a.Status == KbArticleStatus.Archived)
+        {
+            <div class="kb-banner" role="status">
+                <i class="bi bi-archive" aria-hidden="true"></i>
+                <div class="kb-banner-body">
+                    <p class="kb-banner-title">Archived</p>
+                    <p>Requesters can't read this article. Restore it as a draft to update and publish it again.</p>
+                </div>
+                @if (access.CanUnarchive)
+                {
+                    <form method="post" asp-page-handler="Unarchive" class="kb-banner-actions"><button class="btn btn-outline-secondary" type="submit">Restore from archive</button></form>
+                }
+            </div>
+        }
+        @if (d.HasPendingChanges && !trashed)
+        {
+            <div class="kb-banner kb-banner--draft" role="status">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                <div class="kb-banner-body">
+                    @if (Model.ShowingPublished)
+                    {
+                        <p class="kb-banner-title">You're reading the published version @d.Published!.Number</p>
+                        <p>Version @d.Latest.Number has changes that aren't published yet.</p>
+                    }
+                    else
+                    {
+                        <p class="kb-banner-title">You're reading unpublished changes (version @d.Latest.Number)</p>
+                        <p>Requesters still see version @d.Published!.Number.</p>
+                    }
+                </div>
+                <a class="btn btn-ghost" href="/kb/@a.Id@(Model.ShowingPublished ? "" : "?show=published")">@(Model.ShowingPublished ? "Show the changes" : "Show the published version")</a>
+            </div>
+        }
+
+        <article class="sb-pane kb-reading" aria-labelledby="kbTitle">
+            <header class="kb-article-head">
+                <span class="sb-stamp">@a.DisplayId</span>
+                <h1 class="kb-article-title" id="kbTitle">@shown.Title</h1>
+                <div class="kb-article-meta">
+                    <span>@KbUi.State(a.Status, d.HasPendingChanges ? d.Latest.State : null)</span>
+                    @if (a.Type == KbArticleType.Workaround) { <span><i class="bi bi-bandaid" aria-hidden="true"></i>Workaround</span> }
+                    <span>Updated <sb-time value="@(shown.PublishedAt ?? shown.UpdatedAt)" /></span>
+                    <span>Version @shown.Number</span>
+                </div>
+            </header>
+
+            @if (a.ExternalUrl is not null)
+            {
+                <div class="kb-banner kb-banner--draft">
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                    <div class="kb-banner-body">
+                        <p class="kb-banner-title">This article points to another page</p>
+                        <p><a href="@a.ExternalUrl" rel="noopener noreferrer nofollow" target="_blank">@a.ExternalUrl</a></p>
+                    </div>
+                </div>
+            }
+
+            @if (string.IsNullOrWhiteSpace(Model.Body.Html))
+            {
+                <p class="sb-meta">This version has no text yet.@if (access.CanEdit) { <text> <a href="/kb/@a.Id/edit">Start writing</a></text> }</p>
+            }
+            else
+            {
+                <div class="kb-prose">@Html.Raw(Model.Body.Html)</div>
+            }
+
+            @if (d.Attachments.Count > 0)
+            {
+                <div class="kb-reading-foot">
+                    <p class="sb-section-label">Files</p>
+                    <div class="sb-attachments">
+                        @foreach (var file in d.Attachments)
+                        {
+                            <a class="sb-attachment" href="/files/@file.Id/@Uri.EscapeDataString(file.FileName)?download=1"><i class="bi bi-paperclip" aria-hidden="true"></i><span>@file.FileName</span></a>
+                        }
+                    </div>
+                </div>
+            }
+            @if (a.Tags.Count > 0)
+            {
+                <div class="kb-reading-foot d-flex flex-wrap gap-2" aria-label="Tags">
+                    @foreach (var tag in a.Tags) { <a class="sb-tag text-decoration-none" href="/kb?q=@Uri.EscapeDataString(tag)">@tag</a> }
+                </div>
+            }
+        </article>
+
+        @if (Model.Comments.Count > 0)
+        {
+            <section class="sb-pane mt-3" aria-labelledby="kbCommentsTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbCommentsTitle">Reader comments</h2></div>
+                <ul class="kb-comments sb-pane-body mt-0 pt-0">
+                    @foreach (var c in Model.Comments)
+                    {
+                        <li>
+                            <span class="fw-semibold">@(c.AuthorName ?? "A reader")</span>
+                            <span class="sb-meta">@(c.Helpful ? "found it helpful" : "didn't find it helpful"), <sb-time value="@c.At" /></span>
+                            <p>@c.Comment</p>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    </div>
+
+    <aside class="sb-sticky" aria-label="Article details">
+        @if (!trashed)
+        {
+            <div class="sb-pane">
+                <div class="sb-pane-body d-flex flex-wrap gap-2">
+                    @if (access.CanPublish)
+                    {
+                        <form method="post" asp-page-handler="Publish"><button class="btn btn-primary" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Publish</button></form>
+                    }
+                    else if (access.CanSubmit)
+                    {
+                        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#kbSubmitDialog"><i class="bi bi-send" aria-hidden="true"></i> Submit for review</button>
+                    }
+                    @if (access.CanEdit)
+                    {
+                        <a class="btn btn-outline-secondary" href="/kb/@a.Id/edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
+                    }
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false">More <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/kb/@a.Id/versions"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Version history</a></li>
+                            @if (canShare)
+                            {
+                                <li><a class="dropdown-item" href="/portal/kb/@a.Id"><i class="bi bi-window me-2" aria-hidden="true"></i>Open in the portal</a></li>
+                                <li><button class="dropdown-item" type="button" data-kb-copy="@portalLink"><i class="bi bi-link-45deg me-2" aria-hidden="true"></i>Copy portal link</button></li>
+                            }
+                            @if (access.CanDiscardDraft)
+                            {
+                                <li>
+                                    <form method="post" asp-page-handler="Discard" data-sb-confirm="Discard the unpublished changes in version @d.Latest.Number? The published version stays as it is.">
+                                        <button class="dropdown-item" type="submit"><i class="bi bi-x-circle me-2" aria-hidden="true"></i>Discard draft changes</button>
+                                    </form>
+                                </li>
+                            }
+                            @if (access.CanArchive)
+                            {
+                                <li>
+                                    <form method="post" asp-page-handler="Archive" data-sb-confirm="Archive @a.DisplayId? Requesters will no longer be able to read it.">
+                                        <button class="dropdown-item" type="submit"><i class="bi bi-archive me-2" aria-hidden="true"></i>Archive</button>
+                                    </form>
+                                </li>
+                            }
+                            @if (access.CanTrash)
+                            {
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="post" asp-page-handler="Trash" data-sb-confirm="Move @a.DisplayId to the trash? You can restore it from the trash.">
+                                        <button class="dropdown-item text-danger" type="submit"><i class="bi bi-trash3 me-2" aria-hidden="true"></i>Move to trash</button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="sb-pane">
+            <div class="sb-pane-body py-2">
+                <dl class="sb-props">
+                    <div><dt>Folder</dt><dd>@d.FolderPath</dd></div>
+                    <div><dt>Who can read</dt><dd>@d.Folder.VisibilityLabel</dd></div>
+                    @if (d.Folder.RequiresApproval)
+                    {
+                        <div><dt>Publishing</dt><dd>Needs approval@(d.ApproverNames.Count > 0 ? $" from {string.Join(", ", d.ApproverNames)}" : "")</dd></div>
+                    }
+                    <div><dt>Type</dt><dd>@KbUi.TypeLabel(a.Type)</dd></div>
+                    <div><dt>Owner</dt><dd>@if (d.OwnerName is not null) { <span class="d-inline-flex align-items-center gap-2"><sb-avatar name="@d.OwnerName" size="sm" />@d.OwnerName</span> } else { <span class="sb-meta">No owner</span> }</dd></div>
+                    <div><dt>Author</dt><dd>@(d.AuthorName ?? "Unknown")</dd></div>
+                    <div>
+                        <dt>Review by</dt>
+                        <dd>
+                            @if (a.ReviewBy is { } rb)
+                            {
+                                if (rb <= today && a.Status != KbArticleStatus.Archived) { <span class="kb-review-due"><i class="bi bi-calendar-x" aria-hidden="true"></i> @KbUi.Date(rb), overdue</span> }
+                                else { @KbUi.Date(rb) }
+                            }
+                            else { <span class="sb-meta">Not set</span> }
+                        </dd>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(a.Keywords))
+                    {
+                        <div><dt>Keywords</dt><dd>@a.Keywords</dd></div>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @if (Model.Body.Outline.Count >= 3)
+        {
+            <nav class="sb-pane" aria-labelledby="kbOutlineTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbOutlineTitle">On this page</h2></div>
+                <ul class="kb-outline sb-pane-body">
+                    @foreach (var h in Model.Body.Outline)
+                    {
+                        <li class="@(h.Level == 3 ? "kb-outline-sub" : null)"><a href="#@h.Id">@h.Text</a></li>
+                    }
+                </ul>
+            </nav>
+        }
+
+        <section class="sb-pane" aria-labelledby="kbFeedbackTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbFeedbackTitle">How it's doing</h2></div>
+            <div class="sb-pane-body">
+                <div class="kb-stats">
+                    <div><div class="sb-num">@d.Feedback.Views.ToString("N0")</div><div class="sb-metric-label">Views</div></div>
+                    <div>
+                        <div class="sb-num">@(d.Feedback.HelpfulPercent is { } pct ? $"{pct}%" : "–")</div>
+                        <div class="sb-metric-label">@(d.Feedback.Votes == 0 ? "No votes yet" : $"Helpful, of {KbUi.Plural(d.Feedback.Votes, "vote", "votes")}")</div>
+                    </div>
+                    <div><div class="sb-num">@d.Feedback.Deflections</div><div class="sb-metric-label">Requests avoided</div></div>
+                </div>
+            </div>
+        </section>
+
+        @if (d.Related.Count > 0)
+        {
+            <section class="sb-pane" aria-labelledby="kbRelatedTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbRelatedTitle">Related articles</h2></div>
+                <ul class="kb-linklist sb-pane-body py-2">
+                    @foreach (var r in d.Related) { <li><span class="sb-stamp">@r.DisplayId</span><a href="/kb/@r.Id">@r.Title</a></li> }
+                </ul>
+            </section>
+        }
+
+        @if (d.Tickets.Count > 0)
+        {
+            <section class="sb-pane" aria-labelledby="kbTicketsTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbTicketsTitle">Tickets</h2></div>
+                <ul class="kb-linklist sb-pane-body py-2">
+                    @foreach (var t in d.Tickets) { <li><span class="sb-stamp">@t.DisplayId</span><a href="/tickets/@t.Number">@t.Subject</a></li> }
+                </ul>
+            </section>
+        }
+    </aside>
+</div>
+
+@if (access.CanSubmit && !access.CanPublish && !trashed)
+{
+    <div class="modal fade" id="kbSubmitDialog" tabindex="-1" aria-labelledby="kbSubmitTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" method="post" asp-page-handler="Submit">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="kbSubmitTitle">Submit @a.DisplayId for review</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@(d.ApproverNames.Count > 0 ? $"{string.Join(", ", d.ApproverNames)} will review version {d.Latest.Number}." : $"Anyone who can publish in {d.FolderPath} can review version {d.Latest.Number}.") You can't edit it while it's in review.</p>
+                    <label class="form-label" for="kbSubmitNote">Note for the approver <span class="sb-meta">Optional</span></label>
+                    <textarea id="kbSubmitNote" name="note" class="form-control" rows="3" maxlength="2000" placeholder="What changed, and anything you'd like checked"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit for review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="@KbUi.PagesJs" asp-append-version="true"></script>
+}

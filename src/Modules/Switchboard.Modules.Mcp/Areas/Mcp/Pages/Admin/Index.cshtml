@@ -1,0 +1,109 @@
+@page "/admin/mcp"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.Admin.IndexModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "AI agents (MCP)";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+
+<sb-page-header title="AI agents" subtitle="Let people connect their own AI agents, such as Claude or Copilot, to work in Switchboard as them." />
+<partial name="_Tabs" model="@("settings")" />
+
+<div class="sb-form-narrow">
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+    }
+
+    <form method="post" asp-page-handler="Settings">
+        <section class="sb-pane" aria-labelledby="accessTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="accessTitle">Access</h2></div>
+            <div class="sb-pane-body py-1">
+                <div class="mcp-switch-row form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="Enabled" name="Enabled" value="true" checked="@Model.Enabled">
+                    <label for="Enabled">
+                        <span class="mcp-switch-title">Allow AI agents</span>
+                        <span class="mcp-switch-text">Agents act with each person's own permissions, limited to what they allow. Turning this off stops every agent within a minute, including calls already running.</span>
+                    </label>
+                </div>
+                <div class="mcp-switch-row form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="OpenRegistration" name="OpenRegistration" value="true" checked="@Model.OpenRegistration">
+                    <label for="OpenRegistration">
+                        <span class="mcp-switch-title">Let any agent app ask to connect</span>
+                        <span class="mcp-switch-text">People still approve each connection. Turn this off to allow only the apps listed under Agent apps.</span>
+                    </label>
+                </div>
+                <div class="mcp-switch-row form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="ApiKeysAllowed" name="ApiKeysAllowed" value="true" checked="@Model.ApiKeysAllowed">
+                    <label for="ApiKeysAllowed">
+                        <span class="mcp-switch-title">Accept personal API keys</span>
+                        <span class="mcp-switch-text">An agent using an API key gets all of that person's permissions, with no narrowing, and every call is marked as an API-key call in the audit log.</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="confirmTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="confirmTitle">Confirmations</h2></div>
+            <div class="sb-pane-body">
+                <p class="small text-muted">Messages that leave your team are confirmed in the agent's app. Deleting, merging and bulk changes are always confirmed here in Switchboard, with the person's password.</p>
+                <div class="mcp-switch-row form-switch border-0 pb-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="AuthorityInClient" name="AuthorityInClient" value="true" checked="@Model.AuthorityInClient">
+                    <label for="AuthorityInClient">
+                        <span class="mcp-switch-title">Confirm decisions in the agent's app</span>
+                        <span class="mcp-switch-text">Approvals, publishing and similar decisions are confirmed here in Switchboard unless you turn this on. Agent apps can approve their own prompts, so leave it off unless you trust them.</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="originsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="originsTitle">Browser-based agents</h2></div>
+            <div class="sb-pane-body">
+                <label class="form-label" for="AllowedOrigins">Web addresses allowed to call Switchboard</label>
+                <textarea class="form-control" id="AllowedOrigins" name="AllowedOrigins" rows="3" placeholder="https://agent.example.com" aria-describedby="originsHelp">@Model.AllowedOrigins</textarea>
+                <div class="form-text" id="originsHelp">One per line. Only needed for agents that run in a web page. Desktop and server agents don't need this.</div>
+            </div>
+        </section>
+
+        <div class="mb-4"><button class="btn btn-primary" type="submit">Save settings</button></div>
+    </form>
+
+    <section class="sb-pane" aria-labelledby="endpointsTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="endpointsTitle">Endpoints</h2></div>
+        <div class="sb-pane-body">
+            <p class="small text-muted">People add this address to their agent app. Extra endpoints can offer a smaller set of tools to some roles or apps.</p>
+            <ul class="list-unstyled mb-3">
+                @foreach (var e in Model.Endpoints)
+                {
+                    <li class="d-flex flex-wrap align-items-center gap-2 py-2 border-bottom">
+                        <div class="me-auto min-w-0">
+                            <div class="fw-semibold">@(e.Slug.Length == 0 ? "Default" : e.Name)@(e.IsEnabled ? "" : " (off)")</div>
+                            <code class="mcp-endpoint d-inline-block mt-1">@Switchboard.Modules.Mcp.Areas.Mcp.Pages.Admin.McpAdminPage.EndpointUrl(Model.BaseUrl, e.Slug)</code>
+                        </div>
+                        <a class="btn btn-sm btn-outline-secondary" href="/admin/mcp/tools@(e.Slug.Length > 0 ? $"?endpoint={e.Slug}" : "")">Tools and access</a>
+                        @if (e.Slug.Length > 0)
+                        {
+                            <form method="post" asp-page-handler="DeleteEndpoint" asp-route-slug="@e.Slug" data-sb-confirm="Delete the @e.Name endpoint? Agents connected to it are disconnected.">
+                                <button class="btn btn-sm btn-ghost" type="submit">Delete</button>
+                            </form>
+                        }
+                    </li>
+                }
+            </ul>
+            <form method="post" asp-page-handler="CreateEndpoint" class="row g-2 align-items-end">
+                <div class="col-sm-5">
+                    <label class="form-label" for="NewName">New endpoint name</label>
+                    <input class="form-control" id="NewName" name="NewName" maxlength="200" placeholder="Sales team">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label" for="NewSlug">Address</label>
+                    <input class="form-control" id="NewSlug" name="NewSlug" maxlength="40" placeholder="sales" pattern="[a-z0-9][a-z0-9-]*">
+                </div>
+                <div class="col-sm-3"><button class="btn btn-outline-secondary w-100" type="submit">Add endpoint</button></div>
+            </form>
+        </div>
+    </section>
+</div>

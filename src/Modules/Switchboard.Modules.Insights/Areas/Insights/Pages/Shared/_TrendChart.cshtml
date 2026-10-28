@@ -1,0 +1,77 @@
+@model Switchboard.Modules.Insights.Services.TrendChartModel
+@{
+    var m = Model;
+    var n = m.Points.Count;
+    var first = n > 0 ? m.Points[0].Day : default;
+    var last = n > 0 ? m.Points[^1].Day : default;
+}
+<figure class="ins-chart" data-ins-chart>
+    <figcaption class="ins-chart-summary">
+        <strong>@m.TotalCreated</strong> created and <strong>@m.TotalResolved</strong> resolved, @m.DayLabel(first) to @m.DayLabel(last).
+    </figcaption>
+    <div class="ins-legend" aria-hidden="true">
+        <span><span class="ins-key ins-key--bar"></span>Created</span>
+        <span><span class="ins-key ins-key--line"></span>Resolved</span>
+    </div>
+    <div class="ins-chart-body">
+        <div class="ins-yaxis" aria-hidden="true">
+            @foreach (var tick in m.Scale.Ticks)
+            {
+                <span class="ins-tick tabular" style="bottom: @m.Scale.Percent(tick)%">@tick</span>
+            }
+        </div>
+        <div class="ins-plot" tabindex="0" role="img" data-ins-points="@m.Json"
+             aria-label="Tickets created and resolved per day. Use the left and right arrow keys to read each day, or open the table below.">
+            @foreach (var tick in m.Scale.Ticks)
+            {
+                <span class="ins-gridline" style="bottom: @m.Scale.Percent(tick)%" aria-hidden="true"></span>
+            }
+            <div class="ins-cols" aria-hidden="true">
+                @foreach (var p in m.Points)
+                {
+                    <span class="ins-col"><span class="ins-bar" style="height: @m.Scale.Percent(p.Created)%"></span></span>
+                }
+            </div>
+            <svg class="ins-line" viewBox="0 0 @n 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <polyline points="@m.ResolvedLine" />
+            </svg>
+            @for (var i = 0; i < n; i++)
+            {
+                <span class="ins-dot" style="left: @m.X(i)%; bottom: @m.Scale.Percent(m.Points[i].Resolved)%" aria-hidden="true"></span>
+            }
+            <span class="ins-cross" hidden aria-hidden="true"></span>
+            <div class="ins-tip" hidden aria-live="polite"></div>
+        </div>
+        <div class="ins-endlabels" aria-hidden="true">
+            @if (m.EndLabels)
+            {
+                <span class="ins-endlabel" style="bottom: @m.Scale.Percent(m.Points[^1].Created)%">Created @m.Points[^1].Created</span>
+                <span class="ins-endlabel" style="bottom: @m.Scale.Percent(m.Points[^1].Resolved)%">Resolved @m.Points[^1].Resolved</span>
+            }
+        </div>
+        <div></div>
+        <div class="ins-xaxis tabular" aria-hidden="true">
+            @for (var i = 0; i < n; i++)
+            {
+                var fromEnd = n - 1 - i;
+                <span class="@(fromEnd % 4 == 2 ? "is-minor" : null)">@(fromEnd % 2 == 0 ? m.Points[i].Day.Day.ToString() : "")</span>
+            }
+        </div>
+    </div>
+    <details class="ins-table">
+        <summary>Show as a table</summary>
+        <table class="table table-sm mb-0">
+            <thead><tr><th scope="col">Day</th><th scope="col" class="text-end">Created</th><th scope="col" class="text-end">Resolved</th></tr></thead>
+            <tbody>
+            @foreach (var p in m.Points)
+            {
+                <tr>
+                    <th scope="row" class="fw-normal">@p.Day.ToString("ddd, MMM d", System.Globalization.CultureInfo.InvariantCulture)</th>
+                    <td class="text-end tabular">@p.Created</td>
+                    <td class="text-end tabular">@p.Resolved</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </details>
+</figure>

@@ -1,0 +1,144 @@
+@page "/admin/people/{id:guid}/account"
+@model Switchboard.Modules.Admin.Pages.People.AccountModel
+@{
+    ViewData["Title"] = $"Account of {Model.Detail.User.DisplayName}";
+    var u = Model.Detail.User;
+    var agent = u.IsAgent || u.IsOrgAdmin;
+    var merged = Model.Detail.MergedInto is not null;
+    var gone = u.IsForgotten || merged;
+}
+<partial name="_PersonHeader" model='new PersonHeaderModel(Model.Detail, "account")' />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    @if (Model.ReadOnlyReason is not null)
+    {
+        <p class="text-muted"><i class="bi bi-lock me-1" aria-hidden="true"></i>@Model.ReadOnlyReason</p>
+    }
+
+    <section class="sb-pane" aria-labelledby="factsTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="factsTitle">Account</h2></div>
+        <dl class="sb-props sb-pane-body">
+            <div><dt>Created</dt><dd><sb-time value="@u.CreatedAt" mode="datetime" /></dd></div>
+            <div><dt>Last seen</dt><dd>@if (u.LastSeenAt is { } seen) { <sb-time value="@seen" /> } else { <span class="text-muted">Never signed in</span> }</dd></div>
+            <div><dt>Password</dt><dd>@(u.PasswordHash is null ? "Not set yet" : "Set")</dd></div>
+            <div><dt>Two-step verification</dt><dd>@(u.TwoFactorEnabled ? "On" : "Off")</dd></div>
+            <div><dt>API keys</dt><dd>@(Model.Detail.ActiveApiKeys == 0 ? "None active" : $"{Model.Detail.ActiveApiKeys} active")</dd></div>
+            @if (agent)
+            {
+                <div><dt>Open tickets assigned</dt><dd class="tabular">@Model.Detail.OpenAssignedTickets</dd></div>
+            }
+        </dl>
+    </section>
+
+    @if (Model.CanManage && !gone)
+    {
+        <section class="sb-pane" aria-labelledby="actionsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="actionsTitle">Actions</h2></div>
+            <ul class="sb-actions">
+                @if (u.IsActive && u.Email is not null)
+                {
+                    <li>
+                        <div>
+                            <h3>Send an invitation</h3>
+                            <p>Emails @u.Email a link to choose a password. The link works once, for one hour.</p>
+                        </div>
+                        <form method="post" asp-page-handler="Invite"><button class="btn btn-outline-secondary" type="submit">Send invitation</button></form>
+                    </li>
+                }
+                @if (!Model.IsSelf && u.IsActive)
+                {
+                    <li>
+                        <div>
+                            @if (agent)
+                            {
+                                <h3>Convert to requester</h3>
+                                <p>Removes every agent role and group. Their open tickets are handed to someone else first.</p>
+                            }
+                            else
+                            {
+                                <h3>Make agent</h3>
+                                <p>Gives them a role in a workspace so they can work tickets.</p>
+                            }
+                        </div>
+                        @if (!u.IsOrgAdmin)
+                        {
+                            <a class="btn btn-outline-secondary" href="/admin/people/@u.Id/convert">@(agent ? "Convert to requester" : "Make agent")</a>
+                        }
+                        else
+                        {
+                            <span class="text-muted small">Remove organization admin first.</span>
+                        }
+                    </li>
+                }
+                @if (!agent)
+                {
+                    <li>
+                        <div>
+                            <h3>Merge into another requester</h3>
+                            <p>For duplicates. Tickets, shares, groups and email addresses move to the person you keep; this record is deactivated.</p>
+                        </div>
+                        <a class="btn btn-outline-secondary" href="/admin/people/@u.Id/merge">Merge</a>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    <section class="sb-pane" aria-labelledby="privacyTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="privacyTitle">Privacy</h2></div>
+        <ul class="sb-actions">
+            @if (Model.CanManage)
+            {
+                <li>
+                    <div>
+                        <h3>Export their data</h3>
+                        <p>Downloads everything Switchboard holds about this person as JSON, for a data access request. The export is recorded in the audit log.</p>
+                    </div>
+                    <form method="post" asp-page-handler="Export"><button class="btn btn-outline-secondary" type="submit">Export data</button></form>
+                </li>
+            }
+            @if (Model.ViewerIsOrgAdmin && !u.IsForgotten && !Model.IsSelf)
+            {
+                <li>
+                    <div>
+                        <h3>Erase personal data</h3>
+                        <p>Replaces their name, email addresses, phone numbers and other personal details with a placeholder, everywhere. Tickets stay. This can't be undone.</p>
+                    </div>
+                    <a class="btn btn-outline-secondary" href="/admin/people/@u.Id/forget">Erase data</a>
+                </li>
+            }
+            @if (!Model.CanManage && !Model.ViewerIsOrgAdmin)
+            {
+                <li><p>Only people who can manage this account can export or erase its data.</p></li>
+            }
+        </ul>
+    </section>
+
+    @if (Model.CanManage && !gone && !Model.IsSelf)
+    {
+        <section class="sb-pane sb-pane--caution" aria-labelledby="accessTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="accessTitle">@(u.IsActive ? "Deactivate" : "Reactivate")</h2></div>
+            <ul class="sb-actions">
+                <li>
+                    @if (u.IsActive)
+                    {
+                        <div>
+                            <h3>Deactivate account</h3>
+                            <p>Signs them out everywhere, revokes their API keys and stops new work reaching them. You choose who takes their open tickets. You can reactivate later.</p>
+                        </div>
+                        <a class="btn btn-outline-danger" href="/admin/people/@u.Id/deactivate">Deactivate</a>
+                    }
+                    else
+                    {
+                        <div>
+                            <h3>Reactivate account</h3>
+                            <p>They can sign in again with their old password, and their roles come back. API keys stay revoked.</p>
+                        </div>
+                        <form method="post" asp-page-handler="Reactivate"><button class="btn btn-outline-secondary" type="submit">Reactivate</button></form>
+                    }
+                </li>
+            </ul>
+        </section>
+    }
+</div>

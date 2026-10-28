@@ -1,0 +1,19 @@
+@model TicketScenariosModel
+<li><hr class="dropdown-divider"></li>
+@if (Model.Scenarios.Count > 0)
+{
+    <li><span class="dropdown-header">Run a scenario</span></li>
+    @foreach (var scenario in Model.Scenarios)
+    {
+        <li>
+            <form method="post" action="/automations/scenarios/@scenario.Id/run" asp-antiforgery="true">
+                <input type="hidden" name="ticketId" value="@Model.TicketId">
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl">
+                <button class="dropdown-item" type="submit" title="@scenario.Description">
+                    <i class="bi bi-lightning-charge me-2" aria-hidden="true"></i>@scenario.Name
+                </button>
+            </form>
+        </li>
+    }
+}
+<li><a class="dropdown-item" href="/automations/scenarios"><i class="bi bi-collection me-2" aria-hidden="true"></i>@(Model.Scenarios.Count > 0 ? "Manage scenarios" : "Create a scenario")</a></li>

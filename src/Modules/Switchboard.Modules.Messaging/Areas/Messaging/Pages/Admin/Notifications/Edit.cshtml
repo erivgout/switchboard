@@ -1,0 +1,99 @@
+@page "/admin/notifications/{key}"
+@model TemplateEditModel
+@{
+    ViewData["Title"] = Model.Event.Name;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Messaging/js/messaging.js" asp-append-version="true"></script>
+}
+<sb-page-header title="@Model.Event.Name" subtitle="@(Model.ShowWorkspace ? $"{Model.Event.Description} For the {Model.WorkspaceName} workspace." : Model.Event.Description)">
+    <a class="btn btn-ghost" href="/admin/notifications?ws=@Model.CurrentWorkspace"><i class="bi bi-arrow-left" aria-hidden="true"></i> All notifications</a>
+</sb-page-header>
+
+<div class="sb-split sb-template-split">
+    <div class="sb-msg-fill">
+        <form method="post" id="sbTemplateForm" class="mb-3" novalidate
+              hx-post="/admin/notifications/@Model.Key?handler=Preview&amp;ws=@Model.CurrentWorkspace"
+              hx-trigger="input delay:400ms"
+              hx-target="#sbTemplatePreview" hx-swap="outerHTML">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <ul class="mb-0 ps-3">
+                        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <li>@error.ErrorMessage</li>
+                        }
+                    </ul>
+                </div>
+            }
+            <section class="sb-pane" aria-labelledby="tplTitle">
+                <div class="sb-pane-header">
+                    <h2 class="sb-pane-title" id="tplTitle">Email</h2>
+                    <div class="form-check form-switch ms-auto mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" asp-for="Enabled">
+                        <label class="form-check-label" asp-for="Enabled">Send this notification</label>
+                    </div>
+                </div>
+                <div class="sb-pane-body">
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Subject">Subject</label>
+                        <input class="form-control" asp-for="Subject" maxlength="300" data-sb-template-field autocomplete="off" aria-describedby="subjectHelp">
+                        <div class="form-text" id="subjectHelp">The ticket number, such as [INC-1042], is added if the subject doesn't include it, so replies find their ticket.</div>
+                        <span asp-validation-for="Subject" class="text-danger small"></span>
+                    </div>
+                    <div>
+                        <label class="form-label" asp-for="Body">Message</label>
+                        <textarea class="form-control sb-template-body" asp-for="Body" rows="12" spellcheck="true" data-sb-template-field aria-describedby="bodyHelp"></textarea>
+                        <div class="form-text" id="bodyHelp">HTML. Placeholders such as {{ticket.subject}} are filled in for each email, and anything people typed is escaped so it can't change the layout.</div>
+                        <span asp-validation-for="Body" class="text-danger small"></span>
+                    </div>
+                </div>
+                <div class="sb-pane-footer d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" type="submit">Save notification</button>
+                    <a class="btn btn-outline-secondary" href="/admin/notifications?ws=@Model.CurrentWorkspace">Cancel</a>
+                    @if (Model.Current.IsCustomized)
+                    {
+                        <button class="btn btn-ghost ms-auto" type="submit" formaction="/admin/notifications/@Model.Key?handler=Reset&amp;ws=@Model.CurrentWorkspace"
+                                data-sb-confirm="Put back the default subject and message for @Model.Event.Name? Your wording will be replaced.">
+                            Reset to default
+                        </button>
+                    }
+                </div>
+            </section>
+        </form>
+
+        <section class="sb-pane" aria-labelledby="previewTitle">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="previewTitle">Preview</h2>
+                <span class="ms-auto small text-muted">With a sample ticket, INC-1042</span>
+            </div>
+            <div class="sb-pane-body">
+                <partial name="_TemplatePreview" model="Model.Preview" />
+            </div>
+        </section>
+    </div>
+
+    <aside class="sb-sticky" aria-labelledby="phTitle">
+        <section class="sb-pane">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="phTitle">Placeholders</h2></div>
+            <div class="sb-pane-body">
+                <p class="small text-muted">Select one to add it where your cursor is.</p>
+                <ul class="list-unstyled mb-0 sb-placeholders">
+                    @foreach (var p in NotificationCatalog.Placeholders)
+                    {
+                        <li>
+                            <button type="button" class="btn btn-ghost btn-sm sb-placeholder" data-sb-insert="{{@p.Key}}">
+                                <span class="sb-placeholder-key">{{@p.Key}}</span>
+                                <span class="sb-placeholder-desc">@p.Description@(p.IsHtml ? " (formatted)" : "")</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </section>
+    </aside>
+</div>

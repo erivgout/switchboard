@@ -1,0 +1,76 @@
+@page "/reports/saved/{id}"
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Reports.SavedModel
+@using Switchboard.Modules.Insights.Domain
+@using Switchboard.Modules.Insights.Areas.Insights.Pages.Reports
+@{
+    ViewData["Title"] = Model.IsNew ? "Save report" : "Edit saved report";
+    var errors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct().ToList();
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Insights/css/insights.css" asp-append-version="true">
+}
+
+<sb-page-header title="@(Model.IsNew ? "Save report" : "Edit saved report")" subtitle="@($"{ReportPage.ReportName(Model.Path)} with the filters you chose. Whoever opens it sees only the tickets they're allowed to see.")">
+    <a class="btn btn-ghost" href="@(Model.IsNew ? $"{Model.Path}?{Model.Query}" : "/reports")">Cancel</a>
+</sb-page-header>
+
+<form method="post" class="sb-form-narrow">
+    <input type="hidden" asp-for="Path">
+    <input type="hidden" asp-for="Query">
+    @if (errors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            <ul class="mb-0">
+                @foreach (var e in errors)
+                {
+                    <li>@e</li>
+                }
+            </ul>
+        </div>
+    }
+    <section class="sb-pane">
+        <div class="sb-pane-body">
+            <div class="mb-3">
+                <label class="form-label" asp-for="Name">Name</label>
+                <input class="form-control" asp-for="Name" maxlength="200">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Folder">Folder <span class="text-muted fw-normal">(optional)</span></label>
+                <input class="form-control" asp-for="Folder" maxlength="100" list="insFolders" placeholder="Weekly review">
+                <datalist id="insFolders">
+                    @foreach (var f in Model.KnownFolders)
+                    {
+                        <option value="@f"></option>
+                    }
+                </datalist>
+            </div>
+            <fieldset>
+                <legend class="form-label">Who can open it</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Sharing" value="@ReportSharing.Private" id="shPrivate">
+                    <label class="form-check-label" for="shPrivate">Only me</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Sharing" value="@ReportSharing.Everyone" id="shEveryone">
+                    <label class="form-check-label" for="shEveryone">Everyone who can view reports</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Sharing" value="@ReportSharing.Groups" id="shGroups">
+                    <label class="form-check-label" for="shGroups">Members of these groups</label>
+                </div>
+                <div class="ins-share-groups">
+                    @foreach (var g in Model.Groups)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="GroupIds" value="@g.Id" id="shg_@g.Id.ToString("N")" checked="@Model.GroupIds.Contains(g.Id)">
+                            <label class="form-check-label" for="shg_@g.Id.ToString("N")">@g.Name</label>
+                        </div>
+                    }
+                </div>
+            </fieldset>
+        </div>
+        <div class="sb-pane-footer">
+            <button class="btn btn-primary" type="submit">@(Model.IsNew ? "Save report" : "Save changes")</button>
+        </div>
+    </section>
+</form>

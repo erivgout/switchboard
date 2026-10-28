@@ -1,0 +1,11 @@
+.artifacts
+**/bin
+**/obj
+.git
+.vs
+.vscode
+.idea
+**/App_Data
+.env
+docs
+tests

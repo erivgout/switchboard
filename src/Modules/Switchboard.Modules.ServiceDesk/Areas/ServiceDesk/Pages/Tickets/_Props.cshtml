@@ -1,0 +1,262 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.DetailModel
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var d = Model.Data;
+    var t = d.Ticket;
+    var o = d.Options;
+    var url = $"/tickets/{t.Number}?handler=Property";
+    var edit = d.Can.Edit && !d.IsReadOnly;
+    var assign = d.Can.Assign && !d.IsReadOnly;
+    var agents = o.AgentsFor(t.GroupId, t.AgentId);
+    var subs = t.CategoryId is { } c ? o.ChildrenOf(c, 2).ToList() : [];
+    var items = t.SubCategoryId is { } s ? o.ChildrenOf(s, 3).ToList() : [];
+    var isPost = string.Equals(Context.Request.Method, "POST", StringComparison.OrdinalIgnoreCase);
+    string Hx(string field) => $"{{\"Field\":\"{field}\"}}";
+}
+@if (isPost)
+{
+    <span class="sd-head-badges" id="sdHeadBadges" hx-swap-oob="true"><partial name="_HeadBadges" model="d" /></span>
+    <h1 class="sd-subject-text" id="sdSubject" hx-swap-oob="true">@t.Subject</h1>
+}
+<section class="sb-pane" id="sdProps" aria-labelledby="sdPropsTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="sdPropsTitle">Properties</h2>
+        <span class="htmx-indicator spinner-border spinner-border-sm ms-auto" role="status" aria-label="Saving"></span>
+    </div>
+    <div id="sdPropsMeta" hidden>
+        <input type="hidden" name="Version" value="@d.Version">
+        <input type="hidden" name="SeenAt" value="@d.LoadedAt.ToUnixTimeMilliseconds()">
+        <input type="hidden" name="TzOffset" value="0" data-sd-tz>
+    </div>
+    <dl class="sb-props sb-pane-body" hx-target="#sdProps" hx-swap="outerHTML" hx-include="#sdPropsMeta" hx-indicator="#sdProps .htmx-indicator">
+        <div>
+            <dt><label for="p-status">Status</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-status" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("status")">
+                    @foreach (var s2 in o.Statuses)
+                    {
+                        <option value="@s2.Id" selected="@(s2.Id == t.StatusId)">@s2.Name</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-priority">Priority</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-priority" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("priority")">
+                    @foreach (var p in Enum.GetValues<Priority>().Reverse())
+                    {
+                        <option value="@p" selected="@(p == t.Priority)">@p</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-urgency">Urgency</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-urgency" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("urgency")">
+                    @foreach (var l in Enum.GetValues<Level>().Reverse())
+                    {
+                        <option value="@l" selected="@(l == t.Urgency)">@l</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-impact">Impact</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-impact" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("impact")">
+                    @foreach (var l in Enum.GetValues<Level>().Reverse())
+                    {
+                        <option value="@l" selected="@(l == t.Impact)">@l</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-type">Type</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-type" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("type")">
+                    <option value="Incident" selected="@(t.Type == TicketType.Incident)">Incident</option>
+                    <option value="ServiceRequest" selected="@(t.Type == TicketType.ServiceRequest)">Service request</option>
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-source">Source</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-source" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("source")">
+                    @foreach (var src in o.Sources)
+                    {
+                        <option value="@src.Id" selected="@(src.Id == t.SourceId)">@src.Name</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-cc">CC</label></dt>
+            <dd>
+                <input class="form-control form-control-sm" id="p-cc" name="Value" value="@string.Join(", ", t.CcEmails)" placeholder="Copy people on replies"
+                       inputmode="email" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("cc")">
+            </dd>
+        </div>
+    </dl>
+
+    <p class="sb-section-label sd-props-section">Assignment</p>
+    <dl class="sb-props sb-pane-body pt-0" hx-target="#sdProps" hx-swap="outerHTML" hx-include="#sdPropsMeta" hx-indicator="#sdProps .htmx-indicator">
+        <div>
+            <dt><label for="p-group">Group</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-group" name="Value" disabled="@(!assign)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("group")">
+                    <option value="">No group</option>
+                    @foreach (var g in o.Groups)
+                    {
+                        <option value="@g.Id" selected="@(g.Id == t.GroupId)">@g.Name</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-agent">Agent</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-agent" name="Value" disabled="@(!assign)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("agent")">
+                    <option value="">Unassigned</option>
+                    @foreach (var a in agents)
+                    {
+                        <option value="@a.Id" selected="@(a.Id == t.AgentId)">@(a.Id == d.MeId ? $"{a.Name} (you)" : a.Name)</option>
+                    }
+                </select>
+            </dd>
+        </div>
+    </dl>
+
+    <p class="sb-section-label sd-props-section">Classification</p>
+    <dl class="sb-props sb-pane-body pt-0" hx-target="#sdProps" hx-swap="outerHTML" hx-include="#sdPropsMeta" hx-indicator="#sdProps .htmx-indicator">
+        <div>
+            <dt><label for="p-category">Category</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-category" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("category")">
+                    <option value="">None</option>
+                    @foreach (var cat in o.ChildrenOf(null, 1))
+                    {
+                        <option value="@cat.Id" selected="@(cat.Id == t.CategoryId)">@cat.Name</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        @if (subs.Count > 0)
+        {
+            <div>
+                <dt><label for="p-subcategory">Sub-category</label></dt>
+                <dd>
+                    <select class="form-select form-select-sm" id="p-subcategory" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("subcategory")">
+                        <option value="">None</option>
+                        @foreach (var sub in subs)
+                        {
+                            <option value="@sub.Id" selected="@(sub.Id == t.SubCategoryId)">@sub.Name</option>
+                        }
+                    </select>
+                </dd>
+            </div>
+        }
+        @if (items.Count > 0)
+        {
+            <div>
+                <dt><label for="p-item">Item</label></dt>
+                <dd>
+                    <select class="form-select form-select-sm" id="p-item" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("item")">
+                        <option value="">None</option>
+                        @foreach (var it in items)
+                        {
+                            <option value="@it.Id" selected="@(it.Id == t.ItemCategoryId)">@it.Name</option>
+                        }
+                    </select>
+                </dd>
+            </div>
+        }
+        <div>
+            <dt><label for="p-department">Department</label></dt>
+            <dd>
+                <select class="form-select form-select-sm" id="p-department" name="Value" disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("department")">
+                    <option value="">None</option>
+                    @foreach (var dep in o.Departments)
+                    {
+                        <option value="@dep.Id" selected="@(dep.Id == t.DepartmentId)">@dep.Name</option>
+                    }
+                </select>
+            </dd>
+        </div>
+        <div>
+            <dt><label for="p-tags">Tags</label></dt>
+            <dd>
+                <input class="form-control form-control-sm" id="p-tags" name="Value" value="@string.Join(", ", t.Tags.Select(x => x.Tag).Order())" placeholder="Add tags, separated by commas"
+                       disabled="@(!edit)" hx-post="@url" hx-trigger="change" hx-vals="@Hx("tags")">
+            </dd>
+        </div>
+    </dl>
+
+    <p class="sb-section-label sd-props-section">Targets</p>
+    <dl class="sb-props sb-pane-body pt-0">
+        <div>
+            <dt>First response</dt>
+            <dd>
+                @if (t.FirstRespondedAt is { } responded)
+                {
+                    <span class="sb-due is-met"><i class="bi bi-check2" aria-hidden="true"></i>Responded <sb-time value="responded" /></span>
+                }
+                else if (t.FirstResponseDueBy is { } frd)
+                {
+                    <sb-due due="frd" category="@t.Status!.Category" resolved-at="t.ResolvedAt" />
+                }
+                else
+                {
+                    <span class="text-muted">No target</span>
+                }
+            </dd>
+        </div>
+        <div>
+            <dt>Resolution</dt>
+            <dd>
+                @if (t.DueBy is not null)
+                {
+                    <sb-due due="t.DueBy" category="@t.Status!.Category" resolved-at="t.ResolvedAt" />
+                }
+                else
+                {
+                    <span class="text-muted">No target</span>
+                }
+                @if (edit)
+                {
+                    <button class="btn btn-link btn-sm p-0 ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#sdDueForm" aria-expanded="false" aria-controls="sdDueForm">Change</button>
+                }
+            </dd>
+        </div>
+        @if (t.ResolvedAt is { } resolvedAt)
+        {
+            <div><dt>Resolved</dt><dd><sb-time value="resolvedAt" mode="datetime" /></dd></div>
+        }
+    </dl>
+    @if (edit)
+    {
+        <form class="collapse sd-due-form" id="sdDueForm" hx-post="@url" hx-target="#sdProps" hx-swap="outerHTML" hx-include="#sdPropsMeta">
+            <input type="hidden" name="Field" value="dueBy">
+            <label class="form-label" for="p-due">Resolution due (your time)</label>
+            <input class="form-control form-control-sm" id="p-due" name="Value" type="datetime-local" data-sd-local-value="@(t.DueBy?.ToUniversalTime().ToString("O"))">
+            <label class="form-label mt-2" for="p-due-reason">Why change it?</label>
+            <input class="form-control form-control-sm" id="p-due-reason" name="Reason" required maxlength="500" placeholder="Agreed a later date with the requester">
+            <p class="form-text">Changing a target by hand is recorded with your reason.</p>
+            <button class="btn btn-primary btn-sm" type="submit">Save target</button>
+        </form>
+    }
+
+    @if (o.CustomFields.Count > 0)
+    {
+        <p class="sb-section-label sd-props-section">More details</p>
+        <dl class="sb-props sb-pane-body pt-0" hx-target="#sdProps" hx-swap="outerHTML" hx-include="#sdPropsMeta" hx-indicator="#sdProps .htmx-indicator">
+            @foreach (var def in o.CustomFields)
+            {
+                <partial name="_CustomFieldProp" model="new Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.CustomFieldPropModel(def, d.CustomValues[def.Key], edit, url)" />
+            }
+        </dl>
+    }
+</section>

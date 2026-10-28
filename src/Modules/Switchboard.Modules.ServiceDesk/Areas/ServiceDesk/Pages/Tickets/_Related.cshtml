@@ -1,0 +1,152 @@
+@model Switchboard.Modules.ServiceDesk.Services.TicketPageData
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var t = Model.Ticket;
+    var url = $"/tickets/{t.Number}";
+    var resolvedChildren = Model.Children.Count(c => c.IsResolved);
+    var related = Model.Links.Where(l => l.LinkType != TicketLinkTypes.FollowUpOf).ToList();
+    var followUps = Model.Links.Where(l => l.LinkType == TicketLinkTypes.FollowUpOf).ToList();
+    var canEdit = Model.Can.Edit;
+}
+@functions {
+    static string LinkLabel(string type) => type switch
+    {
+        TicketLinkTypes.Related => "Related",
+        TicketLinkTypes.Problem => "Problem",
+        TicketLinkTypes.ChangeCausing => "Change that caused it",
+        TicketLinkTypes.ChangeRequested => "Change requested",
+        TicketLinkTypes.Asset => "Asset",
+        _ => type.Replace('_', ' '),
+    };
+}
+<div class="sd-related">
+    <section class="sb-pane" aria-labelledby="relParent">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="relParent">@(Model.IsChild ? "Parent ticket" : "Child tickets")</h2>
+            @if (!Model.IsChild && Model.Children.Count > 0)
+            {
+                <span class="sb-meta ms-auto">@resolvedChildren of @Model.Children.Count resolved</span>
+            }
+            @if (!Model.IsChild && Model.Can.Create && !Model.IsReadOnly)
+            {
+                <a class="btn btn-ghost btn-sm @(Model.Children.Count > 0 ? "" : "ms-auto")" href="/tickets/new?type=@(t.Type == TicketType.Incident ? "incident" : "request")&amp;parent=@t.Number">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Create child
+                </a>
+            }
+        </div>
+        @if (Model.IsChild)
+        {
+            @if (Model.Parent is { } parent)
+            {
+                <ul class="sd-mini-list"><partial name="_TicketRow" model="parent" /></ul>
+            }
+            else
+            {
+                <p class="sd-pane-empty">The parent ticket isn't visible to you.</p>
+            }
+        }
+        else if (Model.Children.Count == 0)
+        {
+            <p class="sd-pane-empty">No child tickets. Split larger work into child tickets that can be assigned separately; the parent can't close until they're resolved.</p>
+        }
+        else
+        {
+            <div class="progress sd-progress" role="progressbar" aria-label="Child tickets resolved" aria-valuenow="@resolvedChildren" aria-valuemin="0" aria-valuemax="@Model.Children.Count">
+                <div class="progress-bar" style="width: @(Model.Children.Count == 0 ? 0 : resolvedChildren * 100 / Model.Children.Count)%"></div>
+            </div>
+            <ul class="sd-mini-list">
+                @foreach (var child in Model.Children)
+                {
+                    <partial name="_TicketRow" model="child" />
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="sb-pane" aria-labelledby="relLinks">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="relLinks">Linked records</h2>
+            @if (canEdit && !Model.IsReadOnly)
+            {
+                <button class="btn btn-ghost btn-sm ms-auto" type="button" data-bs-toggle="modal" data-bs-target="#sdLinkDialog"><i class="bi bi-link-45deg" aria-hidden="true"></i> Link a ticket</button>
+            }
+        </div>
+        @if (related.Count == 0)
+        {
+            <p class="sd-pane-empty">Nothing linked. Link tickets about the same issue so agents see the whole picture.</p>
+        }
+        else
+        {
+            <ul class="sd-mini-list">
+                @foreach (var link in related)
+                {
+                    <li class="sd-mini-row">
+                        <span class="sd-link-type">@LinkLabel(link.LinkType)</span>
+                        @if (link.Ticket is { } lt)
+                        {
+                            <span class="sb-stamp">@lt.DisplayId</span>
+                            <a href="/tickets/@lt.Number" class="text-truncate">@lt.Subject</a>
+                            <sb-status name="@lt.StatusName" category="@lt.StatusCategory" />
+                        }
+                        else if (link.TargetType == Ticket.Family)
+                        {
+                            <span class="text-muted">A ticket you can't see</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">@link.TargetType.Replace('_', ' ') record</span>
+                        }
+                        @if (canEdit && !Model.IsReadOnly)
+                        {
+                            <form class="ms-auto" method="post" action="@url?handler=Unlink" asp-antiforgery="true">
+                                <input type="hidden" name="linkId" value="@link.LinkId">
+                                <button class="btn btn-ghost btn-icon btn-sm" type="submit" aria-label="Remove link"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                            </form>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    @if (Model.MergedTickets.Count > 0 || Model.MergedInto is not null)
+    {
+        <section class="sb-pane" aria-labelledby="relMerged">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="relMerged">Merged tickets</h2></div>
+            <ul class="sd-mini-list">
+                @if (Model.MergedInto is { } into)
+                {
+                    <li class="sd-mini-row"><span class="sd-link-type">Merged into</span><span class="sb-stamp">@into.DisplayId</span><a href="/tickets/@into.Number" class="text-truncate">@into.Subject</a></li>
+                }
+                @foreach (var m in Model.MergedTickets)
+                {
+                    <li class="sd-mini-row"><span class="sd-link-type">Merged here</span><span class="sb-stamp">@m.DisplayId</span><a href="/tickets/@m.Number" class="text-truncate">@m.Subject</a></li>
+                }
+            </ul>
+        </section>
+    }
+
+    @if (followUps.Count > 0)
+    {
+        <section class="sb-pane" aria-labelledby="relFollow">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="relFollow">Follow-ups</h2></div>
+            <ul class="sd-mini-list">
+                @foreach (var f in followUps)
+                {
+                    <li class="sd-mini-row">
+                        <span class="sd-link-type">@(f.Incoming ? "Follow-up" : "Follows up on")</span>
+                        @if (f.Ticket is { } ft)
+                        {
+                            <span class="sb-stamp">@ft.DisplayId</span><a href="/tickets/@ft.Number" class="text-truncate">@ft.Subject</a>
+                            <sb-status name="@ft.StatusName" category="@ft.StatusCategory" />
+                        }
+                        else
+                        {
+                            <span class="text-muted">A ticket you can't see</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</div>

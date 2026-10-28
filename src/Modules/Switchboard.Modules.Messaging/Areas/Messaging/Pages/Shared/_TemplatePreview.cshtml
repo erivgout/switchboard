@@ -1,0 +1,13 @@
+@model TemplatePreview
+<div id="sbTemplatePreview" class="sb-email-preview" aria-live="polite">
+    @if (Model.Unknown.Count > 0)
+    {
+        <div class="alert alert-warning small mb-2" role="status">
+            These placeholders don't exist and show as nothing: @string.Join(", ", Model.Unknown.Select(u => "{{" + u + "}}"))
+        </div>
+    }
+    <dl class="sb-email-preview-head">
+        <div><dt>Subject</dt><dd>@Model.Subject</dd></div>
+    </dl>
+    <div class="sb-email-preview-frame">@Html.Raw(Model.FrameHtml)</div>
+</div>

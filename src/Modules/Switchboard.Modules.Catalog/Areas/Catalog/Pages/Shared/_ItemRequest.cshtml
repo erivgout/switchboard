@@ -1,0 +1,128 @@
+@using Switchboard.Modules.Approvals.Web
+@model CatalogItemPageBase
+@{
+    var d = Model.Details;
+    var item = d.Item;
+    var forAgent = ViewData["ForAgent"] is true;
+    var backHref = forAgent ? "/catalog" : "/portal/catalog";
+    PersonChoice? Person(Guid? id) => id is { } g && Model.People.TryGetValue(g, out var n) ? new PersonChoice(g, n) : null;
+    var requesterPicker = new PeoplePickerModel("requester", "catRequester", "Who is asking for this", Selected: Person(Model.RequesterId) is { } r ? new List<PersonChoice> { r } : null,
+        Help: "The requester gets updates and sees the request in the portal.", Required: true,
+        Error: ViewData.ModelState["requester"]?.Errors.FirstOrDefault()?.ErrorMessage);
+    var forPicker = new PeoplePickerModel("requestedFor", "catRequestedFor", forAgent ? "Someone else it's for (optional)" : "Requesting for someone else? (optional)",
+        Selected: Person(Model.RequestedForId) is { } f ? new List<PersonChoice> { f } : null,
+        Help: forAgent ? "Leave empty when it's for the requester." : "Leave empty if it's for you. Their manager approves, when approval is needed.",
+        Error: ViewData.ModelState["requestedFor"]?.Errors.FirstOrDefault()?.ErrorMessage);
+    var quantityError = ViewData.ModelState["quantity"]?.Errors.FirstOrDefault()?.ErrorMessage;
+}
+<p class="mb-3"><a href="@backHref" class="small"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>All items</a></p>
+
+<div class="cat-item-head">
+    <span class="cat-icon cat-icon--lg" aria-hidden="true"><i class="bi @item.Icon"></i></span>
+    <div>
+        <h1 class="sb-title">@item.Name</h1>
+        <p>@item.ShortDescription</p>
+    </div>
+</div>
+
+<div class="sb-split">
+    <div class="min-w-0">
+        @if (item.Description is not null)
+        {
+            <div class="cat-description">
+                @foreach (var p in CatalogFormBinding.Paragraphs(item.Description))
+                {
+                    <p>@p</p>
+                }
+            </div>
+        }
+        @if (d.BundleItems.Count > 0)
+        {
+            <section class="sb-pane mb-3" aria-labelledby="catIncludes">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="catIncludes">What's included</h2></div>
+                <ul class="list-unstyled mb-0">
+                    @foreach (var b in d.BundleItems)
+                    {
+                        <li class="d-flex gap-3 align-items-center px-3 py-2 border-top"><span class="cat-icon cat-icon--sm" aria-hidden="true"><i class="bi @b.Icon"></i></span><span><strong>@b.Name</strong><span class="d-block small text-muted">@b.ShortDescription</span></span></li>
+                    }
+                </ul>
+            </section>
+        }
+
+        <form method="post" class="sb-pane cat-form" novalidate>
+            <div class="sb-pane-header"><h2 class="sb-pane-title">@(forAgent ? "Request on someone's behalf" : "Your request")</h2></div>
+            <div class="sb-pane-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                @if (forAgent)
+                {
+                    <div class="cat-q"><partial name="/Areas/Approvals/Pages/Shared/_PeoplePicker.cshtml" model="requesterPicker" /></div>
+                }
+                @if (item.AllowRequestedFor)
+                {
+                    <div class="cat-q"><partial name="/Areas/Approvals/Pages/Shared/_PeoplePicker.cshtml" model="forPicker" /></div>
+                }
+                @if (item.MaxQuantity > 1)
+                {
+                    <div class="cat-q">
+                        <label class="form-label" for="catQty">How many</label>
+                        <input class="form-control cat-qty tabular @(quantityError is null ? null : "is-invalid")" type="number" id="catQty" name="quantity" min="1" max="@item.MaxQuantity"
+                               value="@Model.Quantity" data-cat-qty data-unit="@item.CostMinor" data-currency="@item.Currency" aria-describedby="catQtyHelp">
+                        <div id="catQtyHelp" class="@(quantityError is null ? "form-text" : "invalid-feedback d-block")">@(quantityError ?? $"Up to {item.MaxQuantity} per request.")</div>
+                    </div>
+                }
+                <partial name="_FormFields" model="Model.Form" />
+                @if (Model.Form.Fields.Count == 0 && item.MaxQuantity <= 1 && !item.AllowRequestedFor && !forAgent)
+                {
+                    <p class="text-muted mb-0">There's nothing to fill in. Submit the request and the team takes it from there.</p>
+                }
+            </div>
+            <div class="sb-pane-footer">
+                <button class="btn btn-primary" type="submit">Submit request</button>
+                @if (Model.Form.Fields.Any(f => f.Required))
+                {
+                    <span class="small text-muted ms-2"><span class="cat-required" aria-hidden="true">*</span> Required</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <aside class="sb-sticky">
+        <section class="sb-pane" aria-labelledby="catSummary">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="catSummary">Summary</h2></div>
+            <div class="sb-pane-body">
+                <dl class="cat-facts">
+                    <div class="cat-total"><dt>Cost</dt><dd class="tabular"><span class="sb-num" data-cat-total>@(item.CostMinor is { } c ? CatalogForm.Money(c * Model.Quantity, item.Currency) : "No charge")</span></dd></div>
+                    @if (item.DeliveryDays is { } days)
+                    {
+                        <div><dt>Delivery</dt><dd>@CatalogForm.Delivery(days)@(days > 0 ? ", usually" : "")</dd></div>
+                    }
+                    @if (forAgent && d.FulfillmentGroupName is not null)
+                    {
+                        <div><dt>Delivered by</dt><dd>@d.FulfillmentGroupName</dd></div>
+                    }
+                </dl>
+            </div>
+        </section>
+        <section class="sb-pane" aria-labelledby="catNext">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="catNext">What happens next</h2></div>
+            <div class="sb-pane-body">
+                <ol class="apr-chain">
+                    <li class="apr-level is-pending"><span class="apr-marker" aria-hidden="true">1</span><div class="apr-level-head"><span>@(forAgent ? "You submit it for them" : "You submit the request")</span></div></li>
+                    @for (var i = 0; i < Model.Steps.Count; i++)
+                    {
+                        <li class="apr-level is-notstarted">
+                            <span class="apr-marker" aria-hidden="true">@(i + 2)</span>
+                            <div class="apr-level-head"><span>Approval</span></div>
+                            <p class="small text-muted mb-0">@Model.Steps[i]</p>
+                        </li>
+                    }
+                    <li class="apr-level is-notstarted">
+                        <span class="apr-marker" aria-hidden="true">@(Model.Steps.Count + 2)</span>
+                        <div class="apr-level-head"><span>@(forAgent && d.FulfillmentGroupName is not null ? $"{d.FulfillmentGroupName} delivers it" : "The team delivers it")</span></div>
+                        <p class="small text-muted mb-0">You can follow every step in @(forAgent ? "the ticket" : "your requests").</p>
+                    </li>
+                </ol>
+            </div>
+        </section>
+    </aside>
+</div>

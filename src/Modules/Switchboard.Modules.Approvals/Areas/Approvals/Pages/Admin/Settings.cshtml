@@ -1,0 +1,53 @@
+@page "/admin/approvals"
+@model Switchboard.Modules.Approvals.Areas.Approvals.Pages.Admin.SettingsModel
+@{
+    ViewData["Title"] = "Approval settings";
+}
+<sb-page-header title="Approvals" subtitle="How approvers decide from email, and when they get reminded." />
+
+<form method="post" class="sb-form-narrow">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <section class="sb-pane" aria-labelledby="aprEmailTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprEmailTitle">Deciding from email</h2></div>
+        <div class="sb-pane-body">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" asp-for="Input.RequireLogin">
+                <label class="form-check-label" asp-for="Input.RequireLogin">Approvers sign in before they decide</label>
+            </div>
+            <p class="form-text ms-4 mb-3">Recommended. Email links open the approval in Switchboard. When this is off, each email carries a link
+                that works once, only for that approver, and expires. Either way the decision is confirmed on a page, so mail scanners can't approve.</p>
+            <div class="ms-4" style="max-width: 16rem">
+                <label class="form-label" asp-for="Input.LinkExpiryHours">Links without sign-in expire after (hours)</label>
+                <input class="form-control tabular" asp-for="Input.LinkExpiryHours" type="number" min="1" max="336">
+                <span asp-validation-for="Input.LinkExpiryHours" class="text-danger small"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="aprSelfTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprSelfTitle">Self-approval</h2></div>
+        <div class="sb-pane-body">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" asp-for="Input.AllowSelfApproval">
+                <label class="form-check-label" asp-for="Input.AllowSelfApproval">Let people approve their own requests</label>
+            </div>
+            <p class="form-text ms-4 mb-0">Off by default. While it's off, the requester and whoever asked for approval on their behalf are left out of
+                the approvers, and are refused if they try to decide. Changing this affects new approval requests only.</p>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="aprRemindTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="aprRemindTitle">Reminders</h2></div>
+        <div class="sb-pane-body">
+            <div style="max-width: 16rem">
+                <label class="form-label" asp-for="Input.ReminderHours">Remind approvers every (hours)</label>
+                <input class="form-control tabular" asp-for="Input.ReminderHours" type="number" min="0" max="168" aria-describedby="aprRemindHelp">
+                <span asp-validation-for="Input.ReminderHours" class="text-danger small"></span>
+            </div>
+            <p class="form-text mb-0" id="aprRemindHelp">Approvers who haven't decided get an email this often. Use 0 to only send reminders by hand.</p>
+        </div>
+    </section>
+
+    <div class="mt-3"><button class="btn btn-primary" type="submit">Save settings</button></div>
+</form>

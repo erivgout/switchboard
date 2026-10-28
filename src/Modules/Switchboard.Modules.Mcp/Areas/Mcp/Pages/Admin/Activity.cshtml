@@ -1,0 +1,88 @@
+@page "/admin/mcp/activity"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.Admin.ActivityModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Agent activity";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+
+<sb-page-header title="AI agents" subtitle="How much agents are used, and what they did recently. Every call is also in the audit log." />
+<partial name="_Tabs" model="@("activity")" />
+
+<div class="sb-pane">
+    <div class="sb-metrics">
+        <div class="sb-metric"><div class="sb-num">@Model.Today</div><div class="sb-metric-label">Calls in the last day</div></div>
+        <div class="sb-metric"><div class="sb-num">@Model.Week</div><div class="sb-metric-label">Calls in 7 days</div></div>
+        <div class="sb-metric"><div class="sb-num">@Model.Errors</div><div class="sb-metric-label">Refused or failed, 7 days</div></div>
+        <div class="sb-metric"><div class="sb-num">@Model.Waiting</div><div class="sb-metric-label">Waiting for confirmation</div></div>
+    </div>
+</div>
+
+<div class="row g-3 mt-0">
+    <div class="col-lg-6">
+        <section class="sb-pane h-100" aria-labelledby="byToolTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="byToolTitle">Most used tools, 7 days</h2></div>
+            <table class="table mcp-table mb-0">
+                <thead><tr><th scope="col">Tool</th><th scope="col" class="text-end">Calls</th><th scope="col" class="text-end">Refused or failed</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.ByTool)
+                    {
+                        <tr><td>@row.Label</td><td class="text-end tabular">@row.Calls</td><td class="text-end tabular">@row.Errors</td></tr>
+                    }
+                    @if (Model.ByTool.Count == 0)
+                    {
+                        <tr><td colspan="3" class="text-muted">No calls yet.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <div class="col-lg-6">
+        <section class="sb-pane h-100" aria-labelledby="byUserTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="byUserTitle">Most active people, 7 days</h2></div>
+            <table class="table mcp-table mb-0">
+                <thead><tr><th scope="col">Person</th><th scope="col" class="text-end">Calls</th><th scope="col" class="text-end">Refused or failed</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.ByUser)
+                    {
+                        <tr><td><a href="/admin/mcp/connections?user=@row.Key">@row.Label</a></td><td class="text-end tabular">@row.Calls</td><td class="text-end tabular">@row.Errors</td></tr>
+                    }
+                    @if (Model.ByUser.Count == 0)
+                    {
+                        <tr><td colspan="3" class="text-muted">No calls yet.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    </div>
+</div>
+
+<section class="sb-pane mt-3" aria-labelledby="recentTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="recentTitle">Recent calls</h2></div>
+    <div class="table-responsive position-relative">
+        <table class="table mcp-table mb-0">
+            <thead>
+                <tr><th scope="col">When</th><th scope="col">Person</th><th scope="col" class="sb-hide-sm">App</th><th scope="col">Tool</th><th scope="col">Result</th><th scope="col" class="sb-hide-sm text-end">Time taken</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Recent)
+                {
+                    <tr>
+                        <td><sb-time value="@r.At" /></td>
+                        <td>@(Model.Names.GetValueOrDefault(r.UserId) ?? "Unknown")</td>
+                        <td class="sb-hide-sm">@r.ClientName@(r.ViaApiKey ? " (API key)" : "")</td>
+                        <td>@r.Tool</td>
+                        <td><span class="mcp-outcome mcp-outcome--@(r.ResultCode == "ok" ? "ok" : r.ResultCode is "confirmation_required" ? "waiting" : "bad")">@(r.ResultCode switch { "ok" => "Done", "confirmation_required" => "Asked for approval", var code => char.ToUpperInvariant(code[0]) + code[1..].Replace('_', ' ') })</span></td>
+                        <td class="sb-hide-sm text-end tabular">@r.LatencyMs ms</td>
+                    </tr>
+                }
+                @if (Model.Recent.Count == 0)
+                {
+                    <tr><td colspan="6" class="text-muted">No calls yet. Once people connect agents, every call they make shows here.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

@@ -1,0 +1,209 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.QueueResults
+@using Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets
+@using Switchboard.Modules.ServiceDesk.Services
+@using Switchboard.Core.Tickets
+@{
+    var q = Model.Context;
+    var state = q.State;
+    var view = q.ActiveView?.Key;
+}
+<div class="sd-results" data-sd-results data-sd-total="@(Model.Result?.Total ?? Model.BoardTotal)" data-sd-page-size="@(Model.Result?.PageSize ?? 0)">
+@if (Model.Error is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        <strong>That filter didn't work.</strong> @Model.Error Open the filter help to see the fields you can use.
+    </div>
+}
+else if (q.IsBoard)
+{
+    if (Model.BoardTotal > Model.Board.Sum(c => c.Items.Count))
+    {
+        <p class="sd-note">Showing the first @Model.Board.Sum(c => c.Items.Count) of @Model.BoardTotal.ToString("N0") tickets. Narrow the filter to see the rest.</p>
+    }
+    <div class="sb-board sd-board" data-sd-board data-sd-by="@state.By" aria-label="Tickets by @state.By">
+        @foreach (var col in Model.Board)
+        {
+            var headingId = "col-" + col.Key.GetHashCode().ToString("x");
+            <section class="sb-board-col" data-sd-col="@col.Value" aria-labelledby="@headingId">
+                <div class="sb-board-head">
+                    @if (col.Category is { } cat)
+                    {
+                        <sb-status name="@col.Title" category="@cat" id="@headingId" />
+                    }
+                    else
+                    {
+                        <h2 class="sd-board-title" id="@headingId">@col.Title</h2>
+                    }
+                    <span class="sb-count ms-auto" data-sd-col-count>@col.Items.Count</span>
+                </div>
+                <div class="sd-board-cards" data-sd-dropzone>
+                    @foreach (var t in col.Items)
+                    {
+                        var overdue = Model.IsOverdue(t);
+                        <article class="sb-card sd-card @(t.IsLampLit ? "is-lit" : "")" draggable="true" tabindex="0" data-sb-href="/tickets/@t.Number" data-sd-id="@t.Id" data-sd-display="@t.DisplayId" aria-label="@t.DisplayId: @t.Subject">
+                            <div class="sd-card-top">
+                                <sb-lamp lit="t.IsLampLit" alert="@(t.IsLampLit && overdue)" />
+                                <span class="sb-stamp">@t.DisplayId</span>
+                                @if (t.IsMajorIncident)
+                                {
+                                    <span class="sd-major" title="Major incident"><i class="bi bi-broadcast" aria-hidden="true"></i><span class="visually-hidden">Major incident</span></span>
+                                }
+                                <div class="dropdown ms-auto">
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Move @t.DisplayId to another column">
+                                        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><h3 class="dropdown-header">Move to</h3></li>
+                                        @foreach (var target in Model.Board)
+                                        {
+                                            <li><button class="dropdown-item" type="button" data-sd-move="@target.Value">@target.Title</button></li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                            <a class="sd-card-title" href="/tickets/@t.Number">@t.Subject</a>
+                            <div class="sb-meta">@t.RequesterName</div>
+                            <div class="sd-card-foot">
+                                @if (state.By != "priority")
+                                {
+                                    <sb-priority value="@t.Priority" />
+                                }
+                                <sb-due due="t.DueBy" category="@t.StatusCategory" resolved-at="t.ResolvedAt" />
+                                @if (state.By != "agent" && t.AgentName is not null)
+                                {
+                                    <span class="ms-auto" title="@t.AgentName"><sb-avatar name="@t.AgentName" size="sm" /><span class="visually-hidden">Assigned to @t.AgentName</span></span>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+else if (Model.Result is { } result)
+{
+    if (result.Total == 0)
+    {
+        <div class="sb-pane">
+            @switch (view)
+            {
+                case QueueViews.Waiting:
+                    <sb-empty icon="bi-lightbulb" title="Nothing is waiting on you">
+                        <p class="sb-empty-text">New requests light up here as they arrive. Unassigned tickets in your groups show here too.</p>
+                        <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/tickets?view=unresolved">See all unresolved tickets</a></div>
+                    </sb-empty>
+                    break;
+                case QueueViews.Trash:
+                    <sb-empty icon="bi-trash3" title="Trash is empty">
+                        <p class="sb-empty-text">Deleted tickets stay here until they're permanently deleted.</p>
+                    </sb-empty>
+                    break;
+                case QueueViews.Spam:
+                    <sb-empty icon="bi-slash-circle" title="No spam">
+                        <p class="sb-empty-text">Tickets marked as spam show here so you can restore anything marked by mistake.</p>
+                    </sb-empty>
+                    break;
+                default:
+                    <sb-empty icon="bi-funnel" title="No tickets match">
+                        <p class="sb-empty-text">Try a broader filter, or start from one of the views.</p>
+                        <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/tickets?view=unresolved">See all unresolved tickets</a></div>
+                    </sb-empty>
+                    break;
+            }
+        </div>
+    }
+    else
+    {
+        <div class="sb-pane sb-queue-wrap" data-sb-select-scope="#sdBulkBar">
+            <table class="sb-queue sd-queue-table">
+                <caption class="visually-hidden">@q.Title, sorted by @(QueueViews.Sorts.First(s => s.Value == q.Sort).Label.ToLowerInvariant())</caption>
+                <thead>
+                <tr>
+                    @if (q.CanBulk)
+                    {
+                        <th class="sb-col-check" scope="col"><input class="form-check-input" type="checkbox" data-sb-select-all aria-label="Select all tickets on this page"></th>
+                    }
+                    <th class="sb-col-lamp" scope="col"><span class="visually-hidden">Waiting</span></th>
+                    <th class="sd-col-id" scope="col">ID</th>
+                    <th scope="col">Subject</th>
+                    @if (q.Shows("status")) { <th scope="col">Status</th> }
+                    @if (q.Shows("priority")) { <th scope="col" class="sb-hide-sm">Priority</th> }
+                    @if (q.Shows("assignee")) { <th scope="col" class="sb-hide-sm">Group and agent</th> }
+                    @if (q.Shows("due")) { <th scope="col">Due</th> }
+                    @if (q.Shows("created")) { <th scope="col" class="sb-hide-sm">Created</th> }
+                    @if (q.Shows("updated")) { <th scope="col" class="sb-hide-sm">Updated</th> }
+                    @if (q.Shows("source")) { <th scope="col" class="sb-hide-sm">Source</th> }
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var t in result.Items)
+                {
+                    var overdue = Model.IsOverdue(t);
+                    <tr class="@(t.IsLampLit ? "is-lit" : "")" data-sb-href="/tickets/@t.Number" data-sd-id="@t.Id" data-sd-lit="@(t.IsLampLit ? "1" : "0")" tabindex="-1">
+                        @if (q.CanBulk)
+                        {
+                            <td class="sb-col-check">
+                                <input class="form-check-input" type="checkbox" name="Ids" value="@t.Id" form="sdBulkForm" data-sb-select
+                                       data-sd-display="@t.DisplayId" data-sd-subject="@t.Subject" aria-label="Select @t.DisplayId">
+                            </td>
+                        }
+                        <td class="sb-col-lamp"><sb-lamp lit="t.IsLampLit" alert="@(t.IsLampLit && overdue)" /></td>
+                        <td class="sd-col-id"><span class="sb-stamp">@t.DisplayId</span></td>
+                        <td class="sd-col-subject">
+                            <div class="sd-subject-line">
+                                <a class="sb-subject" href="/tickets/@t.Number">@t.Subject</a>
+                                @if (t.IsMajorIncident)
+                                {
+                                    <span class="sd-major"><i class="bi bi-broadcast" aria-hidden="true"></i>Major</span>
+                                }
+                                <sb-slot name="ticket.list.badges" model="t" />
+                            </div>
+                            <div class="sb-meta">
+                                @t.RequesterName, <sb-time value="t.CreatedAt" />
+                                @if (t.DeletedAt is not null)
+                                {
+                                    <span>, deleted <sb-time value="t.DeletedAt" /></span>
+                                }
+                            </div>
+                        </td>
+                        @if (q.Shows("status")) { <td><sb-status name="@t.StatusName" category="@t.StatusCategory" /></td> }
+                        @if (q.Shows("priority")) { <td class="sb-hide-sm"><sb-priority value="@t.Priority" /></td> }
+                        @if (q.Shows("assignee"))
+                        {
+                            <td class="sb-hide-sm sd-col-assignee">
+                                <div class="text-truncate">@(t.GroupName ?? "No group")</div>
+                                @if (t.AgentName is not null)
+                                {
+                                    <div class="sd-agent"><sb-avatar name="@t.AgentName" size="sm" />@t.AgentName</div>
+                                }
+                                else
+                                {
+                                    <div class="sb-meta">Unassigned</div>
+                                }
+                            </td>
+                        }
+                        @if (q.Shows("due")) { <td><sb-due due="t.DueBy" category="@t.StatusCategory" resolved-at="t.ResolvedAt" /></td> }
+                        @if (q.Shows("created")) { <td class="sb-hide-sm"><sb-time value="t.CreatedAt" /></td> }
+                        @if (q.Shows("updated")) { <td class="sb-hide-sm"><sb-time value="t.UpdatedAt" /></td> }
+                        @if (q.Shows("source")) { <td class="sb-hide-sm text-muted">@t.SourceKey.Replace('_', ' ')</td> }
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <nav class="sd-pager" aria-label="Pages">
+            <span class="sd-pager-text tabular">@(((result.Page - 1) * result.PageSize + 1).ToString("N0"))–@(Math.Min(result.Page * result.PageSize, result.Total).ToString("N0")) of @result.Total.ToString("N0")</span>
+            @if (result.Page > 1)
+            {
+                <a class="btn btn-outline-secondary btn-sm" href="@((state with { Page = result.Page - 1 }).ToUrl())" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Previous</a>
+            }
+            @if (result.HasMore)
+            {
+                <a class="btn btn-outline-secondary btn-sm" href="@((state with { Page = result.Page + 1 }).ToUrl())" rel="next">Next <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+            }
+        </nav>
+    }
+}
+</div>

@@ -1,0 +1,53 @@
+@page "/portal/kb/folders/{id:guid}"
+@model PortalFolderModel
+@{
+    ViewData["Title"] = Model.Folder.Name;
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/portal/kb">Knowledge</a></li>
+        <li>@Model.CategoryName</li>
+    </ol>
+</nav>
+
+<div class="kb-portal-grid">
+    <section aria-labelledby="kbFolderTitle">
+        <h1 class="kb-article-title" id="kbFolderTitle">@Model.Folder.Name</h1>
+        @if (!string.IsNullOrWhiteSpace(Model.Folder.Description)) { <p class="kb-cat-desc">@Model.Folder.Description</p> }
+        @if (Model.Articles.Count == 0)
+        {
+            <div class="sb-pane">
+                <sb-empty icon="bi-journal-text" title="No articles here yet">
+                    <p class="sb-empty-text">Search all articles, or tell the service desk what you need.</p>
+                    <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/portal/kb">Search all articles</a></div>
+                </sb-empty>
+            </div>
+        }
+        else
+        {
+            <div class="sb-pane">
+                <ul class="kb-slot-list">
+                    @foreach (var item in Model.Articles)
+                    {
+                        <li>
+                            <a class="kb-slot-title" href="/portal/kb/@item.Id">@item.Title</a>
+                            <p class="kb-snippet">@item.Snippet</p>
+                            @if (item.FolderId != Model.Folder.Id) { <div class="kb-slot-meta"><span>@item.FolderPath</span></div> }
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </section>
+    <aside class="kb-portal-aside" aria-label="More help">
+        <form class="sb-pane sb-pane-body" role="search" action="/portal/kb" method="get">
+            <label class="form-label fw-semibold" for="kbFolderQ">Search all articles</label>
+            <input id="kbFolderQ" class="form-control" type="search" name="q" placeholder="Describe the problem" autocomplete="off">
+        </form>
+        <partial name="_StillNeedHelp" model="Model.SignedIn" />
+    </aside>
+</div>

@@ -1,0 +1,26 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.EditNoteModel
+@{
+    var c = Model.Note;
+    var url = $"/tickets/{Model.Number}";
+}
+<article class="sb-msg @(c.IsPrivate ? "sb-msg--note" : "sb-msg--agent")" id="msg-@c.Id">
+    <span class="sb-avatar" aria-hidden="true"><i class="bi bi-pencil"></i></span>
+    <form class="sb-composer @(c.IsPrivate ? "is-note" : "") sd-edit-note" hx-post="@url?handler=EditNote&amp;id=@c.Id" hx-target="#msg-@c.Id" hx-swap="outerHTML" data-sd-sync-editors>
+        <div class="sd-editor-wrap" data-sd-editor>
+            <div class="sd-editor-toolbar" role="toolbar" aria-label="Formatting">
+                <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="bold" aria-label="Bold"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+                <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="italic" aria-label="Italic"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+                <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertUnorderedList" aria-label="Bulleted list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
+                <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertOrderedList" aria-label="Numbered list"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
+                <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="createLink" aria-label="Add link"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
+            </div>
+            <div class="sd-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Edit note" data-sd-editor-area>@Html.Raw(c.BodyHtml)</div>
+            <input type="hidden" name="bodyHtml" data-sd-editor-value>
+        </div>
+        <div class="sb-composer-foot">
+            <span class="sb-meta">Editing your note. The previous version is kept in the activity log.</span>
+            <button class="btn btn-ghost btn-sm ms-auto" type="button" hx-get="@url?handler=Message&amp;id=@c.Id" hx-target="#msg-@c.Id" hx-swap="outerHTML">Cancel</button>
+            <button class="btn btn-primary btn-sm" type="submit">Save note</button>
+        </div>
+    </form>
+</article>

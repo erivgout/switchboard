@@ -1,0 +1,17 @@
+@page "/profile/api-keys"
+@model Switchboard.Modules.Api.Areas.Api.Pages.ProfileApiKeysModel
+@{
+    ViewData["Title"] = "API keys";
+    if (!Model.IsAgent)
+    {
+        Layout = "_PortalLayout";
+    }
+}
+<sb-page-header title="API keys" subtitle="Keys that let scripts and other systems reach Switchboard as you.">
+    <a class="btn btn-outline-secondary" href="/profile#apiKeys">Back to your profile</a>
+</sb-page-header>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <partial name="/Areas/Api/Pages/Shared/_ApiKeysSlot.cshtml" model="Model.Section" />
+    </div>
+</div>

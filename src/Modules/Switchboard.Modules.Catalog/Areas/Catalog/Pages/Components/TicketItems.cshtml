@@ -1,0 +1,10 @@
+@model TicketCatalogView
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+<section class="sb-pane cat-panel" aria-labelledby="catPanel-@Model.TicketId">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="catPanel-@Model.TicketId">Requested items</h2>
+    </div>
+    <div class="sb-pane-body">
+        <partial name="/Areas/Catalog/Pages/Shared/_RequestedItems.cshtml" model="new RequestedItemsModel(Model, false, Model.CanChangeStages)" />
+    </div>
+</section>

@@ -1,0 +1,64 @@
+@page "/dashboard/team"
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Dashboard.TeamModel
+@using Switchboard.Modules.Insights.Services
+@using Switchboard.Modules.Insights.Areas.Insights.Pages.Dashboard
+@{
+    ViewData["Title"] = "Team dashboard";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Insights/css/insights.css" asp-append-version="true">
+}
+
+<sb-page-header title="Team dashboard" subtitle="Workload and response times for each group. Counts are open tickets now; response and resolution figures cover the last 7 days.">
+    <a class="btn btn-ghost" href="/dashboard">Your dashboard</a>
+</sb-page-header>
+
+@if (Model.Groups.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-people" title="No groups yet">
+            <p class="sb-empty-text">Add agent groups in Admin to see their workload here.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="ins-team-grid">
+        @foreach (var g in Model.Groups)
+        {
+            var titleId = $"team-{g.Id:N}";
+            var group = $"group:\"{g.Name.Replace("\"", "")}\"";
+            <section class="sb-pane" aria-labelledby="@titleId">
+                <div class="sb-pane-header">
+                    <h2 class="sb-pane-title" id="@titleId">@g.Name</h2>
+                    <a class="ms-auto small" href="@IndexModel.QueueHref($"{group} is:unresolved")">Open queue</a>
+                </div>
+                <dl class="ins-kpis">
+                    <div><dt>Open</dt><dd class="sb-num">@g.Open</dd></div>
+                    <div>
+                        <dt>Overdue</dt>
+                        <dd class="sb-num">@g.Overdue</dd>
+                    </div>
+                    <div><dt>Unassigned</dt><dd class="sb-num">@g.Unassigned</dd></div>
+                    <div>
+                        <dt>First response</dt>
+                        <dd><span class="sb-num">@TeamModel.Minutes(g.AverageFirstResponseMinutes)</span><span class="sb-meta d-block">average of @(g.Responded == 1 ? "1 ticket" : $"{g.Responded} tickets")</span></dd>
+                    </div>
+                    <div><dt>Resolved</dt><dd class="sb-num">@g.Resolved</dd></div>
+                </dl>
+                <div class="sb-pane-body border-top">
+                    <p class="sb-section-label mb-2">Open tickets per agent@(g.CapPerAgent is { } cap ? $", limit {cap}" : "")</p>
+                    @if (g.Agents.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No agents in this group yet.</p>
+                    }
+                    else
+                    {
+                        var bars = new BarListModel(g.Agents.Select(a => new BarItem(a.Name, a.Open, IndexModel.QueueHref($"agent:\"{a.Name.Replace("\"", "")}\" is:unresolved"))).ToList(), "Open tickets", g.CapPerAgent);
+                        <partial name="_BarList" model="bars" />
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}

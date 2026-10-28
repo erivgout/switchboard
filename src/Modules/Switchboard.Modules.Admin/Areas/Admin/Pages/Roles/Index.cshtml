@@ -1,0 +1,38 @@
+@page "/admin/roles"
+@model Switchboard.Modules.Admin.Pages.Roles.IndexModel
+@{
+    ViewData["Title"] = "Roles";
+}
+<sb-page-header title="Roles" subtitle="A role is a set of things an agent may do. Each agent gets a role per workspace.">
+    <a class="btn btn-primary" href="/admin/roles/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> New role</a>
+</sb-page-header>
+
+<div class="sb-pane sb-queue-wrap">
+    <table class="sb-queue">
+        <thead>
+            <tr><th scope="col">Role</th><th scope="col" class="sb-num-cell">Privileges</th><th scope="col" class="sb-num-cell">People</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Roles)
+            {
+                <tr data-sb-href="/admin/roles/@r.Id">
+                    <td>
+                        <div class="sb-name-row">
+                            <a class="sb-subject" href="/admin/roles/@r.Id">@r.Name</a>
+                            @if (r.IsSystem)
+                            {
+                                <span class="sb-tag">Built-in</span>
+                            }
+                        </div>
+                        @if (r.Description is not null)
+                        {
+                            <div class="sb-meta">@r.Description</div>
+                        }
+                    </td>
+                    <td class="sb-num-cell tabular">@r.PrivilegeCount</td>
+                    <td class="sb-num-cell tabular">@r.People</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,175 @@
+@page "/kb/folders/edit/{id:guid?}"
+@model FolderEditModel
+@{
+    var title = Model.IsNew ? "New folder" : $"Edit {Model.Input.Name}";
+    ViewData["Title"] = title;
+    var nameError = ViewData.ModelState["Input.Name"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var visibilityError = ViewData.ModelState["Input.Visibility"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var self = Model.Id;
+    var excluded = self is { } s ? Model.Index.DescendantsOf(s).Append(s).ToHashSet() : new HashSet<Guid>();
+    var isSub = Model.Input.ParentId is not null;
+    var choices = new (KbFolderVisibility Value, string Label, string Help)[]
+    {
+        (KbFolderVisibility.Everyone, "Everyone", "Every signed-in person, and signed-out visitors when the public knowledge base is on."),
+        (KbFolderVisibility.SignedIn, "Signed-in people", "Anyone who signs in to the portal."),
+        (KbFolderVisibility.AgentsOnly, "Agents only", "Internal runbooks and notes. Requesters never see these articles."),
+        (KbFolderVisibility.Restricted, "Selected groups and departments", "Only the people you pick below."),
+    };
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li><a href="/kb/folders">Folders</a></li>
+        <li aria-current="page">@title</li>
+    </ol>
+</nav>
+
+<sb-page-header title="@title" />
+
+<form method="post" class="sb-form-narrow" novalidate>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">
+            <p class="fw-semibold mb-1">The folder wasn't saved.</p>
+            <div asp-validation-summary="All" class="mb-0"></div>
+        </div>
+    }
+
+    <div class="sb-pane">
+        <div class="sb-pane-body">
+            <div class="kb-form-section">
+                <label class="form-label" for="kbFolderName">Name</label>
+                <input id="kbFolderName" class="form-control @(nameError is null ? null : "is-invalid")" name="Input.Name" value="@Model.Input.Name" maxlength="200" required
+                       aria-describedby="@(nameError is null ? null : "kbFolderNameError")">
+                @if (nameError is not null) { <div class="invalid-feedback" id="kbFolderNameError">@nameError</div> }
+            </div>
+            <div class="kb-form-section">
+                <label class="form-label" for="kbFolderDesc">Description <span class="sb-meta fw-normal">Optional</span></label>
+                <input id="kbFolderDesc" class="form-control" name="Input.Description" value="@Model.Input.Description" maxlength="1000" placeholder="What people will find here">
+            </div>
+            <div class="row g-3 kb-form-section">
+                <div class="col-sm-6">
+                    <label class="form-label" for="kbFolderCategory">Category</label>
+                    <select id="kbFolderCategory" class="form-select" name="Input.CategoryId">
+                        @foreach (var c in Model.Categories) { <option value="@c.Id" selected="@(c.Id == Model.Input.CategoryId)">@c.Name</option> }
+                    </select>
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label" for="kbFolderParent">Inside folder</label>
+                    <select id="kbFolderParent" class="form-select" name="Input.ParentId" aria-describedby="kbFolderParentHelp">
+                        <option value="">None (top level)</option>
+                        @foreach (var c in Model.Categories)
+                        {
+                            <optgroup label="@c.Name">
+                                @foreach (var (f, depth) in KbUi.Tree(Model.Index, c.Id).Where(t => t.Depth < 2 && !excluded.Contains(t.Folder.Id)))
+                                {
+                                    <option value="@f.Id" selected="@(f.Id == Model.Input.ParentId)">@Model.Index.PathOf(f.Id)</option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                    <div class="form-text" id="kbFolderParentHelp">A sub-folder moves to its parent's category.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <fieldset class="sb-pane">
+        <div class="sb-pane-header"><legend class="sb-pane-title mb-0 float-none w-auto">Who can read articles</legend></div>
+        <div class="sb-pane-body">
+            @if (isSub)
+            {
+                <p class="sb-meta">This is a sub-folder of @Model.ParentName, so it follows that folder's reading and approval settings. Choose "None (top level)" above to give it its own.</p>
+            }
+            else
+            {
+                if (visibilityError is not null) { <div class="alert alert-danger py-2">@visibilityError</div> }
+                <div class="kb-choice">
+                    @foreach (var (value, label, help) in choices)
+                    {
+                        var id = $"kbVis{value}";
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="@id" name="Input.Visibility" value="@value" checked="@(Model.Input.Visibility == value)">
+                            <label class="form-check-label" for="@id">@label</label>
+                            <span class="form-text">@help</span>
+                        </div>
+                    }
+                </div>
+                <div class="row g-3 mt-1" data-kb-show-when="Input.Visibility=Restricted">
+                    <fieldset class="col-md-4">
+                        <legend class="form-label fs-6">Requester groups</legend>
+                        @if (Model.RequesterGroups.Count == 0) { <p class="sb-meta">No requester groups yet.</p> }
+                        @foreach (var g in Model.RequesterGroups)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rg-@g.Id" name="RequesterGroupIds" value="@g.Id" checked="@Model.RequesterGroupIds.Contains(g.Id)">
+                                <label class="form-check-label" for="rg-@g.Id">@g.Name</label>
+                            </div>
+                        }
+                    </fieldset>
+                    <fieldset class="col-md-4">
+                        <legend class="form-label fs-6">Departments</legend>
+                        @if (Model.Departments.Count == 0) { <p class="sb-meta">No departments yet.</p> }
+                        @foreach (var d in Model.Departments)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="dp-@d.Id" name="DepartmentIds" value="@d.Id" checked="@Model.DepartmentIds.Contains(d.Id)">
+                                <label class="form-check-label" for="dp-@d.Id">@d.Name</label>
+                            </div>
+                        }
+                    </fieldset>
+                    <fieldset class="col-md-4">
+                        <legend class="form-label fs-6">Agent groups</legend>
+                        @foreach (var g in Model.AgentGroups)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="ag-@g.Id" name="AgentGroupIds" value="@g.Id" checked="@Model.AgentGroupIds.Contains(g.Id)">
+                                <label class="form-check-label" for="ag-@g.Id">@g.Name</label>
+                            </div>
+                        }
+                    </fieldset>
+                </div>
+            }
+        </div>
+    </fieldset>
+
+    @if (!isSub)
+    {
+        <fieldset class="sb-pane">
+            <div class="sb-pane-header"><legend class="sb-pane-title mb-0 float-none w-auto">Publishing</legend></div>
+            <div class="sb-pane-body">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="kbApproval" name="Input.RequiresApproval" value="true" checked="@Model.Input.RequiresApproval">
+                    <label class="form-check-label fw-semibold" for="kbApproval">Articles need approval before they're published</label>
+                    <div class="form-text">Authors submit their draft; an approver publishes it or sends it back with a comment.</div>
+                </div>
+                <p class="form-label fs-6 mb-1" id="kbApproversLabel">Approvers</p>
+                <p class="form-text mt-0">Leave empty to let anyone who can publish approve. Nobody approves their own submission.</p>
+                <div class="row row-cols-1 row-cols-sm-2 g-1" role="group" aria-labelledby="kbApproversLabel">
+                    @foreach (var a in Model.Agents)
+                    {
+                        <div class="col">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="ap-@a.Id" name="ApproverIds" value="@a.Id" checked="@Model.ApproverIds.Contains(a.Id)">
+                                <label class="form-check-label" for="ap-@a.Id">@a.Name</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </fieldset>
+    }
+
+    <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create folder" : "Save folder")</button>
+        <a class="btn btn-ghost" href="/kb/folders">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script src="@KbUi.PagesJs" asp-append-version="true"></script>
+}

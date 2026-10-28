@@ -1,0 +1,15 @@
+@model IReadOnlyList<Switchboard.Core.Domain.Attachment>
+@if (Model.Count > 0)
+{
+    <div class="sb-attachments">
+        @foreach (var a in Model)
+        {
+            var icon = a.ContentType.StartsWith("image/", StringComparison.Ordinal) ? "bi-file-earmark-image"
+                : a.ContentType == "application/pdf" ? "bi-file-earmark-pdf" : "bi-file-earmark-text";
+            <a class="sb-attachment" href="/files/@a.Id/@Uri.EscapeDataString(a.FileName)" target="_blank" rel="noopener">
+                <i class="bi @icon" aria-hidden="true"></i><span>@a.FileName</span>
+                <span class="sd-file-size">@(a.Size < 1024 * 1024 ? $"{Math.Max(1, a.Size / 1024)} KB" : $"{a.Size / (1024.0 * 1024):0.#} MB")</span>
+            </a>
+        }
+    </div>
+}

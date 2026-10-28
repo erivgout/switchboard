@@ -1,0 +1,27 @@
+@model PersonPickerModel
+<div class="sb-picker">
+    <label class="form-label" for="@Model.Id">@Model.Label</label>
+    <div class="sb-picker-row">
+        <input class="form-control" type="search" placeholder="Search by name or email" aria-label="Search for @Model.Label.ToLowerInvariant()"
+               data-sb-person-search="@Model.Id" data-sb-kind="@Model.Kind" data-sb-none="@Model.NoneLabel" autocomplete="off" disabled="@Model.Disabled">
+        <select class="form-select" id="@Model.Id" name="@Model.Name" disabled="@Model.Disabled">
+            @if (Model.NoneLabel is not null)
+            {
+                <option value="">@Model.NoneLabel</option>
+            }
+            @if (Model.Selected is { } s)
+            {
+                <option value="@s.Id" selected>@s.Name@(s.Email is null ? "" : $" ({s.Email})")</option>
+            }
+            else if (Model.NoneLabel is null)
+            {
+                <option value="">Search to find someone</option>
+            }
+        </select>
+    </div>
+    @if (Model.Help is not null)
+    {
+        <div class="form-text">@Model.Help</div>
+    }
+    <partial name="_FieldError" model="Model.Name" />
+</div>

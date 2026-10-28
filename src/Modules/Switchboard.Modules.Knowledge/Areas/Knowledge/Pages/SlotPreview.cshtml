@@ -1,0 +1,34 @@
+@page "/kb/dev/slots"
+@model SlotPreviewModel
+@{
+    ViewData["Title"] = "Knowledge slots preview";
+}
+
+<sb-page-header title="Knowledge slots" subtitle="Development preview of what this module adds to other modules' pages." />
+
+<div class="sb-split">
+    <div>
+        <p class="sb-section-label">dashboard.widgets</p>
+        <sb-slot name="dashboard.widgets" />
+        <p class="sb-section-label mt-4">search.results for “@Model.Q”</p>
+        <sb-slot name="search.results" model="Model.Q" />
+    </div>
+    <aside>
+        @if (Model.Ticket is not null)
+        {
+            <p class="sb-section-label">ticket.actions for @Model.Ticket.DisplayId</p>
+            <div class="dropdown mb-4">
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false">More <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+                <ul class="dropdown-menu">
+                    <sb-slot name="ticket.actions" model="Model.Ticket" />
+                </ul>
+            </div>
+            <p class="sb-section-label">ticket.sidebar for “@Model.Ticket.Subject”</p>
+            <sb-slot name="ticket.sidebar" model="Model.Ticket" />
+        }
+        else
+        {
+            <p class="sb-meta">No ticket to preview the ticket slots with.</p>
+        }
+    </aside>
+</div>

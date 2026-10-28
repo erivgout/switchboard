@@ -1,0 +1,68 @@
+@page "/admin/departments/{id}"
+@model Switchboard.Modules.Admin.Pages.Departments.EditModel
+@{
+    var title = Model.IsNew ? "New department" : Model.Department!.Name;
+    ViewData["Title"] = title;
+    var back = ("/admin/departments", "Departments");
+    var head = new PersonPickerModel("headUser", "Input.HeadUserId", "Department head", "all", Model.Head) { Help = "Approvals can go to the department head." };
+    var prime = new PersonPickerModel("primeUser", "Input.PrimeUserId", "Prime contact", "all", Model.Prime) { Help = "Usually the person who raises requests for the department." };
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@title" subtitle="@(Model.IsNew ? null : $"{Model.People} people")" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" class="sb-pane" novalidate>
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.Name">Name</label>
+                    <input class="form-control" asp-for="Input.Name" maxlength="200" required>
+                    <partial name="_FieldError" model="@("Input.Name")" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label" asp-for="Input.Description">Description</label>
+                    <textarea class="form-control" asp-for="Input.Description" rows="2" maxlength="1000" data-sb-autosize></textarea>
+                    <partial name="_FieldError" model="@("Input.Description")" />
+                </div>
+                <div class="col-12"><partial name="_PersonPicker" model="head" /></div>
+                <div class="col-12"><partial name="_PersonPicker" model="prime" /></div>
+                <div class="col-12">
+                    <label class="form-label" asp-for="Input.Domains">Email domains</label>
+                    <textarea class="form-control" asp-for="Input.Domains" rows="2" data-sb-autosize aria-describedby="domainHelp" placeholder="finance.example.com"></textarea>
+                    <div class="form-text" id="domainHelp">One per line. New requesters whose address ends in one of these join this department. Existing people don't move.</div>
+                    <partial name="_FieldError" model="@("Input.Domains")" />
+                </div>
+            </div>
+            @if (Model.Custom.Definitions.Count > 0)
+            {
+                <div class="mt-3"><partial name="_CustomFields" model="Model.Custom" /></div>
+                <partial name="_FieldError" model="@("Input.CustomFields")" />
+            }
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create department" : "Save department")</button></div>
+    </form>
+
+    @if (!Model.IsNew)
+    {
+        <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Delete department</h2></div>
+            <div class="sb-pane-body">
+                @if (Model.People + Model.Tickets > 0)
+                {
+                    <p>@Model.People @(Model.People == 1 ? "person is" : "people are") in this department, and @Model.Tickets @(Model.Tickets == 1 ? "ticket is" : "tickets are") filed under it. Choose where they go.</p>
+                    <label class="form-label" for="replacement">Move them to</label>
+                    <select class="form-select" id="replacement" name="Replacement" asp-items="Model.Replacements"></select>
+                    <partial name="_FieldError" model="@("ReplacementId")" />
+                }
+                else
+                {
+                    <p class="mb-0">Nobody is in this department and no tickets are filed under it.</p>
+                }
+            </div>
+            <div class="sb-pane-footer">
+                <button class="btn btn-danger" type="submit" data-sb-confirm="Delete @Model.Department!.Name? Its people and tickets move as you chose.">Delete department</button>
+            </div>
+        </form>
+    }
+</div>

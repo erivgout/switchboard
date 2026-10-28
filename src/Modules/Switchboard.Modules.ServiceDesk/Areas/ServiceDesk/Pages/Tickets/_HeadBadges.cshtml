@@ -1,0 +1,11 @@
+@model Switchboard.Modules.ServiceDesk.Services.TicketPageData
+@{
+    var t = Model.Ticket;
+}
+<sb-status name="@t.Status!.Name" category="@t.Status.Category" />
+<sb-priority value="@t.Priority" />
+@if (t.IsMajorIncident)
+{
+    <span class="sd-major"><i class="bi bi-broadcast" aria-hidden="true"></i>Major incident</span>
+}
+<sb-due due="t.DueBy" category="@t.Status.Category" resolved-at="t.ResolvedAt" />

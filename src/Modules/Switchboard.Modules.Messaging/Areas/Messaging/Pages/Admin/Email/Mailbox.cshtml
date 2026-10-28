@@ -1,0 +1,225 @@
+@page "/admin/email/mailboxes/{id}"
+@model MailboxEditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Add mailbox" : Model.Mailbox!.Name;
+    var imap = Model.Input.Connection == MailboxConnection.Imap;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Messaging/js/messaging.js" asp-append-version="true"></script>
+}
+<sb-page-header title="@(Model.IsNew ? "Add mailbox" : Model.Mailbox!.Name)" subtitle="@(Model.IsNew ? "Email sent to this address becomes tickets." : Model.Mailbox!.Address)">
+    <a class="btn btn-ghost" href="/admin/email"><i class="bi bi-arrow-left" aria-hidden="true"></i> All mailboxes</a>
+</sb-page-header>
+
+@if (Model.NewSecret is { } secret)
+{
+    <div class="alert alert-warning sb-form-narrow" role="status">
+        <p class="fw-semibold mb-2">Copy the signing secret now. It won't be shown again.</p>
+        <div class="input-group">
+            <input class="form-control tabular" id="sbSecret" value="@secret" readonly aria-label="Signing secret">
+            <button class="btn btn-outline-secondary" type="button" data-sb-copy="#sbSecret">Copy</button>
+        </div>
+        <p class="small mb-0 mt-2">Your mail relay signs each request with it. See "How mail arrives" below.</p>
+    </div>
+}
+
+<form method="post" class="sb-form-narrow" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">Some details need fixing. They're marked below.</div>
+    }
+
+    <section class="sb-pane" aria-labelledby="mbDetails">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="mbDetails">Mailbox</h2></div>
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.Name">Name</label>
+                    <input class="form-control" asp-for="Input.Name" placeholder="IT support" maxlength="200" required>
+                    <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.Address">Support address</label>
+                    <input class="form-control" asp-for="Input.Address" type="email" placeholder="help@example.com" maxlength="320" required autocomplete="off">
+                    <span asp-validation-for="Input.Address" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.WorkspaceId">Workspace</label>
+                    <select class="form-select" asp-for="Input.WorkspaceId">
+                        @foreach (var w in Model.Workspaces)
+                        {
+                            <option value="@w.Id">@w.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Input.WorkspaceId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.TicketType">New tickets are</label>
+                    <select class="form-select" asp-for="Input.TicketType">
+                        <option value="@TicketType.Incident">Incidents</option>
+                        <option value="@TicketType.ServiceRequest">Service requests</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.DefaultGroupId">Assign new tickets to</label>
+                    <select class="form-select" asp-for="Input.DefaultGroupId" asp-items="Model.Groups">
+                        <option value="">No group</option>
+                    </select>
+                    <span asp-validation-for="Input.DefaultGroupId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" asp-for="Input.IsEnabled">
+                        <label class="form-check-label" asp-for="Input.IsEnabled">Turn email into tickets</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="mbArrival">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="mbArrival">How mail arrives</h2></div>
+        <div class="sb-pane-body">
+            <fieldset class="mb-3">
+                <legend class="form-label fs-6 fw-semibold">Switchboard gets this mailbox's mail by</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Input.Connection" value="@MailboxConnection.Webhook" id="connWebhook" data-sb-reveal="connection">
+                    <label class="form-check-label" for="connWebhook">Your mail provider forwarding each message to Switchboard</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Input.Connection" value="@MailboxConnection.Imap" id="connImap" data-sb-reveal="connection">
+                    <label class="form-check-label" for="connImap">Checking the mailbox over IMAP</label>
+                </div>
+            </fieldset>
+
+            <div data-sb-reveal-for="connection" data-sb-reveal-value="@MailboxConnection.Webhook" hidden="@imap">
+                @if (Model.Mailbox is null)
+                {
+                    <p class="text-muted mb-0">After you save, you'll get the address to forward mail to and a secret to sign it with.</p>
+                }
+                else
+                {
+                    <p>Have your mail provider or relay POST each raw message to:</p>
+                    <div class="input-group mb-2">
+                        <input class="form-control tabular" id="sbWebhookUrl" value="@Model.WebhookUrl" readonly aria-label="Address to post mail to">
+                        <button class="btn btn-outline-secondary" type="button" data-sb-copy="#sbWebhookUrl">Copy</button>
+                    </div>
+                    <p class="small text-muted">
+                        Send the message as the request body with two headers: <code>X-Switchboard-Timestamp</code> (Unix seconds) and
+                        <code>X-Switchboard-Signature: sha256=</code> followed by the hex HMAC-SHA256 of the timestamp, a dot and the body, keyed with the secret.
+                        Requests more than five minutes old are refused.
+                    </p>
+                }
+            </div>
+
+            <div class="row g-3" data-sb-reveal-for="connection" data-sb-reveal-value="@MailboxConnection.Imap" hidden="@(!imap)">
+                <div class="col-md-8">
+                    <label class="form-label" asp-for="Input.ImapHost">IMAP server</label>
+                    <input class="form-control" asp-for="Input.ImapHost" placeholder="imap.example.com" autocomplete="off">
+                    <span asp-validation-for="Input.ImapHost" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.ImapPort">Port</label>
+                    <input class="form-control tabular" asp-for="Input.ImapPort" type="number" min="1" max="65535">
+                    <span asp-validation-for="Input.ImapPort" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.ImapSecurity">Connection security</label>
+                    <select class="form-select" asp-for="Input.ImapSecurity">
+                        <option value="@SmtpSecurity.SslOnConnect">TLS (usually port 993)</option>
+                        <option value="@SmtpSecurity.StartTls">STARTTLS</option>
+                        <option value="@SmtpSecurity.Auto">STARTTLS when offered</option>
+                        <option value="@SmtpSecurity.None">None (not recommended)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.ImapFolder">Folder</label>
+                    <input class="form-control" asp-for="Input.ImapFolder" placeholder="INBOX">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.ImapUsername">Username</label>
+                    <input class="form-control" asp-for="Input.ImapUsername" autocomplete="off">
+                    <span asp-validation-for="Input.ImapUsername" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.ImapPassword">Password</label>
+                    <input class="form-control" asp-for="Input.ImapPassword" type="password" autocomplete="new-password"
+                           placeholder="@(Model.HasImapPassword ? "Saved. Type a new one to replace it." : "")" value="">
+                    <span asp-validation-for="Input.ImapPassword" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.PollIntervalSeconds">Check for new mail every</label>
+                    <select class="form-select" asp-for="Input.PollIntervalSeconds">
+                        <option value="30">30 seconds</option>
+                        <option value="60">Minute</option>
+                        <option value="120">2 minutes</option>
+                        <option value="300">5 minutes</option>
+                        <option value="900">15 minutes</option>
+                    </select>
+                </div>
+                @if (Model.Mailbox is { Connection: MailboxConnection.Imap } m)
+                {
+                    <div class="col-12 small">
+                        @if (m.LastError is { Length: > 0 })
+                        {
+                            <p class="text-danger mb-0"><i class="bi bi-exclamation-octagon me-1" aria-hidden="true"></i>Last check failed: @m.LastError</p>
+                        }
+                        else if (m.LastCheckedAt is { } at)
+                        {
+                            <p class="text-muted mb-0">Last checked <sb-time value="@at" />.</p>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="mbChecks">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="mbChecks">Sender checks</h2></div>
+        <div class="sb-pane-body">
+            <p class="text-muted">Switchboard reads the SPF, DKIM and DMARC results your mail server adds. Mail that fails can't act for an agent, and requester mail that fails is flagged as possible spoofing.</p>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Input.TrustedAuthServId">Your mail server's name in Authentication-Results</label>
+                <input class="form-control" asp-for="Input.TrustedAuthServId" placeholder="mx.example.com" autocomplete="off" aria-describedby="authServHelp">
+                <div class="form-text" id="authServHelp">Only results from this server are trusted. Leave it empty to trust the newest result on each message.</div>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" asp-for="Input.AllowEmailCommands" aria-describedby="commandsHelp">
+                <label class="form-check-label" asp-for="Input.AllowEmailCommands">Let agents change tickets with commands in their email replies</label>
+                <div class="form-text" id="commandsHelp">Lines such as <code>#status Resolved</code> or <code>#assign me</code> at the top of a verified agent's reply.</div>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" asp-for="Input.TrustUnauthenticated" aria-describedby="trustHelp">
+                <label class="form-check-label" asp-for="Input.TrustUnauthenticated">Treat mail without authentication results as verified</label>
+                <div class="form-text" id="trustHelp">Only for an internal relay that doesn't add results. Anyone who can send to this mailbox could then act as an agent.</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button class="btn btn-primary" type="submit">@(Model.IsNew ? "Add mailbox" : "Save mailbox")</button>
+        <a class="btn btn-outline-secondary" href="/admin/email">Cancel</a>
+    </div>
+</form>
+
+@if (Model.Mailbox is { } mailbox)
+{
+    <section class="sb-pane sb-form-narrow" aria-labelledby="mbDanger">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="mbDanger">Secret and removal</h2></div>
+        <div class="sb-pane-body d-flex flex-wrap gap-2">
+            @if (mailbox.Connection == MailboxConnection.Webhook)
+            {
+                <form method="post" asp-page-handler="RotateSecret" data-sb-confirm="Make a new signing secret? The current one stops working right away, so update your mail relay too.">
+                    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-key" aria-hidden="true"></i> Make a new secret</button>
+                </form>
+            }
+            <form method="post" asp-page-handler="Delete" data-sb-confirm="Delete the @mailbox.Name mailbox? Mail to @mailbox.Address will stop becoming tickets. Existing tickets stay.">
+                <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i> Delete mailbox</button>
+            </form>
+        </div>
+    </section>
+}

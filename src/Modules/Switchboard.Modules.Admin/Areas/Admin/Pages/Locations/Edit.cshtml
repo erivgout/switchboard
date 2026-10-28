@@ -1,0 +1,89 @@
+@page "/admin/locations/{id}"
+@model Switchboard.Modules.Admin.Pages.Locations.EditModel
+@{
+    var title = Model.IsNew ? "New location" : Model.Location!.Name;
+    ViewData["Title"] = title;
+    var back = ("/admin/locations", "Locations");
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@title" subtitle="@(Model.IsNew ? null : $"{Model.People} people")" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" class="sb-pane" novalidate>
+        <div class="sb-pane-body">
+            <fieldset class="sb-fieldset">
+                <legend class="sb-section-label">Location</legend>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.Name">Name</label>
+                        <input class="form-control" asp-for="Input.Name" maxlength="200" required>
+                        <partial name="_FieldError" model="@("Input.Name")" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.ParentId">Inside</label>
+                        <select class="form-select" asp-for="Input.ParentId" asp-items="Model.Parents"></select>
+                        <partial name="_FieldError" model="@("Input.ParentId")" />
+                    </div>
+                </div>
+            </fieldset>
+            <fieldset class="sb-fieldset">
+                <legend class="sb-section-label">Address</legend>
+                <div class="row g-3">
+                    <div class="col-12"><label class="form-label" asp-for="Input.AddressLine1">Street</label><input class="form-control" asp-for="Input.AddressLine1" maxlength="200" autocomplete="off"></div>
+                    <div class="col-12"><label class="form-label" asp-for="Input.AddressLine2">Floor, suite or building</label><input class="form-control" asp-for="Input.AddressLine2" maxlength="200" autocomplete="off"></div>
+                    <div class="col-md-6"><label class="form-label" asp-for="Input.City">City</label><input class="form-control" asp-for="Input.City" maxlength="200" autocomplete="off"></div>
+                    <div class="col-md-6"><label class="form-label" asp-for="Input.State">State or region</label><input class="form-control" asp-for="Input.State" maxlength="200" autocomplete="off"></div>
+                    <div class="col-md-6"><label class="form-label" asp-for="Input.PostalCode">Postal code</label><input class="form-control" asp-for="Input.PostalCode" maxlength="200" autocomplete="off"></div>
+                    <div class="col-md-6"><label class="form-label" asp-for="Input.Country">Country</label><input class="form-control" asp-for="Input.Country" maxlength="200" autocomplete="off"></div>
+                </div>
+            </fieldset>
+            <fieldset class="sb-fieldset">
+                <legend class="sb-section-label">On-site contact</legend>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label" asp-for="Input.ContactName">Name</label><input class="form-control" asp-for="Input.ContactName" maxlength="200" autocomplete="off"></div>
+                    <div class="col-md-6"><label class="form-label" asp-for="Input.ContactPhone">Phone</label><input class="form-control" asp-for="Input.ContactPhone" type="tel" maxlength="200" autocomplete="off"></div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.ContactEmail">Email</label>
+                        <input class="form-control" asp-for="Input.ContactEmail" type="email" maxlength="200" autocomplete="off">
+                        <partial name="_FieldError" model="@("Input.ContactEmail")" />
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create location" : "Save location")</button></div>
+    </form>
+
+    @if (!Model.IsNew)
+    {
+        <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Delete location</h2></div>
+            <div class="sb-pane-body">
+                @if (Model.Children > 0)
+                {
+                    <p class="mb-0">@Model.Location!.Name contains @Model.Children other @(Model.Children == 1 ? "location" : "locations"). Move or delete those first.</p>
+                }
+                else
+                {
+                    @if (Model.People > 0)
+                    {
+                        <p>@Model.People @(Model.People == 1 ? "person is" : "people are") at this location. Choose where they go.</p>
+                        <label class="form-label" for="replacement">Move them to</label>
+                        <select class="form-select" id="replacement" name="Replacement" asp-items="Model.Replacements"></select>
+                        <partial name="_FieldError" model="@("ReplacementId")" />
+                    }
+                    else
+                    {
+                        <p class="mb-0">Nobody is at this location.</p>
+                    }
+                }
+            </div>
+            @if (Model.Children == 0)
+            {
+                <div class="sb-pane-footer">
+                    <button class="btn btn-danger" type="submit" data-sb-confirm="Delete @Model.Location!.Name? Its people move as you chose.">Delete location</button>
+                </div>
+            }
+        </form>
+    }
+</div>

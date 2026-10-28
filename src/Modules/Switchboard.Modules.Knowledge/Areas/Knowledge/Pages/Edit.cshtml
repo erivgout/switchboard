@@ -1,0 +1,23 @@
+@page "/kb/{id:guid}/edit"
+@model EditModel
+@{
+    ViewData["Title"] = $"Edit {Model.DisplayId}";
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li><a href="/kb/@Model.ArticleId">@Model.DisplayId</a></li>
+        <li aria-current="page">Edit</li>
+    </ol>
+</nav>
+<h1 class="visually-hidden">Edit @Model.DisplayId</h1>
+
+<partial name="_Editor" model="Model" />
+
+@section Scripts {
+    <script src="@KbUi.EditorJs" asp-append-version="true"></script>
+}

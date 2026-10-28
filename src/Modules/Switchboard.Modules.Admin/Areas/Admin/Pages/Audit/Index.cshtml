@@ -1,0 +1,111 @@
+@page "/admin/audit"
+@model Switchboard.Modules.Admin.Pages.Audit.IndexModel
+@using Switchboard.Modules.Admin.Pages.Audit
+@{
+    ViewData["Title"] = "Audit log";
+}
+<sb-page-header title="Audit log" subtitle="Every sign-in, permission and configuration change, with who made it and from where. Entries can't be changed or deleted.">
+    <form method="post" asp-page-handler="Export">
+        <input type="hidden" name="actor" value="@Model.Actor">
+        <input type="hidden" name="event" value="@Model.ActionFilter">
+        <input type="hidden" name="type" value="@Model.Type">
+        <input type="hidden" name="object" value="@Model.Object">
+        <input type="hidden" name="from" value="@Model.From">
+        <input type="hidden" name="to" value="@Model.To">
+        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-download" aria-hidden="true"></i> Export CSV</button>
+    </form>
+</sb-page-header>
+
+<div class="sb-pane mb-3" hx-get="/admin/audit/integrity" hx-trigger="load" hx-swap="innerHTML">
+    <div class="sb-integrity">
+        <span class="spinner-border spinner-border-sm text-muted" aria-hidden="true"></span>
+        <p class="text-muted">Checking that the log hasn't been altered…</p>
+    </div>
+</div>
+
+<form method="get" class="sb-toolbar" role="search">
+    <div class="sb-toolbar-grow">
+        <label class="form-label" for="auditActor">Who</label>
+        <input class="form-control" id="auditActor" name="actor" value="@Model.Actor" placeholder="Name or user ID">
+    </div>
+    <div class="sb-toolbar-grow">
+        <label class="form-label" for="auditAction">Action</label>
+        <input class="form-control" id="auditAction" name="event" value="@Model.ActionFilter" placeholder="users.deactivated">
+    </div>
+    <div>
+        <label class="form-label" for="auditType">Object</label>
+        <select class="form-select" id="auditType" name="type">
+            <option value="">Any</option>
+            @foreach (var t in Model.ObjectTypes)
+            {
+                <option value="@t" selected="@(t == Model.Type)">@t.Replace('_', ' ')</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="auditObject">Object ID</label>
+        <input class="form-control" id="auditObject" name="object" value="@Model.Object" spellcheck="false">
+    </div>
+    <div>
+        <label class="form-label" for="auditFrom">From</label>
+        <input class="form-control" id="auditFrom" type="date" name="from" value="@Model.From">
+    </div>
+    <div>
+        <label class="form-label" for="auditTo">To</label>
+        <input class="form-control" id="auditTo" type="date" name="to" value="@Model.To">
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" type="submit">Filter</button>
+        @if (Model.Filtered)
+        {
+            <a class="btn btn-ghost" href="/admin/audit">Clear</a>
+        }
+    </div>
+</form>
+<p class="form-text mt-n2">Dates are in UTC.</p>
+
+@if (Model.Result.Items.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-journal-check" title="@(Model.Filtered ? "No entries match" : "Nothing recorded yet")">
+            <p class="sb-empty-text">@(Model.Filtered ? "Widen the dates or clear a filter." : "Sign-ins and admin changes appear here as they happen.")</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+                <tr><th scope="col" class="sb-hide-sm">When</th><th scope="col" class="sb-hide-sm">Who</th><th scope="col">Action</th><th scope="col" class="sb-hide-sm">Object</th><th scope="col" class="sb-hide-sm">From</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Result.Items)
+                {
+                    <tr>
+                        <td class="text-nowrap sb-hide-sm"><sb-time value="@e.OccurredAt" mode="datetime" /></td>
+                        <td class="sb-hide-sm">@AdminPageModel.ActorLabel(e)@if (e.ClientName is not null) { <div class="sb-meta">via @e.ClientName</div> }</td>
+                        <td class="sb-cell-action">
+                            <a href="/admin/audit/@e.Sequence" hx-get="/admin/audit/@e.Sequence" hx-target="#auditDrawerBody" hx-swap="innerHTML"
+                               data-bs-toggle="offcanvas" data-bs-target="#auditDrawer" aria-controls="auditDrawer">@e.Action</a>
+                            <div class="sb-meta d-lg-none">@AdminPageModel.ActorLabel(e), <sb-time value="@e.OccurredAt" mode="datetime" /></div>
+                        </td>
+                        <td class="sb-hide-sm text-muted">@(e.ObjectType is null ? "" : e.ObjectType.Replace('_', ' '))</td>
+                        <td class="sb-hide-sm text-muted">@e.Channel@(e.Ip is null ? "" : $", {e.Ip}")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="new PagerModel(Model.Result.Page, Model.Result.Pages, Model.Result.Total, Model.PageUrl)" />
+}
+
+<div class="offcanvas offcanvas-end sb-audit-drawer" tabindex="-1" id="auditDrawer" aria-labelledby="auditDrawerTitle">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title h5" id="auditDrawerTitle">Audit entry</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="auditDrawerBody" aria-live="polite">
+        <span class="spinner-border spinner-border-sm text-muted" aria-hidden="true"></span>
+    </div>
+</div>

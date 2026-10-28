@@ -1,0 +1,65 @@
+@page "/agent-actions/{id:guid}"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.AgentActions.DetailModel
+@using Switchboard.Modules.Mcp.Areas.Mcp.Pages.AgentActions
+@using Switchboard.Modules.Mcp.Data
+@using Switchboard.Modules.Mcp.Server
+@{
+    var a = Model.Action;
+    ViewData["Title"] = a.ToolTitle;
+    if (!Model.IsAgent)
+    {
+        Layout = "_PortalLayout";
+    }
+    var (css, icon) = AgentActionsPage.OutcomeStyle(a);
+    var decidedLabel = a.Status == McpPendingStatus.Declined ? "Declined" : a.Method == "in_client" ? "Confirmed in the agent app" : "Approved";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+
+<div class="@(Model.IsAgent ? "" : "py-4") sb-form-narrow">
+    <p class="mb-2"><a href="/agent-actions"><i class="bi bi-arrow-left" aria-hidden="true"></i> Agent actions</a></p>
+    <sb-page-header title="@a.ToolTitle" subtitle="@($"{a.ClientName} asked to do this as you.")" />
+
+    <section class="sb-pane" aria-labelledby="whatTitle">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="whatTitle">@(a.Status == McpPendingStatus.Pending ? "What will happen" : "What was asked")</h2>
+            <span class="ms-auto mcp-outcome mcp-outcome--@css"><i class="bi @icon" aria-hidden="true"></i>@PendingActionLabels.Status(a)</span>
+        </div>
+        <div class="sb-pane-body">
+            <p class="mcp-request-meta">
+                <span>Asked <sb-time value="@a.CreatedAt" mode="datetime" /></span>
+                @if (a.Status == McpPendingStatus.Pending)
+                {
+                    <span>Expires <sb-time value="@a.ExpiresAt" /></span>
+                }
+                else if (a.DecidedAt is { } decided)
+                {
+                    <span>@decidedLabel <sb-time value="@decided" mode="datetime" /></span>
+                }
+            </p>
+            <partial name="_Docket" model="a" />
+            @if (a.Status == McpPendingStatus.Pending)
+            {
+                <partial name="_Decide" model="(a, Model.RecentlySignedIn)" />
+            }
+        </div>
+    </section>
+
+    @if (a.CompletedAt is not null || a.Status is McpPendingStatus.Expired or McpPendingStatus.Declined)
+    {
+        <section class="sb-pane" aria-labelledby="resultTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="resultTitle">Result</h2></div>
+            <div class="sb-pane-body">
+                <p class="mb-0">@(a.ResultText ?? (a.Status == McpPendingStatus.Expired ? "Nobody confirmed this in time, so it didn't run." : "Nothing ran."))</p>
+                @if (Model.ResultJson is not null && a.ResultCode == McpErrorCodes.Ok)
+                {
+                    <details class="mt-2">
+                        <summary class="small">What the agent was told</summary>
+                        <pre class="mcp-docket-text small mt-2 border rounded">@Model.ResultJson</pre>
+                    </details>
+                }
+            </div>
+        </section>
+    }
+</div>

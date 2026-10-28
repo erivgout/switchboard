@@ -1,0 +1,9 @@
+@model IReadOnlyList<TabModel>
+<ul class="nav nav-tabs sb-admin-tabs">
+    @foreach (var tab in Model)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(tab.Current ? "active" : "")" href="@tab.Href" aria-current="@(tab.Current ? "page" : null)">@tab.Label</a>
+        </li>
+    }
+</ul>

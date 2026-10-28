@@ -1,0 +1,85 @@
+@model TestReport?
+@if (Model is null)
+{
+    <p class="text-danger mb-0" role="alert"><i class="bi bi-exclamation-octagon me-1" aria-hidden="true"></i>No ticket with that number in this workspace. Check the number, like INC-1042.</p>
+    return;
+}
+<div class="aut-report" role="status">
+    <div>
+        <div class="aut-report-head"><span class="sb-stamp">@Model.TicketDisplayId</span> @Model.TicketSubject</div>
+        <p class="aut-block-hint mb-0">@Model.TriggerNote</p>
+    </div>
+
+    <div>
+        <p class="sb-section-label mb-1">Conditions</p>
+        @if (Model.Evaluation.Groups.Count == 0)
+        {
+            <p class="mb-0 small">No conditions, so it applies to every ticket.</p>
+        }
+        else
+        {
+            <ul class="aut-checks">
+                @foreach (var group in Model.Evaluation.Groups)
+                {
+                    foreach (var rule in group.Rules)
+                    {
+                        <li>
+                            <i class="bi @(rule.Matched ? "bi-check-circle-fill is-yes" : "bi-x-circle-fill is-no")" aria-hidden="true"></i>
+                            <span><span class="visually-hidden">@(rule.Matched ? "Matches:" : "Doesn't match:")</span> @rule.Description
+                                <span class="aut-actual">This ticket: @rule.Actual</span></span>
+                        </li>
+                    }
+                }
+            </ul>
+        }
+        <p class="mt-2 mb-0 fw-semibold">
+            @if (Model.Evaluation.Matched)
+            {
+                <span class="aut-state aut-state--ok"><i class="bi bi-check2-circle" aria-hidden="true"></i>This ticket matches.</span>
+            }
+            else
+            {
+                <span class="aut-state aut-state--bad"><i class="bi bi-slash-circle" aria-hidden="true"></i>This ticket doesn't match, so nothing would run.</span>
+            }
+        </p>
+    </div>
+
+    @if (Model.Steps.Count > 0)
+    {
+        <div>
+            <p class="sb-section-label mb-1">@(Model.Evaluation.Matched ? "It would" : "If it matched, it would")</p>
+            <ol class="aut-checks">
+                @foreach (var step in Model.Steps)
+                {
+                    var icon = step.Error is not null ? "bi-x-octagon-fill is-no" : step.NoChange is not null ? "bi-dash-circle is-skip" : step.External ? "bi-send is-out" : "bi-arrow-right-circle-fill is-yes";
+                    <li>
+                        <i class="bi @icon" aria-hidden="true"></i>
+                        <span>
+                            @step.Title
+                            @if (step.Error is not null)
+                            {
+                                <span class="aut-actual text-danger">Would fail: @step.Error</span>
+                            }
+                            else if (step.NoChange is not null)
+                            {
+                                <span class="aut-actual">Skipped: @step.NoChange</span>
+                            }
+                            else if (step.External)
+                            {
+                                <span class="aut-actual">Not sent during a test.</span>
+                            }
+                            @if (step.Input.Count > 0)
+                            {
+                                <details class="aut-detail">
+                                    <summary>What it would use</summary>
+                                    <pre class="aut-pre">@AutomationAdminPageModel.Pretty(AutomationAdminPageModel.Json(step.Input))</pre>
+                                </details>
+                            }
+                        </span>
+                    </li>
+                }
+            </ol>
+        </div>
+    }
+    <p class="aut-block-hint mb-0"><i class="bi bi-shield-check me-1" aria-hidden="true"></i>A test changes nothing and sends nothing.</p>
+</div>

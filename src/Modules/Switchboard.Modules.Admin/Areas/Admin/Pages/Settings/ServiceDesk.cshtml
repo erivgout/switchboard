@@ -1,0 +1,110 @@
+@page "/admin/service-desk"
+@model Switchboard.Modules.Admin.Pages.Settings.ServiceDeskModel
+@using Switchboard.Core.Tickets
+@{
+    ViewData["Title"] = "Service desk settings";
+    var levels = new[] { Level.High, Level.Medium, Level.Low };
+}
+<sb-page-header title="Service desk settings" subtitle="How tickets close and reopen, and what requesters may do with their own tickets. These apply to every workspace." />
+
+<form method="post" class="sb-form-narrow" novalidate>
+    <partial name="_Errors" />
+
+    <section class="sb-pane" aria-labelledby="closingTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="closingTitle">Closing and reopening</h2></div>
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.AutoCloseDays">Close resolved tickets after</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.AutoCloseDays" type="number" min="0" max="365" aria-describedby="autoCloseHelp">
+                        <span class="input-group-text">days</span>
+                    </div>
+                    <div class="form-text" id="autoCloseHelp">Gives requesters time to say the fix didn't work. Use 0 to keep tickets resolved until an agent closes them.</div>
+                    <partial name="_FieldError" model="@("Input.AutoCloseDays")" />
+                </div>
+                <div class="col-12">
+                    <fieldset>
+                        <legend class="form-label">When a requester replies to a closed ticket</legend>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="Input.ClosedReplyBehavior" value="reopen" id="replyReopen">
+                            <label class="form-check-label" for="replyReopen">Reopen the ticket</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="Input.ClosedReplyBehavior" value="followup" id="replyFollowup">
+                            <label class="form-check-label" for="replyFollowup">Start a new follow-up ticket linked to it</label>
+                        </div>
+                        <div class="form-text">Replies to resolved tickets that aren't closed yet always reopen them.</div>
+                    </fieldset>
+                    <partial name="_FieldError" model="@("Input.ClosedReplyBehavior")" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Input.BlockParentCloseWithOpenChildren">
+                        <label class="form-check-label" asp-for="Input.BlockParentCloseWithOpenChildren">Don't let a parent ticket resolve while its child tickets are open</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="requesterTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="requesterTitle">What requesters can do</h2></div>
+        <div class="sb-pane-body">
+            <div class="form-check">
+                <input class="form-check-input" asp-for="Input.RequesterCanClose">
+                <label class="form-check-label" asp-for="Input.RequesterCanClose">Close their own tickets from the portal</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" asp-for="Input.RequesterCanReopen">
+                <label class="form-check-label" asp-for="Input.RequesterCanReopen">Reopen their own resolved tickets from the portal</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" asp-for="Input.ShowAgentNamesToRequesters">
+                <label class="form-check-label" asp-for="Input.ShowAgentNamesToRequesters">See the name of the agent working their ticket</label>
+            </div>
+            <div class="form-text">When names are hidden, replies come from the service desk.</div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="priorityTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="priorityTitle">Priority</h2></div>
+        <div class="sb-pane-body">
+            <div class="form-check">
+                <input class="form-check-input" asp-for="Input.PriorityMatrixEnabled">
+                <label class="form-check-label" asp-for="Input.PriorityMatrixEnabled">Set priority from impact and urgency</label>
+            </div>
+            <div class="form-text mb-3">When an agent changes impact or urgency, priority follows this table. Agents can still change priority directly.</div>
+            <table class="table table-sm mb-0 w-auto">
+                <caption class="visually-hidden">Priority by impact (rows) and urgency (columns)</caption>
+                <thead><tr><th scope="col"><span class="visually-hidden">Impact</span></th>@foreach (var u in levels) { <th scope="col">@u urgency</th> }</tr></thead>
+                <tbody>
+                    @foreach (var i in levels)
+                    {
+                        <tr>
+                            <th scope="row">@i impact</th>
+                            @foreach (var u in levels)
+                            {
+                                <td><sb-priority value="@PriorityMatrix.Derive(i, u)" /></td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="trashTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="trashTitle">Deleted tickets</h2></div>
+        <div class="sb-pane-body">
+            <label class="form-label" asp-for="Input.TrashRetentionDays">Keep deleted tickets in the trash for</label>
+            <div class="input-group" style="max-width: 14rem">
+                <input class="form-control" asp-for="Input.TrashRetentionDays" type="number" min="1" max="365" aria-describedby="trashHelp">
+                <span class="input-group-text">days</span>
+            </div>
+            <div class="form-text" id="trashHelp">After that they're erased for good and can't be restored.</div>
+            <partial name="_FieldError" model="@("Input.TrashRetentionDays")" />
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save settings</button></div>
+    </section>
+</form>

@@ -1,0 +1,101 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.IndexModel
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var q = Model.Queue;
+}
+<div class="modal fade" id="sdBulkDialog" tabindex="-1" aria-labelledby="sdBulkTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="sdBulkForm" method="post" action="/tickets?handler=Bulk" asp-antiforgery="true" data-sd-bulk-form data-sd-inline-limit="@BulkActionService.InlineLimit">
+            <input type="hidden" name="Action" value="" data-sd-bulk-action>
+            <input type="hidden" name="AllMatching" value="false" data-sd-all-matching>
+            <input type="hidden" name="Query" value="@q.Query">
+            <input type="hidden" name="ReturnUrl" value="@q.State.ToUrl()">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="sdBulkTitle" data-sd-bulk-title>Update tickets</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3" data-sd-bulk-summary></p>
+
+                <fieldset data-sd-bulk-section="assign" hidden>
+                    <legend class="visually-hidden">Assignment</legend>
+                    <div class="mb-3">
+                        <label class="form-label" for="bulkGroup">Group</label>
+                        <select class="form-select" id="bulkGroup" name="GroupChoice">
+                            <option value="">Leave as it is</option>
+                            <option value="none">No group</option>
+                            @foreach (var g in Model.Groups)
+                            {
+                                <option value="@g.Id">@g.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="bulkAgent">Agent</label>
+                        <select class="form-select" id="bulkAgent" name="AgentChoice">
+                            <option value="">Leave as it is</option>
+                            <option value="none">Unassigned</option>
+                            <option value="@Model.MeId">Me</option>
+                            @foreach (var a in Model.Agents.Where(a => a.Id != Model.MeId))
+                            {
+                                <option value="@a.Id">@a.Name</option>
+                            }
+                        </select>
+                    </div>
+                </fieldset>
+
+                <fieldset data-sd-bulk-section="status" hidden>
+                    <legend class="visually-hidden">Status</legend>
+                    <label class="form-label" for="bulkStatus">New status</label>
+                    <select class="form-select" id="bulkStatus" name="StatusId" required>
+                        @foreach (var s in Model.BulkStatuses)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                    <p class="form-text">Closure rules still apply: a ticket with open child tickets or missing required fields stays as it is, and you'll see why.</p>
+                </fieldset>
+
+                <fieldset data-sd-bulk-section="priority" hidden>
+                    <legend class="visually-hidden">Priority</legend>
+                    <label class="form-label" for="bulkPriority">New priority</label>
+                    <select class="form-select" id="bulkPriority" name="Priority" required>
+                        @foreach (var p in Enum.GetValues<Switchboard.Core.Domain.Priority>().Reverse())
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    </select>
+                </fieldset>
+
+                <fieldset data-sd-bulk-section="tags" hidden>
+                    <legend class="visually-hidden">Tags</legend>
+                    <label class="form-label" for="bulkTags">Tags to add</label>
+                    <input class="form-control" id="bulkTags" name="Tags" placeholder="vip, follow-up" required>
+                    <p class="form-text">Separate tags with commas. Existing tags stay.</p>
+                </fieldset>
+
+                <fieldset data-sd-bulk-section="merge" hidden>
+                    <legend class="form-label">Merge into</legend>
+                    <div class="sd-merge-choices" data-sd-merge-choices></div>
+                    <p class="form-text mt-2">The other tickets close and become read-only, with a link to the one you choose. Their requesters and CCs are added to its CC list. Their conversations stay where they are.</p>
+                </fieldset>
+
+                <fieldset data-sd-bulk-section="purge" hidden>
+                    <legend class="visually-hidden">Confirm with your password</legend>
+                    <div class="alert alert-danger" role="alert">Permanently deleted tickets can't be restored. Their conversations and attachments are erased.</div>
+                    <label class="form-label" for="bulkPassword">Your password</label>
+                    <input class="form-control" type="password" id="bulkPassword" name="Password" autocomplete="current-password" required>
+                </fieldset>
+
+                <div class="mt-3" data-sd-confirm-count hidden>
+                    <label class="form-label" for="bulkConfirm">This changes <strong data-sd-count-text></strong> tickets in the background. Type the number to confirm.</label>
+                    <input class="form-control" id="bulkConfirm" name="ConfirmedCount" inputmode="numeric" autocomplete="off" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" data-sd-bulk-submit>Update tickets</button>
+            </div>
+        </form>
+    </div>
+</div>

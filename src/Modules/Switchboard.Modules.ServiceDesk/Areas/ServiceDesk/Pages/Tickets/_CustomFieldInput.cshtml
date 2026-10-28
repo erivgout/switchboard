@@ -1,0 +1,78 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.CustomFieldInputModel
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var def = Model.Definition;
+    var name = CustomFieldForm.InputPrefix + def.Key;
+    var id = "new-cf-" + def.Key;
+    var current = Model.Values.FirstOrDefault();
+    var required = def.RequiredForAgents;
+    var invalid = Model.Error is null ? "" : " is-invalid";
+    var describedBy = string.IsNullOrWhiteSpace(def.HelpText) ? null : id + "-help";
+}
+@if (def.FieldType == CustomFieldType.Content)
+{
+    <p class="sd-custom-wide text-muted">@def.HelpText</p>
+}
+else if (CustomFieldForm.IsEditable(def))
+{
+    <div class="@(def.FieldType is CustomFieldType.Paragraph or CustomFieldType.MultiSelect ? "sd-custom-wide" : "")">
+        @if (def.FieldType == CustomFieldType.Checkbox)
+        {
+            <div class="form-check mt-4">
+                <input class="form-check-input@(invalid)" type="checkbox" id="@id" name="@name" value="true" checked="@(current == "true")" aria-describedby="@describedBy">
+                <label class="form-check-label" for="@id">@def.Label</label>
+            </div>
+        }
+        else
+        {
+            <label class="form-label" for="@id">@def.Label@if (required) {<span class="text-muted"> (required)</span>}</label>
+            switch (def.FieldType)
+            {
+                case CustomFieldType.Dropdown:
+                case CustomFieldType.DependentDropdown:
+                    <select class="form-select@(invalid)" id="@id" name="@name" aria-describedby="@describedBy">
+                        <option value="">Choose…</option>
+                        @foreach (var c in CustomFieldForm.Choices(def))
+                        {
+                            <option value="@c.Value" selected="@(c.Value == current)">@c.Label</option>
+                        }
+                    </select>
+                    break;
+                case CustomFieldType.MultiSelect:
+                    <select class="form-select@(invalid)" id="@id" name="@name" multiple size="4" aria-describedby="@describedBy">
+                        @foreach (var c in CustomFieldForm.Choices(def))
+                        {
+                            <option value="@c.Value" selected="@Model.Values.Contains(c.Value)">@c.Label</option>
+                        }
+                    </select>
+                    break;
+                case CustomFieldType.Paragraph:
+                    <textarea class="form-control@(invalid)" id="@id" name="@name" rows="3" aria-describedby="@describedBy">@current</textarea>
+                    break;
+                case CustomFieldType.Number:
+                    <input class="form-control@(invalid)" id="@id" name="@name" type="number" step="1" value="@current" aria-describedby="@describedBy">
+                    break;
+                case CustomFieldType.Decimal:
+                    <input class="form-control@(invalid)" id="@id" name="@name" type="number" step="any" value="@current" aria-describedby="@describedBy">
+                    break;
+                case CustomFieldType.Date:
+                    <input class="form-control@(invalid)" id="@id" name="@name" type="date" value="@current" aria-describedby="@describedBy">
+                    break;
+                case CustomFieldType.DateTime:
+                    <input class="form-control@(invalid)" id="@id" name="@name" type="datetime-local" value="@current" aria-describedby="@describedBy">
+                    break;
+                default:
+                    <input class="form-control@(invalid)" id="@id" name="@name" value="@current" maxlength="500" aria-describedby="@describedBy">
+                    break;
+            }
+        }
+        @if (describedBy is not null)
+        {
+            <div class="form-text" id="@describedBy">@def.HelpText</div>
+        }
+        @if (Model.Error is not null)
+        {
+            <div class="invalid-feedback d-block">@Model.Error</div>
+        }
+    </div>
+}

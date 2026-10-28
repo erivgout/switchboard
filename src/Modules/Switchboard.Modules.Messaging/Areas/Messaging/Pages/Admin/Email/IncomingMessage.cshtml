@@ -1,0 +1,88 @@
+@page "/admin/email/incoming/{id:guid}"
+@model IncomingMessageModel
+@using Switchboard.Modules.Messaging.Inbound
+@{
+    var m = Model.Message;
+    var subject = string.IsNullOrEmpty(m.Subject) ? "(no subject)" : m.Subject;
+    ViewData["Title"] = subject;
+    var canReprocess = m.RawStorageKey is not null && m.Outcome is InboundOutcome.Blocked or InboundOutcome.Failed;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+<sb-page-header title="Incoming email" subtitle="@subject">
+    <a class="btn btn-ghost" href="/admin/email/incoming"><i class="bi bi-arrow-left" aria-hidden="true"></i> Incoming mail</a>
+</sb-page-header>
+
+<div class="sb-split">
+    <section class="sb-pane sb-msg-fill" aria-labelledby="routeTitle">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="routeTitle">How it was routed</h2>
+            <span class="ms-auto"><partial name="_OutcomeBadge" model="m.Outcome" /></span>
+        </div>
+        <div class="sb-pane-body">
+            @if (Model.Trace.Count == 0)
+            {
+                <p class="text-muted mb-0">No routing details were recorded for this message.</p>
+            }
+            else
+            {
+                <ol class="sb-route">
+                    @for (var i = 0; i < Model.Trace.Count; i++)
+                    {
+                        var step = Model.Trace[i];
+                        var last = i == Model.Trace.Count - 1;
+                        var (icon, toneLabel) = step.Tone switch
+                        {
+                            TraceTone.Ok => ("bi-check-lg", "Passed"),
+                            TraceTone.Warn => ("bi-exclamation-lg", "Warning"),
+                            TraceTone.Stop => ("bi-x-lg", "Stopped"),
+                            _ => ("bi-dot", "Note"),
+                        };
+                        <li class="sb-route-step sb-route-step--@step.Tone.ToString().ToLowerInvariant() @(last ? "is-final" : "")">
+                            <span class="sb-route-node" aria-hidden="true"><i class="bi @icon"></i></span>
+                            <div class="sb-route-text">
+                                <p class="sb-route-title"><span class="visually-hidden">@toneLabel: </span>@step.Title</p>
+                                <p class="sb-route-detail">@step.Detail</p>
+                                @if (last && Model.TicketDisplayId is { } display && Model.TicketNumber is { } ticketNumber)
+                                {
+                                    <a class="btn btn-outline-secondary btn-sm mt-2" href="@TicketLinks.Agent(ticketNumber)">Open <span class="sb-stamp">@display</span></a>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
+        </div>
+    </section>
+
+    <aside class="sb-sticky" aria-label="Message details">
+        <section class="sb-pane">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Message</h2></div>
+            <div class="sb-pane-body">
+                <dl class="sb-props mb-0">
+                    <div><dt>From</dt><dd class="text-break">@(m.FromName is { } n ? $"{n} <{m.FromAddress}>" : m.FromAddress)</dd></div>
+                    <div><dt>Received</dt><dd><sb-time value="@m.ReceivedAt" mode="datetime" /></dd></div>
+                    <div><dt>Mailbox</dt><dd>@(Model.MailboxName ?? "None")</dd></div>
+                    <div><dt>Arrived by</dt><dd>@(m.Source switch { InboundSource.Imap => "IMAP", InboundSource.Webhook => "Mail provider", _ => "Simulator" })</dd></div>
+                    <div><dt>Size</dt><dd class="tabular">@(m.SizeBytes < 1024 ? $"{m.SizeBytes} bytes" : m.SizeBytes < 1024 * 1024 ? $"{m.SizeBytes / 1024.0:0.#} KB" : $"{m.SizeBytes / 1048576.0:0.#} MB")</dd></div>
+                    <div><dt>Sender checks</dt><dd>@(m.AuthenticationFailed ? "Failed" : "No failures")</dd></div>
+                    @if (Model.TicketDisplayId is { } stamp && Model.TicketNumber is { } tnum)
+                    {
+                        <div><dt>Ticket</dt><dd><a href="@TicketLinks.Agent(tnum)"><span class="sb-stamp">@stamp</span></a></dd></div>
+                    }
+                    <div><dt>Message-ID</dt><dd class="small text-break">@m.MessageId</dd></div>
+                </dl>
+            </div>
+            @if (canReprocess)
+            {
+                <div class="sb-pane-footer">
+                    <form method="post" asp-page-handler="Reprocess"
+                          data-sb-confirm="@(m.Outcome == InboundOutcome.Blocked ? "Process this message anyway? Sender rules are skipped for it." : "Try processing this message again?")">
+                        <button class="btn btn-outline-secondary w-100" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> @(m.Outcome == InboundOutcome.Blocked ? "Process anyway" : "Try again")</button>
+                    </form>
+                </div>
+            }
+        </section>
+    </aside>
+</div>

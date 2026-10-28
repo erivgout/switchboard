@@ -1,0 +1,88 @@
+@model CustomFieldModel
+@{
+    var f = Model.Field;
+    var id = "prtCf_" + f.Key;
+    var name = $"Custom[{f.Key}]";
+    var value = Model.Values.FirstOrDefault() ?? "";
+    var invalid = Model.Error is null ? null : "is-invalid";
+    var helpId = id + "Help";
+    var errorId = id + "Error";
+    var describedBy = string.Join(' ', new[] { f.HelpText is null ? null : helpId, Model.Error is null ? null : errorId }.Where(x => x is not null));
+}
+@if (f.FieldType == CustomFieldType.Content)
+{
+    <div class="prt-field prt-field-note">
+        <p class="fw-semibold mb-1">@f.Label</p>
+        @if (!string.IsNullOrWhiteSpace(f.HelpText))
+        {
+            <p class="mb-0">@f.HelpText</p>
+        }
+    </div>
+    return;
+}
+<div class="prt-field">
+    @if (f.FieldType == CustomFieldType.Checkbox)
+    {
+        <div class="form-check">
+            <input class="form-check-input @invalid" type="checkbox" id="@id" name="@name" value="true" checked="@Model.Values.Contains("true", StringComparer.OrdinalIgnoreCase)" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+            <label class="form-check-label" for="@id">@f.Label</label>
+        </div>
+    }
+    else if (f.FieldType == CustomFieldType.MultiSelect)
+    {
+        <fieldset aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+            <legend class="form-label">@f.Label @if (!f.Required) { <span class="prt-optional">Optional</span> }</legend>
+            @for (var i = 0; i < f.Options.Count; i++)
+            {
+                var o = f.Options[i];
+                <div class="form-check">
+                    <input class="form-check-input @invalid" type="checkbox" id="@(id)_@i" name="@name" value="@o.Value" checked="@Model.Values.Contains(o.Value)">
+                    <label class="form-check-label" for="@(id)_@i">@o.Label</label>
+                </div>
+            }
+        </fieldset>
+    }
+    else
+    {
+        <label class="form-label" for="@id">@f.Label @if (!f.Required) { <span class="prt-optional">Optional</span> }</label>
+        @switch (f.FieldType)
+        {
+            case CustomFieldType.Paragraph:
+                <textarea class="form-control @invalid" id="@id" name="@name" rows="3" maxlength="20000" required="@f.Required" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">@value</textarea>
+                break;
+            case CustomFieldType.Number:
+                <input class="form-control @invalid" id="@id" name="@name" type="number" step="1" inputmode="numeric" value="@value" required="@f.Required" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+                break;
+            case CustomFieldType.Decimal:
+                <input class="form-control @invalid" id="@id" name="@name" type="number" step="any" inputmode="decimal" value="@value" required="@f.Required" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+                break;
+            case CustomFieldType.Date:
+                <input class="form-control @invalid" id="@id" name="@name" type="date" value="@value" required="@f.Required" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+                break;
+            case CustomFieldType.DateTime:
+                <input class="form-control @invalid" id="@id" name="@name" type="datetime-local" value="@value" required="@f.Required" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+                break;
+            case CustomFieldType.Dropdown:
+            case CustomFieldType.DependentDropdown:
+                <select class="form-select @invalid" id="@id" name="@name" required="@f.Required" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+                    <option value="">Choose one</option>
+                    @foreach (var o in f.Options)
+                    {
+                        <option value="@o.Value" selected="@(o.Value == value)">@o.Label</option>
+                    }
+                </select>
+                break;
+            default:
+                <input class="form-control @invalid" id="@id" name="@name" type="text" maxlength="500" value="@value" required="@f.Required" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)">
+                break;
+        }
+    }
+    @if (!string.IsNullOrWhiteSpace(f.HelpText))
+    {
+        <div class="form-text" id="@helpId">@f.HelpText</div>
+    }
+    @if (Model.Error is not null)
+    {
+        <div class="invalid-feedback d-block" id="@errorId">@Model.Error</div>
+    }
+</div>

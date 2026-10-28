@@ -1,0 +1,40 @@
+@model IReadOnlyList<PreferenceRow>
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+<section class="sb-pane" id="notifications" aria-labelledby="sbNotifPrefsTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="sbNotifPrefsTitle">Notifications</h2>
+    </div>
+    <form method="post" action="/notifications/preferences" asp-antiforgery="true" class="sb-pane-body">
+        <p class="text-muted mb-3">Choose how you hear about tickets. In the app means the bell at the top of the screen.</p>
+        <div class="table-responsive">
+            <table class="table sb-msg-table align-middle sb-pref-table mb-3">
+                <thead>
+                    <tr>
+                        <th scope="col">When</th>
+                        <th scope="col" class="text-center">In the app</th>
+                        <th scope="col" class="text-center">By email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model)
+                    {
+                        var id = row.Event.Key.Replace('.', '-');
+                        <tr>
+                            <th scope="row" class="fw-semibold">@row.Event.Name</th>
+                            <td class="text-center">
+                                <input type="hidden" name="keys" value="@row.Event.Key">
+                                <input class="form-check-input" type="checkbox" id="inapp-@id" name="inapp" value="@row.Event.Key" checked="@row.Choice.InApp">
+                                <label class="visually-hidden" for="inapp-@id">@row.Event.Name in the app</label>
+                            </td>
+                            <td class="text-center">
+                                <input class="form-check-input" type="checkbox" id="email-@id" name="email" value="@row.Event.Key" checked="@row.Choice.Email">
+                                <label class="visually-hidden" for="email-@id">@row.Event.Name by email</label>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <button class="btn btn-outline-secondary" type="submit">Save notification settings</button>
+    </form>
+</section>

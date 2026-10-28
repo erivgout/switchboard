@@ -1,0 +1,23 @@
+@model IReadOnlyList<Switchboard.Modules.ServiceDesk.Services.CannedResponseItem>
+@if (Model.Count == 0)
+{
+    <p class="sb-meta px-3 mb-2">No responses match. <a href="/tickets/canned-responses">Write one</a> to reuse it.</p>
+}
+else
+{
+    <ul class="list-unstyled m-0" role="listbox" aria-label="Canned responses">
+        @foreach (var group in Model.GroupBy(r => r.FolderName))
+        {
+            <li><h3 class="dropdown-header">@group.Key</h3></li>
+            @foreach (var r in group)
+            {
+                <li>
+                    <button class="dropdown-item sd-canned-item" type="button" role="option" data-sd-canned-id="@r.Id">
+                        <span class="sd-canned-title">@r.Title</span>
+                        <span class="sd-canned-preview">@Switchboard.Modules.ServiceDesk.Services.CannedPreview.Render(r.Preview)</span>
+                    </button>
+                </li>
+            }
+        }
+    </ul>
+}

@@ -1,0 +1,162 @@
+@page "/admin/email"
+@model EmailIndexModel
+@using Switchboard.Modules.Messaging.Outbound
+@{
+    ViewData["Title"] = "Email";
+    var o = Model.Outgoing;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+<sb-page-header title="Email" subtitle="Email to your support addresses becomes tickets. Replies and notifications go out through your mail server.">
+    <a class="btn btn-primary" href="/admin/email/mailboxes/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add mailbox</a>
+</sb-page-header>
+
+<partial name="_EmailNav" model="@("mailboxes")" />
+
+@if (Model.NonProduction)
+{
+    <div class="alert alert-warning d-flex gap-2" role="status">
+        <i class="bi bi-cone-striped" aria-hidden="true"></i>
+        <div>
+            This is a non-production instance.
+            @if (o.CaptureAddress is { Length: > 0 } capture)
+            {
+                <span>Mail goes to <strong>@capture</strong> instead of the real recipients.</span>
+            }
+            else
+            {
+                <span>Mail is written to the log instead of sent.</span>
+            }
+        </div>
+    </div>
+}
+
+<section class="sb-pane sb-queue-wrap" aria-labelledby="mailboxesTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="mailboxesTitle">Mailboxes</h2></div>
+    @if (Model.Mailboxes.Count == 0)
+    {
+        <sb-empty icon="bi-envelope-plus" title="No mailboxes yet">
+            <p class="sb-empty-text">Add your support address so email to it becomes tickets, and replies land on the right ticket.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="/admin/email/mailboxes/new">Add mailbox</a></div>
+        </sb-empty>
+    }
+    else
+    {
+        <table class="sb-queue">
+            <thead>
+                <tr>
+                    <th scope="col">Mailbox</th>
+                    <th scope="col" class="sb-hide-sm">New tickets go to</th>
+                    <th scope="col" class="sb-hide-sm">Mail arrives by</th>
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Mailboxes)
+                {
+                    var m = row.Mailbox;
+                    <tr data-sb-href="/admin/email/mailboxes/@m.Id">
+                        <td>
+                            <a class="fw-semibold" href="/admin/email/mailboxes/@m.Id">@m.Name</a>
+                            <span class="d-block small text-muted text-break">@m.Address</span>
+                        </td>
+                        <td class="sb-hide-sm">
+                            @row.Workspace
+                            <span class="d-block small text-muted">@(row.Group ?? "No group") as @(m.TicketType == TicketType.Incident ? "incidents" : "service requests")</span>
+                        </td>
+                        <td class="sb-hide-sm">
+                            @if (m.Connection == MailboxConnection.Imap)
+                            {
+                                <span>IMAP</span><span class="d-block small text-muted text-break">@m.ImapHost</span>
+                            }
+                            else
+                            {
+                                <span>Forwarded by your mail provider</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!m.IsEnabled)
+                            {
+                                <span class="sb-delivery sb-delivery--muted"><i class="bi bi-pause-circle" aria-hidden="true"></i>Off</span>
+                            }
+                            else if (m.LastError is { Length: > 0 })
+                            {
+                                <span class="sb-delivery sb-delivery--danger"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i>Can't connect</span>
+                                <span class="d-block small text-muted text-truncate sb-mailbox-error" title="@m.LastError">@m.LastError</span>
+                            }
+                            else
+                            {
+                                <span class="sb-delivery sb-delivery--ok"><i class="bi bi-check2" aria-hidden="true"></i>On</span>
+                                @if (m.Connection == MailboxConnection.Imap && m.LastCheckedAt is { } checkedAt)
+                                {
+                                    <span class="d-block small text-muted">Checked <sb-time value="@checkedAt" /></span>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+<section class="sb-pane" aria-labelledby="outgoingTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="outgoingTitle">Outgoing mail</h2>
+        @if (Model.CanManageInstance)
+        {
+            <a class="btn btn-ghost btn-sm ms-auto" href="/admin/email/outgoing">Change outgoing mail</a>
+        }
+    </div>
+    <div class="sb-pane-body">
+        @if (!o.IsConfigured)
+        {
+            <p class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-1" aria-hidden="true"></i>Outgoing mail isn't set up, so replies and notifications are written to the log instead of sent. Add your mail server to start sending.</p>
+        }
+        else
+        {
+            <dl class="sb-props sb-props--inline mb-0">
+                <div><dt>Mail server</dt><dd class="text-break">@o.Host:@o.Port</dd></div>
+                <div><dt>Sends as</dt><dd class="text-break">@o.FromName &lt;@o.FromAddress&gt;</dd></div>
+                <div>
+                    <dt>Settings from</dt>
+                    <dd>@(o.Source switch
+                        {
+                            MailSettingsSource.Saved => "Saved here",
+                            MailSettingsSource.Configuration => "Server configuration",
+                            MailSettingsSource.DevelopmentDefault => "Development default (Mailpit)",
+                            _ => "Not set",
+                        })</dd>
+                </div>
+            </dl>
+        }
+    </div>
+</section>
+
+<section class="sb-pane" aria-labelledby="recentTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="recentTitle">Recent incoming mail</h2>
+        <a class="btn btn-ghost btn-sm ms-auto" href="/admin/email/incoming">See all incoming mail</a>
+    </div>
+    @if (Model.Recent.Count == 0)
+    {
+        <div class="sb-pane-body text-muted">No mail has arrived yet. Try the <a href="/admin/email/simulate">simulator</a> to see how a message is routed.</div>
+    }
+    else
+    {
+        <ul class="list-unstyled mb-0 sb-recent-mail">
+            @foreach (var m in Model.Recent)
+            {
+                <li>
+                    <a href="/admin/email/incoming/@m.Id" class="sb-recent-mail-link">
+                        <span class="sb-recent-mail-subject text-truncate">@(string.IsNullOrEmpty(m.Subject) ? "(no subject)" : m.Subject)</span>
+                        <span class="small text-muted text-truncate">@m.FromAddress</span>
+                    </a>
+                    <partial name="_OutcomeBadge" model="m.Outcome" />
+                    <sb-time value="@m.ReceivedAt" />
+                </li>
+            }
+        </ul>
+    }
+</section>

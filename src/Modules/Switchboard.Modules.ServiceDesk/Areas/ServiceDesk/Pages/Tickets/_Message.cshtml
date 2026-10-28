@@ -1,0 +1,97 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.MessageModel
+@{
+    var c = Model.Entry.Conversation;
+    var d = Model.Data;
+    var author = Model.Entry.AuthorName ?? c.FromEmail ?? "System";
+    var url = $"/tickets/{d.Ticket.Number}";
+    var own = c.AuthorId == d.MeId && c.Kind == ConversationKind.Note;
+    var canHide = !own && d.Can.Delete && c.Kind is not ConversationKind.System && !d.IsReadOnly;
+    string ChannelText() => c.Channel switch
+    {
+        Channel.Email => "by email",
+        Channel.Portal => "in the portal",
+        Channel.Chat => "by chat",
+        Channel.Api => "through the API",
+        Channel.Mcp => "through an AI agent",
+        _ => "",
+    };
+}
+@if (c.DeletedAt is not null)
+{
+    <div class="sb-msg--system sd-msg-hidden" id="msg-@c.Id">
+        <i class="bi bi-eye-slash me-1" aria-hidden="true"></i>A message from @author was hidden by an admin <sb-time value="c.DeletedAt" />.
+    </div>
+}
+else if (c.Kind == ConversationKind.System)
+{
+    <div class="sb-msg--system sd-msg-system" id="msg-@c.Id">
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        <div class="sd-system-body">@Html.Raw(c.BodyHtml)</div>
+        <sb-time value="c.CreatedAt" />
+    </div>
+}
+else
+{
+    var isNote = c.Kind == ConversationKind.Note;
+    var privateNote = isNote && c.IsPrivate;
+    var cls = privateNote ? "sb-msg sb-msg--note"
+        : c.Kind is ConversationKind.AgentReply or ConversationKind.Forward || isNote ? "sb-msg sb-msg--agent"
+        : "sb-msg";
+    <article class="@cls @(c.Kind == ConversationKind.Forward ? "sd-msg--forward" : "")" id="msg-@c.Id" data-sd-message="@c.Id">
+        <sb-avatar name="@author" />
+        <div class="@(privateNote ? "sb-msg-card" : "min-w-0")">
+            <div class="sb-msg-head">
+                @if (privateNote)
+                {
+                    <span class="sb-note-label"><i class="bi bi-lock-fill" aria-hidden="true"></i>Private note</span>
+                }
+                <span class="sb-msg-author">@author</span>
+                <span class="sb-msg-kind">
+                    @switch (c.Kind)
+                    {
+                        case ConversationKind.AgentReply:
+                            @:replied
+                            break;
+                        case ConversationKind.Forward:
+                            <span><i class="bi bi-forward me-1" aria-hidden="true"></i>forwarded to @string.Join(", ", c.To). The requester doesn't see forwards.</span>
+                            break;
+                        case ConversationKind.Note when !c.IsPrivate:
+                            <span><i class="bi bi-eye me-1" aria-hidden="true"></i>public note, the requester can see it</span>
+                            break;
+                        case ConversationKind.RequesterMessage:
+                            @ChannelText()
+                            break;
+                    }
+                </span>
+                <sb-time value="c.CreatedAt" />
+                @if (c.EditedAt is not null)
+                {
+                    <span class="sb-msg-kind" title="Edited">(edited)</span>
+                }
+                @if (own && !d.IsReadOnly)
+                {
+                    <span class="sd-msg-actions">
+                        <button class="btn btn-ghost btn-sm" type="button" hx-get="@url?handler=EditNote&amp;id=@c.Id" hx-target="#msg-@c.Id" hx-swap="outerHTML">Edit</button>
+                        <button class="btn btn-ghost btn-sm" type="button" hx-post="@url?handler=DeleteNote&amp;id=@c.Id" hx-target="#msg-@c.Id" hx-swap="outerHTML"
+                                hx-confirm="Delete this note? Other agents won't see it any more.">Delete</button>
+                    </span>
+                }
+                else if (canHide)
+                {
+                    <span class="sd-msg-actions">
+                        <button class="btn btn-ghost btn-sm" type="button" hx-post="@url?handler=HideMessage&amp;id=@c.Id" hx-target="#msg-@c.Id" hx-swap="outerHTML"
+                                hx-confirm="Hide this message from the ticket? It's kept in the audit log.">Hide</button>
+                    </span>
+                }
+            </div>
+            @if (c.Kind == ConversationKind.AgentReply && (c.To.Count > 0 || c.Cc.Count > 0))
+            {
+                <p class="sd-recipients-line">
+                    To @string.Join(", ", c.To)@if (c.Cc.Count > 0) {<span>; CC @string.Join(", ", c.Cc)</span>}@if (c.Bcc.Count > 0) {<span>; BCC @string.Join(", ", c.Bcc)</span>}
+                </p>
+            }
+            <div class="sb-msg-body">@Html.Raw(c.BodyHtml)</div>
+            <partial name="_Attachments" model="Model.Entry.Attachments" />
+        </div>
+    </article>
+}

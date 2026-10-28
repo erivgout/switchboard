@@ -1,0 +1,9 @@
+@page "/approvals"
+@model Switchboard.Modules.Approvals.Areas.Approvals.Pages.Agent.IndexModel
+@{
+    ViewData["Title"] = "Approvals";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+}
+<partial name="_IndexContent" model="Model" />

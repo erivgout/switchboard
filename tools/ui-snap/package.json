@@ -1,0 +1,10 @@
+{
+  "name": "switchboard-ui-snap",
+  "private": true,
+  "description": "Signs in as a demo user and screenshots pages, for reviewing UI work. Uses the locally installed Chrome or Edge.",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}

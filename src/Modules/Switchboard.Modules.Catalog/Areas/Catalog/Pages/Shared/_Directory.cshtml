@@ -1,0 +1,108 @@
+@model DirectoryModel
+@{
+    var searching = !string.IsNullOrWhiteSpace(Model.Query);
+    var filtered = searching || Model.CategoryId is not null;
+    var categories = Model.Categories.Where(c => c.ItemCount > 0).ToList();
+    var current = categories.FirstOrDefault(c => c.Id == Model.CategoryId);
+    string Href(Guid? category) => category is null ? Model.BasePath : $"{Model.BasePath}?category={category}";
+    var noMatch = $"Nothing matches “{Model.Query}”";
+    var resultsTitle = searching ? $"Results for “{Model.Query}”" : current?.Name ?? "Items";
+}
+
+<form class="cat-search mb-4" role="search" method="get" action="@Model.BasePath">
+    <label class="visually-hidden" for="catSearch">Search the catalog</label>
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input id="catSearch" class="form-control" type="search" name="q" value="@Model.Query" placeholder="Search, for example laptop, Adobe or mailbox" autocomplete="off">
+    @if (Model.CategoryId is { } cat)
+    {
+        <input type="hidden" name="category" value="@cat">
+    }
+</form>
+
+@if (!filtered && Model.Popular.Count > 0)
+{
+    <section class="mb-4" aria-labelledby="catPopular">
+        <h2 id="catPopular" class="h6 fw-semibold mb-2">Most requested</h2>
+        <div class="sb-paths">
+            @foreach (var item in Model.Popular)
+            {
+                <a class="sb-path" href="@Model.BasePath/@item.Id">
+                    <i class="bi @item.Icon" aria-hidden="true"></i>
+                    <strong>@item.Name</strong>
+                    <span>@(item.CostMinor is { } c ? CatalogForm.Money(c, item.Currency) : "No charge")@(item.DeliveryDays is { } d ? $", {CatalogForm.Delivery(d).ToLowerInvariant()}" : "")</span>
+                </a>
+            }
+        </div>
+    </section>
+}
+
+<div class="cat-layout">
+    <nav aria-label="Categories">
+        <ul class="sb-views p-0">
+            <li><a href="@Href(null)" aria-current="@(Model.CategoryId is null && !searching ? "page" : null)">Everything</a></li>
+            @foreach (var c in categories)
+            {
+                <li><a href="@Href(c.Id)" aria-current="@(c.Id == Model.CategoryId ? "page" : null)"><i class="bi @c.Icon text-muted" aria-hidden="true"></i>@c.Name<span class="sb-count">@c.ItemCount</span></a></li>
+            }
+        </ul>
+    </nav>
+
+    <div class="min-w-0">
+        @if (Model.Items.Count == 0)
+        {
+            <div class="sb-pane">
+                @if (searching)
+                {
+                    <sb-empty icon="bi-search" title="@noMatch">
+                        <p class="sb-empty-text">Try a shorter word, or browse the categories. Can't find it? Ask the service desk and we'll help.</p>
+                        <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="@Model.BasePath">Browse everything</a></div>
+                    </sb-empty>
+                }
+                else
+                {
+                    <sb-empty icon="bi-bag" title="Nothing to request yet">
+                        <p class="sb-empty-text">@(Model.ForAgent ? "Publish catalog items in Admin, Service catalog, and they appear here." : "The service desk hasn't added anything you can request yet. You can still report a problem or ask a question.")</p>
+                    </sb-empty>
+                }
+            </div>
+        }
+        else if (filtered)
+        {
+            <section class="cat-section" aria-labelledby="catResults">
+                <div class="cat-section-head">
+                    <h2 id="catResults">@resultsTitle</h2>
+                    @if (!searching && current?.Description is { } description)
+                    {
+                        <p>@description</p>
+                    }
+                </div>
+                <partial name="_ItemList" model="(Model, (IReadOnlyList<CatalogItemSummary>)Model.Items)" />
+            </section>
+        }
+        else
+        {
+            @foreach (var c in categories)
+            {
+                var items = Model.Items.Where(i => i.CategoryIds.Contains(c.Id)).ToList();
+                <section class="cat-section" aria-labelledby="cat-@c.Id">
+                    <div class="cat-section-head">
+                        <h2 id="cat-@c.Id">@c.Name</h2>
+                        @if (c.Description is not null)
+                        {
+                            <p class="d-none d-md-block">@c.Description</p>
+                        }
+                    </div>
+                    <partial name="_ItemList" model="(Model, (IReadOnlyList<CatalogItemSummary>)items)" />
+                </section>
+            }
+            var loose = Model.Items.Where(i => i.CategoryIds.All(id => categories.All(c => c.Id != id))).ToList();
+            @if (loose.Count > 0)
+            {
+                <section class="cat-section" aria-labelledby="catOther">
+                    <div class="cat-section-head"><h2 id="catOther">Other</h2></div>
+                    <partial name="_ItemList" model="(Model, (IReadOnlyList<CatalogItemSummary>)loose)" />
+                </section>
+            }
+        }
+    </div>
+</div>

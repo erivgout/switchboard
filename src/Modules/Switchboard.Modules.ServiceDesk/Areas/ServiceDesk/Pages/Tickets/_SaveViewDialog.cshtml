@@ -1,0 +1,53 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.IndexModel
+@{
+    var q = Model.Queue;
+    var editing = q.ActiveSaved is { } s && Model.EditableSavedViews.Contains(s.Id) ? s : null;
+}
+<div class="modal fade" id="sdSaveView" tabindex="-1" aria-labelledby="sdSaveViewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" action="/tickets?handler=SaveView" asp-antiforgery="true">
+            <input type="hidden" name="Query" value="@q.Query">
+            <input type="hidden" name="Sort" value="@q.Sort">
+            <input type="hidden" name="Cols" value="@string.Join(",", q.Columns)">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="sdSaveViewTitle">Save this view</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Saves the current filter, sort and columns.</p>
+                <code class="sd-query-preview">@(string.IsNullOrEmpty(q.Query) ? "(every ticket)" : q.Query)</code>
+                @if (editing is not null)
+                {
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="radio" name="Id" id="saveAsNew" value="" checked>
+                        <label class="form-check-label" for="saveAsNew">Save as a new view</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="Id" id="saveOver" value="@editing.Id">
+                        <label class="form-check-label" for="saveOver">Update "@editing.Name"</label>
+                    </div>
+                }
+                <div class="mt-3">
+                    <label class="form-label" for="viewName">Name</label>
+                    <input class="form-control" id="viewName" name="Name" maxlength="100" required value="@(editing?.Name)">
+                </div>
+                @if (q.CanShareViews)
+                {
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="viewShared" name="Shared" value="true" checked="@(editing?.IsShared == true)">
+                        <label class="form-check-label" for="viewShared">Share with every agent</label>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                @if (editing is not null)
+                {
+                    <button type="submit" class="btn btn-outline-danger me-auto" formaction="/tickets?handler=DeleteView&amp;id=@editing.Id" formnovalidate
+                            data-sb-confirm="Delete the view &quot;@editing.Name&quot;?@(editing.IsShared ? " Every agent loses it." : "")">Delete view</button>
+                }
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save view</button>
+            </div>
+        </form>
+    </div>
+</div>

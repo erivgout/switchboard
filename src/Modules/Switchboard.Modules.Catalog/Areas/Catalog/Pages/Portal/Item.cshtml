@@ -1,0 +1,15 @@
+@page "/portal/catalog/{id:guid}"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Portal.ItemModel
+@{
+    ViewData["Title"] = Model.Details.Item.Name;
+    ViewData["ForAgent"] = false;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Approvals/js/approvals.js" asp-append-version="true"></script>
+    <script src="~/_content/Switchboard.Modules.Catalog/js/catalog.js" asp-append-version="true"></script>
+}
+<partial name="_ItemRequest" model="Model" />

@@ -1,0 +1,32 @@
+@page "/admin/webhooks/new"
+@model Switchboard.Modules.Api.Areas.Api.Pages.Admin.WebhookNewModel
+@{
+    ViewData["Title"] = "New webhook";
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Api/css/api.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Api/js/api.js" asp-append-version="true"></script>
+}
+@if (Model.Created is { } created)
+{
+    <sb-page-header title="@created.Name" subtitle="Webhook created." />
+    <div class="sb-form-narrow">
+        <partial name="/Areas/Api/Pages/Shared/_SecretReveal.cshtml"
+                 model="@(new SecretRevealModel("hookSecret", "Copy the signing secret now. It won't be shown again.", Model.Secret!, "Give it to the receiver. It uses the secret to check the X-Switchboard-Signature header on each call."))" />
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-primary" href="/admin/webhooks/@created.Id">Done</a>
+        </div>
+    </div>
+}
+else
+{
+    <sb-page-header title="New webhook" subtitle="Pick the events to send and where to send them.">
+        <a class="btn btn-ghost" href="/admin/webhooks">Cancel</a>
+    </sb-page-header>
+    <form method="post" class="sb-pane sb-pane-body sb-form-narrow" novalidate>
+        <partial name="@WebhookUi.FormView" model="Model.FormModel" />
+    </form>
+}

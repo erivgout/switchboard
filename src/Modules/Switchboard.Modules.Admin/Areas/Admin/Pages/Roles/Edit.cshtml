@@ -1,0 +1,139 @@
+@page "/admin/roles/{id}"
+@model Switchboard.Modules.Admin.Pages.Roles.EditModel
+@{
+    var title = Model.IsNew ? "New role" : Model.Role!.Name;
+    ViewData["Title"] = title;
+    var system = Model.Role?.IsSystem == true;
+    var locked = Model.IsOwnRole;
+    var back = ("/admin/roles", "Roles");
+    var someLocked = !locked && Model.Groups.SelectMany(g => g).Any(p => !Model.Grantable.Contains(p.Key));
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@title" subtitle="@(system ? "Built-in role. Its name stays the same; you can change what it allows." : Model.IsNew ? "Choose what agents with this role can do." : Model.Role!.Description)" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    @if (locked)
+    {
+        <div class="alert alert-info"><i class="bi bi-lock me-1" aria-hidden="true"></i>You have this role, so you can't change it. Ask another admin to do it.</div>
+    }
+
+    <form method="post">
+        <section class="sb-pane" aria-labelledby="detailsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="detailsTitle">Details</h2></div>
+            <div class="sb-pane-body">
+                <fieldset class="sb-fieldset" disabled="@(system || locked)">
+                    <legend class="visually-hidden">Details</legend>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Input.Name">Name</label>
+                            <input class="form-control" asp-for="Input.Name" maxlength="100" required>
+                            <partial name="_FieldError" model="@("Input.Name")" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" asp-for="Input.Description">Description</label>
+                            <input class="form-control" asp-for="Input.Description" maxlength="500">
+                            <partial name="_FieldError" model="@("Input.Description")" />
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="privTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="privTitle">What this role allows</h2></div>
+            <div class="sb-pane-body">
+                @if (someLocked)
+                {
+                    <p class="sb-locked"><i class="bi bi-lock me-1" aria-hidden="true"></i>Locked items are access you don't have yourself, so you can't give them or take them away.</p>
+                }
+                <div class="sb-privileges">
+                    @foreach (var group in Model.Groups)
+                    {
+                        <fieldset>
+                            <legend class="sb-section-label">@group.Key</legend>
+                            @foreach (var p in group)
+                            {
+                                var id = "priv_" + p.Key.Replace('.', '_');
+                                var can = !locked && Model.Grantable.Contains(p.Key);
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Input.Privileges" value="@p.Key" id="@id"
+                                           checked="@Model.Input.Privileges.Contains(p.Key)" disabled="@(!can)">
+                                    <label class="form-check-label" for="@id">
+                                        @p.Title
+                                        @if (!can)
+                                        {
+                                            <i class="bi bi-lock text-muted" aria-label="Locked"></i>
+                                        }
+                                    </label>
+                                    @if (p.Description is not null)
+                                    {
+                                        <div class="form-text mt-0">@p.Description</div>
+                                    }
+                                </div>
+                            }
+                        </fieldset>
+                    }
+                </div>
+                <partial name="_FieldError" model="@("Input.Privileges")" />
+            </div>
+            @if (!locked)
+            {
+                <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create role" : "Save role")</button></div>
+            }
+        </section>
+    </form>
+
+    @if (!Model.IsNew)
+    {
+        <section class="sb-pane" aria-labelledby="usersTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="usersTitle">Who has this role</h2></div>
+            @if (Model.Users.Count == 0)
+            {
+                <div class="sb-pane-body text-muted">Nobody yet. Give it to an agent on their Access tab.</div>
+            }
+            else
+            {
+                <ul class="sb-actions">
+                    @foreach (var u in Model.Users)
+                    {
+                        <li>
+                            <span class="d-inline-flex gap-2 align-items-center">
+                                <sb-avatar name="@u.Name" size="sm" />
+                                <a href="/admin/people/@u.UserId/access">@u.Name</a>
+                                @if (!u.IsActive)
+                                {
+                                    <span class="sb-status sb-status--closed">Deactivated</span>
+                                }
+                            </span>
+                            <span class="text-muted small">@u.Workspace, @AdminPageModel.ScopeLabel(u.Scope).ToLowerInvariant()</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @if (!system && !locked)
+        {
+            <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">Delete role</h2></div>
+                <div class="sb-pane-body">
+                    @if (Model.Users.Count > 0)
+                    {
+                        <p>@Model.Users.Count @(Model.Users.Count == 1 ? "person has" : "people have") this role. Choose the role they get instead.</p>
+                        <label class="form-label" for="replacement">Replacement role</label>
+                        <select class="form-select" id="replacement" name="ReplacementId" asp-items="Model.Replacements"></select>
+                        <partial name="_FieldError" model="@("ReplacementId")" />
+                    }
+                    else
+                    {
+                        <p class="mb-0">Nobody has this role, so deleting it changes no one's access.</p>
+                    }
+                </div>
+                <div class="sb-pane-footer">
+                    <button class="btn btn-danger" type="submit" data-sb-confirm="Delete the @Model.Role!.Name role?@(Model.Users.Count > 0 ? $" {Model.Users.Count} people move to the replacement role." : "")">Delete role</button>
+                </div>
+            </form>
+        }
+    }
+</div>

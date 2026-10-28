@@ -1,0 +1,227 @@
+@page "/reports/sla"
+@model Switchboard.Modules.ServiceLevels.Areas.ServiceLevels.Pages.Reports.SlaModel
+@using Switchboard.Modules.ServiceLevels.Reports
+@{
+    ViewData["Title"] = "SLA compliance";
+    var r = Model.Report;
+    var t = r.Total;
+    const int MaxExceptions = 100;
+
+    static string Pct(double? rate) => rate is { } x ? $"{Math.Floor(x * 100):0}%" : "–";
+
+    void Meter(double? rate)
+    {
+        if (rate is not { } x)
+        {
+            <span class="text-muted">&ndash;</span>
+            return;
+        }
+        <span class="sla-meter">
+            <span class="tabular">@Pct(x)</span>
+            <span class="sla-meter-track" aria-hidden="true"><span class="sla-meter-fill" style="width: @(Math.Round(x * 100, 1).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span></span>
+        </span>
+    }
+
+    void Outcome(SlaOutcome o)
+    {
+        switch (o)
+        {
+            case SlaOutcome.Met:
+                <span class="sla-outcome is-met"><i class="bi bi-check2" aria-hidden="true"></i>Met</span>
+                break;
+            case SlaOutcome.Missed:
+                <span class="sla-outcome is-missed"><i class="bi bi-x-circle" aria-hidden="true"></i>Missed</span>
+                break;
+            case SlaOutcome.Pending:
+                <span class="sla-outcome is-pending"><i class="bi bi-clock" aria-hidden="true"></i>Not due yet</span>
+                break;
+            default:
+                <span class="text-muted">No target</span>
+                break;
+        }
+    }
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceLevels/css/service-levels.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceLevels/js/service-levels.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="SLA compliance" subtitle="Response and resolution targets met and missed, for tickets created in the period. Only tickets you can see are counted.">
+    <a class="btn btn-outline-secondary" href="/reports/sla?handler=Csv&amp;@Model.Query"><i class="bi bi-download" aria-hidden="true"></i> Download CSV</a>
+    <a class="btn btn-outline-secondary" href="/reports/saved/new?path=%2Freports%2Fsla&amp;query=@Uri.EscapeDataString(Model.Query)"><i class="bi bi-bookmark" aria-hidden="true"></i> Save report</a>
+    <a class="btn btn-ghost" href="/reports">All reports</a>
+</sb-page-header>
+
+<form method="get" class="sla-filters" aria-label="Report filters" data-period-form>
+    <div>
+        <label class="form-label" for="slaPeriod">Created</label>
+        <select class="form-select form-select-sm" id="slaPeriod" name="period">
+            @foreach (var (key, label) in ReportPeriod.Presets)
+            {
+                <option value="@key" selected="@(Model.Range.Key == key)">@label</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="slaFrom">From</label>
+        <input class="form-control form-control-sm" type="date" id="slaFrom" name="from" value="@Model.Range.FirstDay.ToString("yyyy-MM-dd")">
+    </div>
+    <div>
+        <label class="form-label" for="slaTo">To</label>
+        <input class="form-control form-control-sm" type="date" id="slaTo" name="to" value="@Model.Range.LastDay.ToString("yyyy-MM-dd")">
+    </div>
+    <div>
+        <label class="form-label" for="slaBy">Break down by</label>
+        <select class="form-select form-select-sm" id="slaBy" name="by">
+            <option value="priority" selected="@(r.GroupBy == "priority")">Priority</option>
+            <option value="group" selected="@(r.GroupBy == "group")">Group</option>
+            <option value="policy" selected="@(r.GroupBy == "policy")">Policy</option>
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="slaGroup">Group</label>
+        <select class="form-select form-select-sm" id="slaGroup" name="group">
+            <option value="">All groups</option>
+            @foreach (var g in Model.Groups)
+            {
+                <option value="@g.Id" selected="@(Model.Group == g.Id)">@g.Name</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="slaPriority">Priority</label>
+        <select class="form-select form-select-sm" id="slaPriority" name="priority">
+            <option value="">All priorities</option>
+            @foreach (var p in new[] { Priority.Urgent, Priority.High, Priority.Medium, Priority.Low })
+            {
+                <option value="@p" selected="@(Model.Priority == p)">@p</option>
+            }
+        </select>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit">Show report</button>
+</form>
+<p class="sb-meta">Tickets created @Model.Range.FirstDay.ToString("MMM d", System.Globalization.CultureInfo.InvariantCulture) to @Model.Range.LastDay.ToString("MMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture).</p>
+
+<div class="sb-metrics sla-metrics mb-4">
+    <div class="sb-metric"><div class="sb-num">@t.Tickets</div><div class="sb-metric-label">Tickets created</div></div>
+    <div class="sb-metric"><div class="sb-num">@Pct(t.FirstResponseRate)</div><div class="sb-metric-label">First responses on time (@t.FirstResponseMet of @(t.FirstResponseMet + t.FirstResponseMissed))</div></div>
+    <div class="sb-metric"><div class="sb-num">@Pct(t.ResolutionRate)</div><div class="sb-metric-label">Resolved on time (@t.ResolutionMet of @(t.ResolutionMet + t.ResolutionMissed))</div></div>
+    <div class="sb-metric"><div class="sb-num">@t.Overridden</div><div class="sb-metric-label">Due dates set by hand</div></div>
+</div>
+
+@if (t.Tickets == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-stopwatch" title="No tickets in this period">
+            <p class="sb-empty-text">Try a longer period or clear the group and priority filters.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <section class="sb-pane sb-queue-wrap mb-4" aria-labelledby="slaBreakdown">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="slaBreakdown">By @(r.GroupBy == "group" ? "group" : r.GroupBy == "policy" ? "policy" : "priority")</h2></div>
+        <table class="sb-queue sla-report-table">
+                <thead>
+                <tr>
+                    <th>@(r.GroupBy == "group" ? "Group" : r.GroupBy == "policy" ? "Policy" : "Priority")</th>
+                    <th class="text-end sb-hide-sm">Tickets</th>
+                    <th>First response on time</th>
+                    <th class="text-end sb-hide-sm">Missed</th>
+                    <th>Resolved on time</th>
+                    <th class="text-end sb-hide-sm">Missed</th>
+                    <th class="text-end sb-hide-sm">Set by hand</th>
+                    <th class="text-end sb-hide-sm">Breaches</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var line in r.Lines)
+                {
+                    <tr>
+                        <td>
+                            @if (r.GroupBy == "priority" && Enum.TryParse<Priority>(line.Key, out var pr))
+                            {
+                                <sb-priority value="@pr" />
+                            }
+                            else
+                            {
+                                @line.Label
+                            }
+                        </td>
+                        <td class="text-end tabular sb-hide-sm">@line.Tickets</td>
+                        <td>@{ Meter(line.FirstResponseRate); }</td>
+                        <td class="text-end tabular sb-hide-sm">@line.FirstResponseMissed</td>
+                        <td>@{ Meter(line.ResolutionRate); }</td>
+                        <td class="text-end tabular sb-hide-sm">@line.ResolutionMissed</td>
+                        <td class="text-end tabular sb-hide-sm">@line.Overridden</td>
+                        <td class="text-end tabular sb-hide-sm">@line.Breaches</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+    </section>
+
+    <section class="sb-pane sb-queue-wrap" aria-labelledby="slaExceptions">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="slaExceptions">Missed or set by hand</h2>
+            <span class="ms-auto sb-meta">@r.Exceptions.Count @(r.Exceptions.Count == 1 ? "ticket" : "tickets")</span>
+        </div>
+        @if (r.Exceptions.Count == 0)
+        {
+            <sb-empty icon="bi-check2-circle" title="Every target was met">
+                <p class="sb-empty-text">No ticket in this period missed a target or had its due date changed by hand.</p>
+            </sb-empty>
+        }
+        else
+        {
+                <table class="sb-queue sla-report-table">
+                    <thead>
+                    <tr>
+                        <th>Ticket</th>
+                        <th>First response</th>
+                        <th>Resolution</th>
+                        <th class="sb-hide-sm">Resolution due</th>
+                        <th class="sb-hide-sm">SLA target</th>
+                        <th class="sb-hide-sm">Why the date changed</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var j in r.Exceptions.Take(MaxExceptions))
+                    {
+                        <tr data-sb-href="/tickets/@j.Row.Number">
+                            <td class="sla-wrap">
+                                <a class="sb-subject" href="/tickets/@j.Row.Number">@j.Row.Subject</a>
+                                <div class="sb-meta"><span class="sb-stamp">@j.Row.DisplayId</span> @j.Row.Priority, @(j.Row.GroupName ?? "no group"), @(j.Row.PolicyName ?? "no policy")</div>
+                            </td>
+                            <td>@{ Outcome(j.FirstResponse); }</td>
+                            <td>@{ Outcome(j.Resolution); }</td>
+                            <td class="sb-hide-sm"><sb-time value="@j.Row.DueBy" mode="datetime" /></td>
+                            <td class="sb-hide-sm">
+                                @if (j.Row.ResolutionOverridden)
+                                {
+                                    <sb-time value="@j.Row.ResolutionTargetAt" mode="datetime" />
+                                    <div>@{ Outcome(j.ResolutionAgainstOriginal); }</div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Same</span>
+                                }
+                            </td>
+                            <td class="sb-hide-sm sla-wrap">@(j.Row.Overridden ? j.Row.OverrideReason ?? "No reason given" : "")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            @if (r.Exceptions.Count > MaxExceptions)
+            {
+                <div class="sb-pane-footer"><span class="sb-meta">Showing the latest @MaxExceptions. Download the CSV for all @r.Exceptions.Count.</span></div>
+            }
+        }
+    </section>
+    @if (r.Truncated)
+    {
+        <p class="sb-meta mt-2">This period has more than @SlaReportService.MaxRows.ToString("N0") tickets; the report covers the latest @SlaReportService.MaxRows.ToString("N0"). Choose a shorter period for exact figures.</p>
+    }
+}

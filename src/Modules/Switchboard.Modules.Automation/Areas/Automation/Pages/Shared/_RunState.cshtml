@@ -1,0 +1,5 @@
+@model RunStatus?
+@{
+    var (css, icon, text) = AutomationAdminPageModel.RunState(Model);
+}
+<span class="aut-state @css"><i class="bi @icon" aria-hidden="true"></i>@text</span>

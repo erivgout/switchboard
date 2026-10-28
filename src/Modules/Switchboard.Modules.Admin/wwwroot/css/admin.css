@@ -1,0 +1,219 @@
+/* Admin console. Uses the design-system tokens only (docs/DESIGN_SYSTEM.md). */
+
+/* ---------------------------------------------------------------- admin home directory */
+
+.sb-admin-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.sb-admin-directory > .sb-pane + .sb-pane { margin-top: 0; }
+
+.sb-admin-links { list-style: none; margin: 0; padding: 0.25rem 0; }
+.sb-admin-links a {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 0.25rem 0.625rem;
+  padding: 0.625rem 1rem;
+  color: var(--sb-ink);
+  text-decoration: none;
+}
+.sb-admin-links a:hover { background: var(--sb-surface-2); }
+.sb-admin-links a:hover strong { color: var(--sb-cord); text-decoration: underline; }
+.sb-admin-links .bi { color: var(--sb-ink-muted); font-size: 1.0625rem; line-height: 1.4; }
+.sb-admin-links strong { font-weight: 650; }
+.sb-admin-links span span { display: block; color: var(--sb-ink-muted); font-size: 0.875rem; }
+
+/* ---------------------------------------------------------------- page furniture */
+
+/* Panes and forms stacked in a column get the same gap as panes do. */
+.sb-admin form + .sb-pane,
+.sb-admin form + form,
+.sb-admin .sb-pane + form,
+.sb-admin section + form,
+.sb-admin form + section { margin-top: 1rem; }
+
+.sb-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+  color: var(--sb-ink-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.sb-back:hover { color: var(--sb-cord); text-decoration: underline; }
+
+.sb-person-badges { display: flex; flex-wrap: wrap; gap: 0.375rem; margin: -0.5rem 0 1rem; }
+
+.sb-admin-tabs { margin-bottom: 1rem; }
+
+.sb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+.sb-toolbar .form-label { margin-bottom: 0.25rem; font-size: 0.8125rem; }
+.sb-toolbar .sb-toolbar-grow { flex: 1 1 14rem; }
+
+.sb-ws-picker { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.sb-ws-picker .form-select { width: auto; }
+
+.sb-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.sb-fieldset { border: 0; margin: 0 0 1.25rem; padding: 0; min-width: 0; }
+.sb-fieldset:last-child { margin-bottom: 0; }
+.sb-fieldset > legend { float: none; width: auto; margin-bottom: 0.5rem; }
+
+.sb-field-content {
+  padding: 0.625rem 0.75rem;
+  border-left: 3px solid var(--sb-rule-strong);
+  background: var(--sb-surface-2);
+  color: var(--sb-ink-muted);
+  white-space: pre-line;
+}
+
+.sb-picker-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 0.5rem; }
+@media (max-width: 575.98px) { .sb-picker-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* Actions with consequences: one row per action, the consequence in plain words next to the button. */
+.sb-actions { list-style: none; margin: 0; padding: 0; }
+.sb-actions > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.875rem 1rem;
+}
+.sb-actions > li + li { border-top: 1px solid var(--sb-rule); }
+.sb-actions > li > div:first-child { flex: 1 1 18rem; min-width: 0; }
+.sb-actions h3 { margin: 0 0 0.125rem; font-size: 0.9375rem; font-weight: 650; }
+.sb-actions p { margin: 0; color: var(--sb-ink-muted); font-size: 0.875rem; max-width: 60ch; }
+.sb-actions form { margin: 0; }
+
+.sb-pane--caution { border-color: color-mix(in srgb, var(--sb-danger) 35%, var(--sb-rule)); }
+.sb-pane--caution .sb-pane-header { background: var(--sb-danger-tint); }
+
+.sb-consequences { margin: 0 0 1rem; padding-left: 1.25rem; }
+.sb-consequences li + li { margin-top: 0.25rem; }
+
+.sb-choice {
+  display: block;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius);
+  background: var(--sb-surface);
+}
+.sb-choice + .sb-choice { margin-top: 0.5rem; }
+.sb-choice:has(input:checked) { border-color: var(--sb-cord); background: var(--sb-cord-tint); }
+.sb-choice .form-check-label { font-weight: 600; }
+.sb-choice .form-text { margin: 0.125rem 0 0; }
+.sb-choice-extra { margin: 0.625rem 0 0 1.75rem; max-width: 26rem; }
+
+/* ---------------------------------------------------------------- privilege editor */
+
+.sb-privileges { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 1rem 1.5rem; }
+.sb-privileges fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.sb-privileges .form-check { margin-bottom: 0.375rem; }
+.sb-privileges .form-check-label code { font-size: 0.75rem; color: var(--sb-ink-muted); }
+.sb-locked { color: var(--sb-ink-muted); font-size: 0.8125rem; }
+
+/* ---------------------------------------------------------------- category tree */
+
+.sb-tree ul { list-style: none; margin: 0; padding: 0; }
+.sb-tree li > ul { margin-left: 1.75rem; border-left: 1px solid var(--sb-rule); }
+.sb-tree li:last-child > .sb-tree-item:last-child { border-bottom: 0; }
+.sb-tree-name a { color: var(--sb-ink); font-weight: 500; text-decoration: none; }
+.sb-tree-name a:hover { color: var(--sb-cord); text-decoration: underline; }
+.sb-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--sb-rule);
+  background: var(--sb-surface);
+}
+.sb-tree-item .sb-tree-name { flex: 1 1 auto; min-width: 0; }
+.sb-tree-item .sb-meta { white-space: nowrap; }
+.sb-drag {
+  cursor: grab;
+  color: var(--sb-ink-faint);
+  border: 0;
+  background: none;
+  padding: 0.25rem;
+  line-height: 1;
+}
+.sb-drag:hover { color: var(--sb-ink-muted); }
+[draggable="true"].is-dragging > .sb-tree-item { opacity: 0.5; }
+.sb-tree li.is-drop-before > .sb-tree-item { box-shadow: inset 0 2px 0 var(--sb-cord); }
+.sb-tree li.is-drop-after > .sb-tree-item { box-shadow: inset 0 -2px 0 var(--sb-cord); }
+
+.sb-order { display: inline-flex; gap: 0.125rem; }
+.sb-order .btn { padding: 0.125rem 0.375rem; min-width: 1.75rem; min-height: 1.75rem; }
+.sb-order .btn:disabled { visibility: hidden; }
+
+/* ---------------------------------------------------------------- audit */
+
+.sb-integrity { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem 1rem; }
+.sb-integrity > .bi { font-size: 1.375rem; line-height: 1; }
+.sb-integrity.is-intact > .bi { color: var(--sb-success); }
+.sb-integrity.is-broken { background: var(--sb-danger-tint); }
+.sb-integrity.is-broken > .bi { color: var(--sb-danger); }
+.sb-integrity p { margin: 0; }
+
+.sb-json {
+  margin: 0;
+  padding: 0.75rem;
+  max-height: 24rem;
+  overflow: auto;
+  background: var(--sb-surface-2);
+  border: 1px solid var(--sb-rule);
+  border-radius: var(--sb-radius);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sb-hash { font-size: 0.75rem; word-break: break-all; color: var(--sb-ink-muted); }
+
+.sb-audit-drawer { --bs-offcanvas-width: min(36rem, 100vw); }
+
+.sb-queue .sb-cell-action { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sb-queue td.sb-num-cell, .sb-queue th.sb-num-cell { text-align: right; }
+
+/* ---------------------------------------------------------------- import */
+
+.sb-outcome { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
+.sb-outcome--error { color: var(--sb-danger); }
+.sb-outcome--skip { color: var(--sb-ink-muted); }
+.sb-outcome--create, .sb-outcome--update { color: var(--sb-success); }
+
+.sb-logo-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12rem;
+  height: 5rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--sb-rule-strong);
+  border-radius: var(--sb-radius);
+  background: var(--sb-surface-2);
+  color: var(--sb-ink-muted);
+}
+.sb-logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* Name plus tags on one line in lists (.sb-subject is a block). */
+.sb-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
+.sb-name-row .sb-subject { min-width: 0; }

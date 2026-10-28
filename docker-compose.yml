@@ -1,0 +1,41 @@
+# Production-style stack: Switchboard + SQL Server.
+# Usage: cp .env.example .env  (edit secrets)  &&  docker compose up -d --build
+name: switchboard
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: ${SWITCHBOARD_SA_PASSWORD:?set SWITCHBOARD_SA_PASSWORD in .env}
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=db,1433;Database=${SWITCHBOARD_DB_NAME:-Switchboard};User Id=sa;Password=${SWITCHBOARD_SA_PASSWORD};TrustServerCertificate=True;Encrypt=True"
+      Switchboard__BaseUrl: ${SWITCHBOARD_BASE_URL:-http://localhost:8080}
+      Switchboard__Storage__Path: /data/files
+      Switchboard__DataProtection__Path: /data/keys
+    ports:
+      - "${SWITCHBOARD_HTTP_PORT:-8080}:8080"
+    volumes:
+      - appdata:/data
+    restart: unless-stopped
+
+volumes:
+  sqldata:
+  appdata:

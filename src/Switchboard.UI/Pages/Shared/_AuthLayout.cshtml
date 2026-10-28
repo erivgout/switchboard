@@ -1,0 +1,37 @@
+@{
+    var title = ViewData["Title"] as string;
+    // A fixed pattern of lit lamps; the field is decoration and hidden from assistive tech.
+    var lit = new HashSet<int> { 3, 14, 17, 22, 31, 38, 45, 52 };
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <partial name="_ShellHead" />
+    <title>@(string.IsNullOrEmpty(title) ? "Switchboard" : $"{title} | Switchboard")</title>
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+    <div class="sb-auth">
+        <div class="sb-auth-panel" aria-hidden="true">
+            <div class="sb-lampfield">
+                @for (var i = 0; i < 60; i++)
+                {
+                    <span class="sb-lamp @(lit.Contains(i) ? "sb-lamp--lit" : "")"></span>
+                }
+            </div>
+            <div>
+                <span class="sb-wordmark">Switchboard</span>
+                <p>Every request routed to someone who can help.</p>
+            </div>
+        </div>
+        <main id="main" class="sb-auth-form" tabindex="-1">
+            <div style="max-width: 24rem; width: 100%">
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+    <partial name="_Toasts" />
+    <partial name="_ShellScripts" />
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

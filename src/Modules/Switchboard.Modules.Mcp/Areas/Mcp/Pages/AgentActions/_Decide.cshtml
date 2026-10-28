@@ -1,0 +1,25 @@
+@model (Switchboard.Modules.Mcp.Data.McpPendingAction Action, bool RecentlySignedIn)
+@{
+    var a = Model.Action;
+    var needsPassword = a.RequiresReauthentication && !Model.RecentlySignedIn;
+    var passwordId = $"password-{a.Id:N}";
+}
+<form method="post" class="mcp-decide mt-3" asp-page="/AgentActions/Detail" asp-route-id="@a.Id" asp-area="Mcp">
+    @if (needsPassword)
+    {
+        <div class="mcp-password">
+            <label class="form-label" for="@passwordId">Your password</label>
+            <input class="form-control" type="password" id="@passwordId" name="password" autocomplete="current-password" aria-describedby="@(passwordId)-help">
+        </div>
+    }
+    <button class="btn @(a.RequiresReauthentication ? "btn-danger" : "btn-primary")" type="submit" asp-page="/AgentActions/Detail" asp-area="Mcp" asp-route-id="@a.Id" asp-page-handler="Approve">Approve and run</button>
+    <button class="btn btn-outline-secondary" type="submit" asp-page="/AgentActions/Detail" asp-area="Mcp" asp-route-id="@a.Id" asp-page-handler="Decline">Decline</button>
+    @if (a.RequiresReauthentication && !needsPassword)
+    {
+        <p class="form-text w-100 mb-0">You signed in a few minutes ago, so Switchboard doesn't ask for your password again.</p>
+    }
+    @if (needsPassword)
+    {
+        <p class="form-text w-100 mb-0" id="@(passwordId)-help">This is hard to undo, so Switchboard checks it's really you before it runs.</p>
+    }
+</form>

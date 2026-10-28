@@ -1,0 +1,134 @@
+@page "/portal/kb"
+@model PortalIndexModel
+@{
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.Q) ? "Knowledge" : $"Search: {Model.Q}";
+    var signInUrl = $"/account/login?returnUrl={Uri.EscapeDataString(Request.Path + Request.QueryString)}";
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<section class="kb-portal-hero" aria-labelledby="kbPortalTitle">
+    <h1 class="sb-hero-title" id="kbPortalTitle">@(Model.Results is null ? "Find an answer" : "Search results")</h1>
+    @if (Model.Results is null) { <p>Step-by-step fixes and how-tos from the service desk. Most questions are answered here in a couple of minutes.</p> }
+    @if (Model.Viewer.SignedIn || Model.Viewer.PublicKb)
+    {
+        <form class="sb-hero-search" role="search" action="/portal/kb" method="get">
+            <label class="visually-hidden" for="kbPortalQ">Search articles</label>
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="kbPortalQ" class="form-control" type="search" name="q" value="@Model.Q" placeholder="Describe the problem" autocomplete="off">
+        </form>
+    }
+</section>
+
+@if (Model.Results is { } results)
+{
+    <div class="kb-portal-grid">
+        <section aria-labelledby="kbPortalResults">
+            <h2 class="kb-cat-title" id="kbPortalResults">@KbUi.Plural(results.Total, "article matches", "articles match") “@Model.Q”</h2>
+            @if (results.Items.Count == 0)
+            {
+                <div class="sb-pane mt-3">
+                    <sb-empty icon="bi-search" title="Nothing matches that yet">
+                        <p class="sb-empty-text">Try different words, or tell the service desk what's wrong and someone will help.</p>
+                        <div class="sb-empty-actions">
+                            <a class="btn btn-outline-secondary" href="/portal/kb">Browse all articles</a>
+                            @if (Model.Viewer.SignedIn) { <a class="btn btn-primary" href="/portal/new">Report a problem</a> }
+                        </div>
+                    </sb-empty>
+                </div>
+            }
+            else
+            {
+                <div class="sb-pane mt-3">
+                    <ul class="kb-slot-list">
+                        @foreach (var item in results.Items)
+                        {
+                            <li>
+                                <a class="kb-slot-title" href="/portal/kb/@item.Id">@item.Title</a>
+                                <p class="kb-snippet">@item.Snippet</p>
+                                <div class="kb-slot-meta"><span>@item.CategoryName, @item.FolderPath</span></div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+                @if (results.Pages > 1)
+                {
+                    <nav class="kb-pager" aria-label="Pages">
+                        <span>Page @results.Page of @results.Pages</span>
+                        <span class="d-flex gap-2">
+                            @if (results.Page > 1) { <a class="btn btn-sm btn-outline-secondary" href="@Model.PageUrl(results.Page - 1)">Previous</a> }
+                            @if (results.Page < results.Pages) { <a class="btn btn-sm btn-outline-secondary" href="@Model.PageUrl(results.Page + 1)">Next</a> }
+                        </span>
+                    </nav>
+                }
+            }
+        </section>
+        <aside class="kb-portal-aside" aria-label="More help">
+            <partial name="_StillNeedHelp" model="Model.Viewer.SignedIn" />
+        </aside>
+    </div>
+}
+else if (Model.Categories.Count == 0)
+{
+    <div class="sb-pane">
+        @if (!Model.Viewer.SignedIn)
+        {
+            <sb-empty icon="bi-box-arrow-in-right" title="Sign in to read the knowledge base">
+                <p class="sb-empty-text">Articles are available to people in the organization.</p>
+                <div class="sb-empty-actions"><a class="btn btn-primary" href="@signInUrl">Sign in</a></div>
+            </sb-empty>
+        }
+        else
+        {
+            <sb-empty icon="bi-journal-text" title="No articles yet">
+                <p class="sb-empty-text">The service desk hasn't published any articles you can read. Tell them what you need help with.</p>
+                <div class="sb-empty-actions"><a class="btn btn-primary" href="/portal/new">Report a problem</a></div>
+            </sb-empty>
+        }
+    </div>
+}
+else
+{
+    <div class="kb-portal-grid">
+        <div>
+            @foreach (var c in Model.Categories)
+            {
+                <section class="kb-cat" aria-labelledby="kbc-@c.Category.Id">
+                    <h2 class="kb-cat-title" id="kbc-@c.Category.Id">@c.Category.Name</h2>
+                    @if (!string.IsNullOrWhiteSpace(c.Category.Description)) { <p class="kb-cat-desc">@c.Category.Description</p> }
+                    <div class="kb-folders">
+                        @foreach (var f in c.Folders)
+                        {
+                            <section class="sb-pane" aria-labelledby="kbf-@f.Folder.Id">
+                                <div class="sb-pane-header">
+                                    <h3 class="sb-pane-title" id="kbf-@f.Folder.Id"><a href="/portal/kb/folders/@f.Folder.Id">@f.Folder.Name</a></h3>
+                                    @if (!string.IsNullOrWhiteSpace(f.Folder.Description)) { <p class="kb-folder-desc">@f.Folder.Description</p> }
+                                </div>
+                                <ul class="kb-linklist">
+                                    @foreach (var a in f.Top) { <li><a href="/portal/kb/@a.Id">@a.Title</a></li> }
+                                </ul>
+                                @if (f.Total > f.Top.Count)
+                                {
+                                    <div class="sb-pane-footer"><a href="/portal/kb/folders/@f.Folder.Id">All @f.Total articles</a></div>
+                                }
+                            </section>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+        <aside class="kb-portal-aside" aria-label="Popular and more help">
+            @if (Model.Popular.Count > 0)
+            {
+                <section class="sb-pane" aria-labelledby="kbPopularTitle">
+                    <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbPopularTitle">Most read</h2></div>
+                    <ul class="kb-linklist sb-pane-body py-2">
+                        @foreach (var p in Model.Popular) { <li><a href="/portal/kb/@p.Id">@p.Title</a></li> }
+                    </ul>
+                </section>
+            }
+            <partial name="_StillNeedHelp" model="Model.Viewer.SignedIn" />
+        </aside>
+    </div>
+}

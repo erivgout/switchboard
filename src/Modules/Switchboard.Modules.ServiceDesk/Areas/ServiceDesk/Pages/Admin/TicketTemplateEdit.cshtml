@@ -1,0 +1,151 @@
+@page "/admin/ticket-templates/{key}"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Admin.TicketTemplateEditModel
+@using System.Text.Json
+@{
+    Layout = "_AdminLayout";
+    var o = Model.Options;
+    var categories = JsonSerializer.Serialize(o.Categories.Select(c => new { id = c.Id, parent = c.ParentId, name = c.Name, level = c.Level }));
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+<sb-page-header title="@(Model.Id is null ? "New ticket template" : "Edit ticket template")" subtitle="Everything you fill in here is pre-filled for the agent, who can still change it." />
+
+<form method="post" class="sb-form-narrow" data-sd-sync-editors data-sd-new-ticket>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>The template wasn't saved.</strong>
+            <ul class="mb-0 mt-1">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
+    <section class="sb-pane sb-pane-body">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label" for="tplName">Template name</label>
+                <input class="form-control" id="tplName" asp-for="Form.Name" maxlength="100" required placeholder="Password reset">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="tplType">Type</label>
+                <select class="form-select" id="tplType" asp-for="Form.Type">
+                    <option value="Incident">Incident</option>
+                    <option value="ServiceRequest">Service request</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="tplDescription">When to use it</label>
+                <input class="form-control" id="tplDescription" asp-for="Form.Description" maxlength="500" placeholder="Caller can't sign in and needs a new password.">
+                <div class="form-text">Shown to agents next to the template picker.</div>
+            </div>
+            @if (Model.Workspaces.Count > 1)
+            {
+                <div class="col-12">
+                    <label class="form-label" for="tplWorkspace">Workspace</label>
+                    <select class="form-select" id="tplWorkspace" asp-for="Form.WorkspaceId">
+                        @foreach (var w in Model.Workspaces)
+                        {
+                            <option value="@w.Id">@w.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" asp-for="Form.WorkspaceId">
+            }
+        </div>
+    </section>
+
+    <section class="sb-pane sb-pane-body">
+        <p class="sb-section-label">Pre-filled ticket</p>
+        <div class="mb-3">
+            <label class="form-label" for="tplSubject">Subject</label>
+            <input class="form-control" id="tplSubject" asp-for="Form.Subject" maxlength="500" placeholder="Password reset for ">
+        </div>
+        <div class="mb-3">
+            <span class="form-label d-block" id="tplBodyLabel">Description</span>
+            <div class="sb-composer sd-editor-wrap" data-sd-editor>
+                <div class="sd-editor-toolbar" role="toolbar" aria-label="Formatting">
+                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="bold" aria-label="Bold"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="italic" aria-label="Italic"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertUnorderedList" aria-label="Bulleted list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
+                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertOrderedList" aria-label="Numbered list"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
+                </div>
+                <div class="sd-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="tplBodyLabel" data-sd-editor-area
+                     data-placeholder="Questions the agent should answer">@Html.Raw(Model.Form.DescriptionHtml)</div>
+                <input type="hidden" name="Form.DescriptionHtml" data-sd-editor-value>
+            </div>
+        </div>
+        <div class="row g-3" data-sd-categories="@categories">
+            <div class="col-md-4">
+                <label class="form-label" for="tplCategory">Category</label>
+                <select class="form-select" id="tplCategory" asp-for="Form.CategoryId" data-sd-cat-level="1">
+                    <option value="">None</option>
+                    @foreach (var c in o.ChildrenOf(null, 1))
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4" data-sd-cat-wrap="2">
+                <label class="form-label" for="tplSub">Sub-category</label>
+                <select class="form-select" id="tplSub" asp-for="Form.SubCategoryId" data-sd-cat-level="2" data-sd-selected="@Model.Form.SubCategoryId"><option value="">None</option></select>
+            </div>
+            <div class="col-md-4" data-sd-cat-wrap="3">
+                <label class="form-label" for="tplItem">Item</label>
+                <select class="form-select" id="tplItem" asp-for="Form.ItemCategoryId" data-sd-cat-level="3" data-sd-selected="@Model.Form.ItemCategoryId"><option value="">None</option></select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="tplImpact">Impact</label>
+                <select class="form-select" id="tplImpact" asp-for="Form.Impact">
+                    <option value="">Agent decides</option>
+                    @foreach (var l in Enum.GetValues<Level>()) { <option value="@l">@l</option> }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="tplUrgency">Urgency</label>
+                <select class="form-select" id="tplUrgency" asp-for="Form.Urgency">
+                    <option value="">Agent decides</option>
+                    @foreach (var l in Enum.GetValues<Level>()) { <option value="@l">@l</option> }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="tplPriority">Priority</label>
+                <select class="form-select" id="tplPriority" asp-for="Form.Priority">
+                    <option value="">From impact and urgency</option>
+                    @foreach (var p in Enum.GetValues<Priority>().Reverse()) { <option value="@p">@p</option> }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="tplGroup">Group</label>
+                <select class="form-select" id="tplGroup" asp-for="Form.GroupId">
+                    <option value="">No group</option>
+                    @foreach (var g in o.Groups) { <option value="@g.Id">@g.Name</option> }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="tplTags">Tags</label>
+                <input class="form-control" id="tplTags" asp-for="Form.Tags" placeholder="password, access">
+            </div>
+        </div>
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="tplActive" asp-for="Form.IsActive">
+            <label class="form-check-label" for="tplActive">Agents can use this template</label>
+        </div>
+    </section>
+
+    <div class="sd-new-actions">
+        <a class="btn btn-ghost" href="/admin/ticket-templates">Cancel</a>
+        <button class="btn btn-primary" type="submit">Save template</button>
+    </div>
+</form>
+
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/editor.js" asp-append-version="true"></script>
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/newticket.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,41 @@
+@page "/admin/requester-groups"
+@model Switchboard.Modules.Admin.Pages.RequesterGroups.IndexModel
+@{
+    ViewData["Title"] = "Requester groups";
+}
+<sb-page-header title="Requester groups" subtitle="Sets of requesters, used to decide who sees catalog items and articles, who approves, and who is notified.">
+    <a class="btn btn-primary" href="/admin/requester-groups/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> New group</a>
+</sb-page-header>
+
+@if (Model.Groups.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-person-lines-fill" title="No requester groups yet">
+            <p class="sb-empty-text">Make a group such as "Managers" or "London office", then add people to it.</p>
+            <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/requester-groups/new">New group</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead><tr><th scope="col">Group</th><th scope="col" class="sb-num-cell">Members</th></tr></thead>
+            <tbody>
+                @foreach (var g in Model.Groups)
+                {
+                    <tr data-sb-href="/admin/requester-groups/@g.Id">
+                        <td>
+                            <a class="sb-subject" href="/admin/requester-groups/@g.Id">@g.Name</a>
+                            @if (g.Description is not null)
+                            {
+                                <div class="sb-meta">@g.Description</div>
+                            }
+                        </td>
+                        <td class="sb-num-cell tabular">@g.Members</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

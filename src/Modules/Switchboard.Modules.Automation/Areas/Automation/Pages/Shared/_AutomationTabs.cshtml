@@ -1,0 +1,20 @@
+@model (string Active, string WsQuery)
+@{
+    var tabs = new (string Key, string Title, string Href)[]
+    {
+        ("workflows", "Workflows", "/admin/automations"),
+        ("closure", "Closure rules", "/admin/automations/closure-rules"),
+        ("schedules", "Scheduled tickets", "/admin/automations/schedules"),
+        ("settings", "Settings", "/admin/automations/settings"),
+    };
+}
+<nav class="aut-sections" aria-label="Automation sections">
+    <ul class="nav nav-tabs">
+        @foreach (var tab in tabs)
+        {
+            <li class="nav-item">
+                <a class="nav-link @(tab.Key == Model.Active ? "active" : null)" aria-current="@(tab.Key == Model.Active ? "page" : null)" href="@(tab.Href + Model.WsQuery)">@tab.Title</a>
+            </li>
+        }
+    </ul>
+</nav>

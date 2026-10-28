@@ -1,0 +1,14 @@
+@model Switchboard.Modules.ServiceLevels.Areas.ServiceLevels.Pages.Admin.SlaAdminPage
+@if (Model.Workspaces.Count > 1)
+{
+    <form method="get" class="d-flex align-items-center gap-2 mb-3">
+        <label class="form-label mb-0" for="slaWorkspace">Workspace</label>
+        <select id="slaWorkspace" name="ws" class="form-select form-select-sm w-auto" data-sla-autosubmit>
+            @foreach (var w in Model.Workspaces)
+            {
+                <option value="@w.Key" selected="@(w.Id == Model.Workspace.Id)">@w.Name</option>
+            }
+        </select>
+        <noscript><button class="btn btn-outline-secondary btn-sm" type="submit">Show</button></noscript>
+    </form>
+}

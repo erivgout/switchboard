@@ -1,0 +1,44 @@
+@model PeoplePickerModel
+@{
+    var listId = Model.Id + "List";
+    var helpId = Model.Id + "Help";
+    var errorId = Model.Id + "Error";
+    var hasHelp = !string.IsNullOrWhiteSpace(Model.Help);
+    var describedBy = string.Join(' ', new[] { hasHelp ? helpId : null, Model.Error is null ? null : errorId }.Where(x => x is not null));
+}
+<div class="prt-people" data-prt-people data-prt-people-name="@(Model.Multiple ? Model.ChipName : null)">
+    <label class="form-label" for="@Model.Id">
+        @Model.Label
+        @if (Model.Optional)
+        {
+            <span class="prt-optional">Optional</span>
+        }
+    </label>
+    <div class="prt-people-box form-control @(Model.Error is null ? null : "is-invalid")">
+        @if (Model.Multiple)
+        {
+            <ul class="prt-chips" data-prt-people-chips aria-label="People added">
+                @foreach (var email in Model.Values)
+                {
+                    <li class="prt-chip">
+                        <span>@email</span>
+                        <input type="hidden" name="@Model.ChipName" value="@email">
+                        <button type="button" class="prt-chip-remove" data-prt-chip-remove aria-label="Remove @email"><i class="bi bi-x" aria-hidden="true"></i></button>
+                    </li>
+                }
+            </ul>
+        }
+        <input id="@Model.Id" name="@Model.TextName" class="prt-people-input" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Name or email" role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="@listId" aria-describedby="@(describedBy.Length == 0 ? null : describedBy)" value="@(Model.Multiple ? null : Model.Values.FirstOrDefault())">
+    </div>
+    <ul class="prt-people-menu" id="@listId" role="listbox" aria-label="Matching people" hidden></ul>
+    @if (hasHelp)
+    {
+        <div class="form-text" id="@helpId">@Model.Help</div>
+    }
+    @if (Model.Error is not null)
+    {
+        <div class="invalid-feedback d-block" id="@errorId">@Model.Error</div>
+    }
+</div>

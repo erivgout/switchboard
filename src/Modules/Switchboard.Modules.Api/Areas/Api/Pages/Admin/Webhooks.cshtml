@@ -1,0 +1,114 @@
+@page "/admin/webhooks"
+@model Switchboard.Modules.Api.Areas.Api.Pages.Admin.WebhooksModel
+@{
+    ViewData["Title"] = "Webhooks";
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Api/css/api.css" asp-append-version="true">
+}
+<sb-page-header title="Webhooks" subtitle="Send ticket events to other systems as they happen. Each call is signed so the receiver can check it came from here.">
+    <a class="btn btn-primary" href="/admin/webhooks/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> New webhook</a>
+</sb-page-header>
+
+@if (Model.Hooks.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-broadcast" title="No webhooks yet">
+            <p class="sb-empty-text">Add one to tell a chat channel, a monitoring tool or your own service when tickets change.</p>
+            <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/webhooks/new">New webhook</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th>Webhook</th>
+                <th class="sb-hide-sm">Events</th>
+                <th class="sb-hide-sm">From</th>
+                <th>Last delivery</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var hook in Model.Hooks)
+            {
+                <tr data-sb-href="/admin/webhooks/@hook.Id">
+                    <td>
+                        <a class="sb-subject" href="/admin/webhooks/@hook.Id">@hook.Name</a>
+                        <div class="sb-meta sb-hook-url">@WebhookUi.Host(hook.Url)</div>
+                    </td>
+                    <td class="sb-hide-sm">@WebhookUi.EventsSummary(hook.Events)</td>
+                    <td class="sb-hide-sm">@(hook.WorkspaceName ?? "Every workspace")</td>
+                    <td>
+                        @if (!hook.IsActive)
+                        {
+                            <span class="sb-status sb-status--closed">Paused</span>
+                        }
+                        else if (hook.LastDeliveryAt is not { } last)
+                        {
+                            <span class="text-muted">Nothing sent yet</span>
+                        }
+                        else if (hook.LastDeliverySucceeded == true)
+                        {
+                            <span class="sb-hook-state sb-hook-state--ok"><i class="bi bi-check-circle" aria-hidden="true"></i> Delivered <sb-time value="@last" /></span>
+                        }
+                        else
+                        {
+                            <span class="sb-hook-state sb-hook-state--bad"><i class="bi bi-x-octagon" aria-hidden="true"></i> Failed <sb-time value="@last" /></span>
+                        }
+                        @if (hook.FailingCount > 0)
+                        {
+                            <div class="sb-meta">@hook.FailingCount @(hook.FailingCount == 1 ? "delivery" : "deliveries") not delivered</div>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<section class="mt-4" aria-labelledby="failedTitle">
+    <h2 class="h6 mb-2" id="failedTitle">Failed deliveries</h2>
+    @if (Model.Failed.Count == 0)
+    {
+        <p class="text-muted">None. When a receiver stops answering, Switchboard retries for about a day, then lists the delivery here so you can send it again.</p>
+    }
+    else
+    {
+        <p class="text-muted">These gave up after every retry. Fix the receiver, then send them again.</p>
+        <div class="sb-pane sb-queue-wrap">
+            <table class="sb-queue">
+                <thead>
+                <tr>
+                    <th>Event</th>
+                    <th class="sb-hide-sm">Webhook</th>
+                    <th>Last error</th>
+                    <th class="sb-hide-sm">Failed</th>
+                    <th><span class="visually-hidden">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var d in Model.Failed)
+                {
+                    <tr>
+                        <td>@WebhookEvents.Title(d.EventType)<div class="sb-meta">@d.Attempts @(d.Attempts == 1 ? "try" : "tries")</div></td>
+                        <td class="sb-hide-sm"><a href="/admin/webhooks/@d.WebhookId">@d.WebhookName</a></td>
+                        <td>@(d.LastError ?? (d.LastStatusCode is { } code ? $"The receiver answered {code}." : "No answer."))</td>
+                        <td class="sb-hide-sm"><sb-time value="@(d.LastAttemptAt ?? d.CreatedAt)" /></td>
+                        <td class="text-end">
+                            <form method="post" asp-page-handler="Replay">
+                                <input type="hidden" name="id" value="@d.Id">
+                                <button class="btn btn-outline-secondary btn-sm" type="submit">Send again</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

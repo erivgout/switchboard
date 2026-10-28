@@ -1,0 +1,16 @@
+@page "/catalog/dev/ticket/{number:int}"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Agent.DevTicketModel
+@{
+    ViewData["Title"] = Model.Ticket.DisplayId;
+}
+<sb-page-header title="@Model.Ticket.Subject" subtitle="Development preview of this ticket's sidebar and requester slots." />
+<div class="row g-4">
+    <div class="col-lg-6">
+        <p class="sb-section-label">ticket.sidebar (agent)</p>
+        <div style="max-width: 21.25rem"><sb-slot name="ticket.sidebar" model="Model.Ticket" /></div>
+    </div>
+    <div class="col-lg-6">
+        <p class="sb-section-label">portal.ticket (requester)</p>
+        <div style="max-width: 21.25rem"><sb-slot name="portal.ticket" model="Model.Ticket" /></div>
+    </div>
+</div>

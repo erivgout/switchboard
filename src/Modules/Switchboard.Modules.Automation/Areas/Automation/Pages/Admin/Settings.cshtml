@@ -1,0 +1,75 @@
+@page "/admin/automations/settings"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.SettingsModel
+@{
+    ViewData["Title"] = "Automation settings";
+    Layout = "_AdminLayout";
+    string? Invalid(string key) => Model.Errors.ContainsKey(key) ? "is-invalid" : null;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+
+<sb-page-header title="Automations" subtitle="Workflows act on tickets for you: routing, reminders, notifications and follow-ups." />
+<partial name="_AutomationTabs" model="@(("settings", Model.WsQuery))" />
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger sb-form-narrow" role="alert">
+        <p class="fw-semibold mb-1">The settings weren't saved:</p>
+        <ul class="mb-0">@foreach (var e in Model.Errors.Values) { <li>@e</li> }</ul>
+    </div>
+}
+
+<form method="post" class="sb-form-narrow">
+    <input type="hidden" name="ws" value="@Model.Workspace.Id">
+    <div class="sb-pane mb-3">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">While automations are paused</h2></div>
+        <fieldset class="sb-pane-body">
+            <legend class="visually-hidden">What happens to events while paused</legend>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="PauseMode" id="pmQueue" value="queue" checked="@(Model.PauseMode == "queue")" aria-describedby="pmQueueHelp">
+                <label class="form-check-label" for="pmQueue">Keep events and run them when automations resume</label>
+                <div class="form-text" id="pmQueueHelp">Nothing is missed. Expect a burst of activity right after you resume.</div>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="PauseMode" id="pmDrop" value="drop" checked="@(Model.PauseMode == "drop")" aria-describedby="pmDropHelp">
+                <label class="form-check-label" for="pmDrop">Ignore events that arrive while paused</label>
+                <div class="form-text" id="pmDropHelp">Use this when a runaway workflow is the reason you paused.</div>
+            </div>
+        </fieldset>
+    </div>
+
+    <div class="sb-pane mb-3">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Safety limits</h2></div>
+        <div class="sb-pane-body row g-3">
+            <div class="col-md-6">
+                <label class="form-label" for="sDepth">Longest chain of automations</label>
+                <input class="form-control @Invalid("MaxCascadeDepth")" id="sDepth" name="MaxCascadeDepth" type="number" min="1" max="10" value="@Model.MaxCascadeDepth" aria-describedby="sDepthHelp">
+                <div class="form-text" id="sDepthHelp">When one workflow's change starts another, that's a chain. Longer chains stop and admins get an email.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="sFailures">Turn a workflow off after</label>
+                <div class="input-group">
+                    <input class="form-control @Invalid("FailureThreshold")" id="sFailures" name="FailureThreshold" type="number" min="1" max="100" value="@Model.FailureThreshold" aria-describedby="sFailuresHelp">
+                    <span class="input-group-text">failures in a row</span>
+                </div>
+                <div class="form-text" id="sFailuresHelp">Admins get an email when it happens.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="sWfRate">Most runs of one workflow</label>
+                <div class="input-group">
+                    <input class="form-control @Invalid("WorkflowRateLimit")" id="sWfRate" name="WorkflowRateLimit" type="number" min="1" value="@Model.WorkflowRateLimit">
+                    <span class="input-group-text">per 10 minutes</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="sTicketRate">Most automation runs on one ticket</label>
+                <div class="input-group">
+                    <input class="form-control @Invalid("TicketRateLimit")" id="sTicketRate" name="TicketRateLimit" type="number" min="1" value="@Model.TicketRateLimit">
+                    <span class="input-group-text">per 10 minutes</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="btn btn-primary" type="submit">Save settings</button>
+</form>

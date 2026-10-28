@@ -1,0 +1,131 @@
+@page "/admin/mcp/clients"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.Admin.ClientsModel
+@using Switchboard.Modules.Mcp.Components
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Agent apps";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+
+<sb-page-header title="AI agents" subtitle="The agent apps people have connected or you've registered." />
+<partial name="_Tabs" model="@("clients")" />
+
+@if (Model.Registered is { } r)
+{
+    <div class="alert alert-success sb-form-narrow" role="status">
+        <p class="fw-semibold mb-2">@r.Client.Name is registered. Give these details to whoever sets up the app.</p>
+        <dl class="mcp-facts mb-0">
+            <div><dt>Client ID</dt><dd><code>@r.Client.ClientId</code></dd></div>
+            @if (r.ClientSecret is not null)
+            {
+                <div><dt>Client secret</dt><dd><code>@r.ClientSecret</code><span class="mcp-facts-note">Copy it now. It won't be shown again.</span></dd></div>
+            }
+        </dl>
+    </div>
+}
+
+<section class="sb-pane" aria-labelledby="appsTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="appsTitle">Agent apps</h2><span class="ms-auto small text-muted">@Model.Clients.Count</span></div>
+    @if (Model.Clients.Count == 0)
+    {
+        <sb-empty icon="bi-robot" title="No agent apps yet">
+            <p class="sb-empty-text">Apps appear here when someone connects one, or when you register one below.</p>
+        </sb-empty>
+    }
+    else
+    {
+        <div class="table-responsive position-relative">
+            <table class="table mcp-table mb-0">
+                <thead>
+                    <tr><th scope="col">App</th><th scope="col" class="sb-hide-sm">Returns to</th><th scope="col">Connections</th><th scope="col" class="sb-hide-sm">Calls, 7 days</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Clients)
+                    {
+                        var c = row.Client;
+                        <tr class="@(c.BlockedAt is null ? "" : "mcp-muted-row")">
+                            <td>
+                                <div class="fw-semibold">@c.Name@(c.BlockedAt is null ? "" : " (blocked)")</div>
+                                <div class="small text-muted">@ClientDisplay.Describe(c)</div>
+                                <div class="small text-muted">Since <sb-time value="@c.CreatedAt" mode="datetime" /></div>
+                            </td>
+                            <td class="sb-hide-sm small">@string.Join(", ", c.RedirectUris.Select(ClientDisplay.RedirectHost).Distinct())</td>
+                            <td class="tabular">
+                                @if (row.ActiveGrants > 0)
+                                {
+                                    <a href="/admin/mcp/connections?client=@Uri.EscapeDataString(c.ClientId)">@row.ActiveGrants</a>
+                                }
+                                else
+                                {
+                                    <span>0</span>
+                                }
+                            </td>
+                            <td class="sb-hide-sm tabular">@row.CallsLast7Days</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                                    <form method="post" asp-page-handler="Block" asp-route-clientId="@c.ClientId" asp-route-blocked="@(c.BlockedAt is null)"
+                                          data-sb-confirm="@(c.BlockedAt is null ? $"Block {c.Name}? Every call it makes is refused, for everyone, until you unblock it." : "")">
+                                        <button class="btn btn-sm btn-outline-secondary" type="submit">@(c.BlockedAt is null ? "Block" : "Unblock")</button>
+                                    </form>
+                                    @if (row.ActiveGrants > 0)
+                                    {
+                                        <form method="post" asp-page-handler="DisconnectAll" asp-route-clientId="@c.ClientId"
+                                              data-sb-confirm="End all @row.ActiveGrants connections of @c.Name? People have to approve it again to reconnect.">
+                                            <button class="btn btn-sm btn-ghost" type="submit">End all connections</button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<div class="row g-3 mt-0">
+    <div class="col-lg-6">
+        <form method="post" asp-page-handler="Register" class="sb-pane h-100">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Register an app</h2></div>
+            <div class="sb-pane-body">
+                <p class="small text-muted">For apps that can't register themselves, or when anyone-can-connect is off.</p>
+                <div class="mb-3">
+                    <label class="form-label" for="Name">Name people will see</label>
+                    <input class="form-control" id="Name" name="Name" value="@Model.Name" maxlength="200" required>
+                    <span class="text-danger small" asp-validation-for="Name"></span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="RedirectUris">Redirect URIs</label>
+                    <textarea class="form-control" id="RedirectUris" name="RedirectUris" rows="2" required aria-describedby="redirectHelp" placeholder="http://127.0.0.1:33418/callback">@Model.RedirectUris</textarea>
+                    <div class="form-text" id="redirectHelp">One per line. They must match exactly what the app sends.</div>
+                    @if (ViewData.ModelState["redirect_uris"]?.Errors.Count > 0)
+                    {
+                        <div class="text-danger small">@ViewData.ModelState["redirect_uris"]!.Errors[0].ErrorMessage</div>
+                    }
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="Confidential" name="Confidential" value="true" checked="@Model.Confidential">
+                    <label class="form-check-label" for="Confidential">It runs on a server and can keep a secret</label>
+                </div>
+                <button class="btn btn-outline-secondary" type="submit">Register app</button>
+            </div>
+        </form>
+    </div>
+    <div class="col-lg-6">
+        <form method="post" asp-page-handler="AllowUrl" class="sb-pane h-100">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Approve an app by its address</h2></div>
+            <div class="sb-pane-body">
+                <p class="small text-muted">Apps that publish their details at an HTTPS address use it as their ID. Approving one lets it connect even when anyone-can-connect is off.</p>
+                <div class="mb-3">
+                    <label class="form-label" for="MetadataUrl">App details address</label>
+                    <input class="form-control" id="MetadataUrl" name="MetadataUrl" type="url" value="@Model.MetadataUrl" placeholder="https://app.example.com/oauth/client.json">
+                    <span class="text-danger small" asp-validation-for="MetadataUrl"></span>
+                </div>
+                <button class="btn btn-outline-secondary" type="submit">Approve app</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,19 @@
+@model MsgDelivery
+@{
+    var (icon, label, tone) = Model.Status switch
+    {
+        DeliveryStatus.Sent => ("bi-check2", Model.Channel == DeliveryChannel.InApp ? "Shown" : "Sent", "ok"),
+        DeliveryStatus.Redirected => ("bi-arrow-return-right", "Redirected", "muted"),
+        DeliveryStatus.Logged => ("bi-journal-text", "Logged only", "muted"),
+        DeliveryStatus.Failed => ("bi-exclamation-octagon", "Failed", "danger"),
+        DeliveryStatus.Suppressed => ("bi-slash-circle", "Not sent", "muted"),
+        DeliveryStatus.Bounced => ("bi-arrow-counterclockwise", "Bounced", "danger"),
+        DeliveryStatus.Unconfirmed => ("bi-question-circle", "Not confirmed", "warn"),
+        _ => ("bi-hourglass-split", "Sending", "muted"),
+    };
+}
+<span class="sb-delivery sb-delivery--@tone"><i class="bi @icon" aria-hidden="true"></i>@label</span>
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <span class="d-block small text-muted sb-delivery-detail">@Model.Error</span>
+}

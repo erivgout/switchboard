@@ -1,0 +1,15 @@
+@{
+    var raw = TempData[Feedback.TempDataKey] as string;
+    var kind = raw?.Split('|', 2)[0];
+    var message = raw?.Split('|', 2).ElementAtOrDefault(1);
+}
+<div class="sb-toasts" aria-live="polite">
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="sb-toast @(kind == "error" ? "sb-toast--error" : "")" role="@(kind == "error" ? "alert" : "status")" data-sb-autohide>
+            <i class="bi @(kind == "error" ? "bi-exclamation-octagon" : "bi-check2-circle")" aria-hidden="true"></i>
+            <div>@message</div>
+            <button type="button" class="btn-close btn-close-sm" aria-label="Dismiss"></button>
+        </div>
+    }
+</div>

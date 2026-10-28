@@ -1,0 +1,80 @@
+@page "/admin/service-levels/calendars"
+@model Switchboard.Modules.ServiceLevels.Areas.ServiceLevels.Pages.Admin.CalendarsModel
+@{
+    ViewData["Title"] = "Business calendars";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceLevels/css/service-levels.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceLevels/js/service-levels.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="Business calendars" subtitle="Working hours and holidays that SLA targets count. Give a group its own calendar, or set one on a policy.">
+    <a class="btn btn-primary" href="@Model.WithWorkspace("/admin/service-levels/calendars/new")"><i class="bi bi-plus-lg" aria-hidden="true"></i> New calendar</a>
+</sb-page-header>
+
+<partial name="_WorkspacePicker" model="Model" />
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-calendar-week" title="No business calendars yet">
+            <p class="sb-empty-text">Without a calendar, business-hour targets count every hour of every day. Add your working hours so the clock stops overnight and at weekends.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="@Model.WithWorkspace("/admin/service-levels/calendars/new")">New calendar</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th>Calendar</th>
+                <th>Working hours</th>
+                <th class="sb-hide-sm">Next holiday</th>
+                <th class="sb-hide-sm">Used by</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                var c = row.Calendar;
+                <tr data-sb-href="@Model.WithWorkspace($"/admin/service-levels/calendars/{c.Id}")">
+                    <td>
+                        <a class="sb-subject" href="@Model.WithWorkspace($"/admin/service-levels/calendars/{c.Id}")">@c.Name</a>
+                        <div class="sb-meta">@(c.IsDefault ? "Default, " : "")@row.ZoneName</div>
+                    </td>
+                    <td class="tabular">@row.Hours</td>
+                    <td class="sb-hide-sm">
+                        @if (row.NextHoliday is { } h)
+                        {
+                            <span>@h.Name</span>
+                            <div class="sb-meta tabular">@h.Date.ToString("ddd, MMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture)</div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">None coming up</span>
+                        }
+                    </td>
+                    <td class="sb-hide-sm">
+                        @{
+                            var uses = new List<string>();
+                            if (row.Groups.Count > 0)
+                            {
+                                uses.Add(string.Join(", ", row.Groups));
+                            }
+                            if (row.Policies > 0)
+                            {
+                                uses.Add(row.Policies == 1 ? "1 policy" : $"{row.Policies} policies");
+                            }
+                        }
+                        @(uses.Count > 0 ? string.Join("; ", uses) + (c.IsDefault ? "; any other ticket" : "") : c.IsDefault ? "Any ticket without another calendar" : "Nothing yet")
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

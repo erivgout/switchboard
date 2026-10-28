@@ -1,0 +1,97 @@
+@model Switchboard.Modules.ServiceDesk.Services.TicketPageData
+@{
+    var t = Model.Ticket;
+    var url = $"/tickets/{t.Number}";
+}
+@if (Model.Can.Merge && !Model.IsReadOnly)
+{
+    <div class="modal fade" id="sdMergeDialog" tabindex="-1" aria-labelledby="sdMergeTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <form class="modal-content" method="post" action="@url?handler=Merge" asp-antiforgery="true" data-sd-merge-form>
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="sdMergeTitle">Merge tickets</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="mergeSearch">Find the duplicates by number or subject</label>
+                    <input class="form-control" id="mergeSearch" type="search" name="q" autocomplete="off" placeholder="INC-1042 or VPN"
+                           hx-get="@url?handler=Candidates&amp;mode=merge" hx-trigger="input changed delay:250ms, search" hx-target="#mergeResults" hx-sync="this:replace">
+                    <div id="mergeResults" class="sd-candidates" aria-live="polite"></div>
+
+                    <fieldset class="mt-3">
+                        <legend class="form-label">Keep this ticket open</legend>
+                        <div class="sd-candidates" data-sd-chosen>
+                            <div class="sd-candidate">
+                                <input class="form-check-input" type="radio" name="primaryId" id="primary-self" value="@t.Id" checked>
+                                <label class="form-check-label" for="primary-self"><span class="sb-stamp">@t.DisplayId</span> @t.Subject <span class="sb-meta">(this ticket)</span></label>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <p class="form-text mt-3 mb-0">
+                        The other tickets close and become read-only, with a link to the one you keep. Their requesters and CCs are added to its CC list, so they get its replies. Their conversations stay on each ticket.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-sd-merge-submit disabled>Merge tickets</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@if (Model.Can.Edit && !Model.IsReadOnly)
+{
+    <div class="modal fade" id="sdLinkDialog" tabindex="-1" aria-labelledby="sdLinkTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" method="post" action="@url?handler=Link" asp-antiforgery="true">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="sdLinkTitle">Link a related ticket</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="linkSearch">Find a ticket by number or subject</label>
+                    <input class="form-control" id="linkSearch" type="search" name="q" autocomplete="off" placeholder="INC-1042 or printer"
+                           hx-get="@url?handler=Candidates&amp;mode=link" hx-trigger="input changed delay:250ms, search" hx-target="#linkResults" hx-sync="this:replace">
+                    <div id="linkResults" class="sd-candidates" aria-live="polite"></div>
+                    <p class="form-text mt-3 mb-0">Linked tickets show on each other's Related tab. Nothing else changes.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Link tickets</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@if (Model.Can.MajorIncident && t.Type == TicketType.Incident && !Model.IsReadOnly)
+{
+    var promote = !t.IsMajorIncident;
+    <div class="modal fade" id="sdMajorDialog" tabindex="-1" aria-labelledby="sdMajorTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" method="post" action="@url?handler=Major" asp-antiforgery="true">
+                <input type="hidden" name="promote" value="@(promote ? "true" : "false")">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="sdMajorTitle">@(promote ? "Promote to a major incident" : "Demote from major incident")</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        @(promote
+                            ? "Major incidents get their own view so the whole team can see them. Use this when many people are affected or a critical service is down."
+                            : "The incident goes back to being handled like any other.")
+                    </p>
+                    <label class="form-label" for="majorReason">Reason</label>
+                    <textarea class="form-control" id="majorReason" name="reason" rows="3" required maxlength="2000"
+                              placeholder="@(promote ? "Email is down for the whole Chicago office" : "Only one team was affected")"></textarea>
+                    <p class="form-text">Saved as a private note and in the audit log.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">@(promote ? "Promote to major incident" : "Demote")</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

@@ -1,0 +1,168 @@
+@page "/admin/security"
+@model Switchboard.Modules.Admin.Pages.Settings.SecurityModel
+@{
+    ViewData["Title"] = "Sign-in and sign-up";
+}
+<sb-page-header title="Sign-in and sign-up" subtitle="Who can create a requester account, how long sessions last, and the rules for passwords and networks." />
+
+<form method="post" class="sb-form-narrow" novalidate>
+    <partial name="_Errors" />
+    <div class="alert alert-info">
+        Sign-up and email rules apply as soon as you save. Session, password, lockout and network rules are stored here and take effect as the sign-in service adopts them;
+        until then it uses its built-in rules: at least 12 characters, a 15-minute lock after 5 failed attempts, and sessions that end after 12 idle hours.
+    </div>
+
+    <section class="sb-pane" aria-labelledby="signupTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="signupTitle">Requester accounts</h2></div>
+        <div class="sb-pane-body">
+            <fieldset class="sb-fieldset">
+                <legend class="form-label">Who can sign up in the portal</legend>
+                <div class="sb-choice">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" asp-for="Input.SignupPolicy" value="open" id="signupOpen">
+                        <label class="form-check-label" for="signupOpen">Anyone</label>
+                        <div class="form-text">Anyone with an email address can create an account.</div>
+                    </div>
+                </div>
+                <div class="sb-choice">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" asp-for="Input.SignupPolicy" value="domains" id="signupDomains">
+                        <label class="form-check-label" for="signupDomains">People with an address at these domains</label>
+                        <div class="form-text">Use this to let only your own staff in.</div>
+                    </div>
+                    <div class="sb-choice-extra" data-sb-show-when="Input.SignupPolicy=domains">
+                        <label class="form-label" asp-for="Input.SignupDomains">Domains</label>
+                        <textarea class="form-control" asp-for="Input.SignupDomains" rows="2" data-sb-autosize placeholder="example.com" spellcheck="false" aria-describedby="domainsHelp"></textarea>
+                        <div class="form-text" id="domainsHelp">One per line.</div>
+                        <partial name="_FieldError" model="@("Input.SignupDomains")" />
+                    </div>
+                </div>
+                <div class="sb-choice">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" asp-for="Input.SignupPolicy" value="invite" id="signupInvite">
+                        <label class="form-check-label" for="signupInvite">Only people you invite</label>
+                        <div class="form-text">Add requesters yourself, import them, or send invitations from People.</div>
+                    </div>
+                </div>
+            </fieldset>
+            <div class="form-check">
+                <input class="form-check-input" asp-for="Input.AutoCreateRequestersFromEmail">
+                <label class="form-check-label" asp-for="Input.AutoCreateRequestersFromEmail">Create a requester when someone new emails the service desk</label>
+            </div>
+            <div class="form-text">Turn this off to accept email only from people already in Switchboard.</div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="sessionTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="sessionTitle">Sessions</h2></div>
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.SessionIdleMinutes">Sign out after inactivity</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.SessionIdleMinutes" type="number" min="5" max="43200">
+                        <span class="input-group-text">minutes</span>
+                    </div>
+                    <partial name="_FieldError" model="@("Input.SessionIdleMinutes")" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.SessionAbsoluteHours">Sign out after, however active</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.SessionAbsoluteHours" type="number" min="0" max="2160" aria-describedby="absHelp">
+                        <span class="input-group-text">hours</span>
+                    </div>
+                    <div class="form-text" id="absHelp">0 means no limit.</div>
+                    <partial name="_FieldError" model="@("Input.SessionAbsoluteHours")" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Input.SignOutOnPasswordChange">
+                        <label class="form-check-label" asp-for="Input.SignOutOnPasswordChange">Sign out other devices when someone changes their password</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="passwordTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="passwordTitle">Passwords and lockout</h2></div>
+        <div class="sb-pane-body">
+            <p class="form-text mt-0">Passwords are always at least 12 characters, whatever you set here.</p>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.PasswordMinLength">Minimum length</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.PasswordMinLength" type="number" min="12" max="128">
+                        <span class="input-group-text">characters</span>
+                    </div>
+                    <partial name="_FieldError" model="@("Input.PasswordMinLength")" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.PasswordHistory">Can't reuse the last</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.PasswordHistory" type="number" min="0" max="24">
+                        <span class="input-group-text">passwords</span>
+                    </div>
+                    <partial name="_FieldError" model="@("Input.PasswordHistory")" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.PasswordExpiryDays">Ask for a new password every</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.PasswordExpiryDays" type="number" min="0" max="365" aria-describedby="expiryHelp">
+                        <span class="input-group-text">days</span>
+                    </div>
+                    <div class="form-text" id="expiryHelp">0 means never. Current guidance (NIST 800-63B) advises against forced expiry.</div>
+                    <partial name="_FieldError" model="@("Input.PasswordExpiryDays")" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" asp-for="Input.PasswordRequireMixed">
+                        <label class="form-check-label" asp-for="Input.PasswordRequireMixed">Require upper and lower case letters, a digit and a symbol</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.LockoutAttempts">Lock an account after</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.LockoutAttempts" type="number" min="3" max="20">
+                        <span class="input-group-text">failed attempts</span>
+                    </div>
+                    <partial name="_FieldError" model="@("Input.LockoutAttempts")" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.LockoutMinutes">For</label>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Input.LockoutMinutes" type="number" min="1" max="1440">
+                        <span class="input-group-text">minutes</span>
+                    </div>
+                    <partial name="_FieldError" model="@("Input.LockoutMinutes")" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="networkTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="networkTitle">Allowed networks</h2></div>
+        <div class="sb-pane-body">
+            <p class="text-muted">Limit where people can sign in from. One address or range per line, like 203.0.113.0/24. Leave a list empty to allow any network.</p>
+            <div class="alert alert-warning">Make sure your own address is in the admin list before you save, or you'll lock yourself out.</div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.AdminIpRanges">Admins</label>
+                    <textarea class="form-control font-monospace" asp-for="Input.AdminIpRanges" rows="3" data-sb-autosize spellcheck="false"></textarea>
+                    <partial name="_FieldError" model="@("Input.AdminIpRanges")" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.AgentIpRanges">Agents</label>
+                    <textarea class="form-control font-monospace" asp-for="Input.AgentIpRanges" rows="3" data-sb-autosize spellcheck="false"></textarea>
+                    <partial name="_FieldError" model="@("Input.AgentIpRanges")" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.RequesterIpRanges">Requesters</label>
+                    <textarea class="form-control font-monospace" asp-for="Input.RequesterIpRanges" rows="3" data-sb-autosize spellcheck="false"></textarea>
+                    <partial name="_FieldError" model="@("Input.RequesterIpRanges")" />
+                </div>
+            </div>
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save settings</button></div>
+    </section>
+</form>

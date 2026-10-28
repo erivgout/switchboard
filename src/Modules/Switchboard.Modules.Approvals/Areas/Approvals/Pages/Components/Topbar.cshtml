@@ -1,0 +1,6 @@
+@model int
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+<a class="btn btn-ghost btn-sm apr-topbar" href="/approvals" title="Approvals waiting on you">
+    <i class="bi bi-check2-square" aria-hidden="true"></i><strong class="tabular">@Model</strong><span class="d-none d-lg-inline">to approve</span>
+    <span class="visually-hidden d-lg-none">approvals waiting on you</span>
+</a>

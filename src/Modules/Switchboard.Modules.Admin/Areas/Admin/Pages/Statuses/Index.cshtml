@@ -1,0 +1,107 @@
+@page "/admin/statuses"
+@model Switchboard.Modules.Admin.Pages.Statuses.IndexModel
+@{
+    ViewData["Title"] = "Ticket statuses";
+    var categories = new[] { StatusCategory.Open, StatusCategory.Pending, StatusCategory.Resolved, StatusCategory.Closed };
+}
+<sb-page-header title="Ticket statuses" subtitle="The stages a ticket moves through. Each status belongs to one of four kinds, which decide how service levels and reports treat it." />
+<partial name="_WorkspacePicker" model="new WorkspacePickerModel(Model.Workspace, Model.Workspaces, [])" />
+
+<div class="sb-pane sb-queue-wrap">
+    <table class="sb-queue">
+        <thead>
+            <tr>
+                <th scope="col"><span class="visually-hidden">Order</span></th>
+                <th scope="col">Status</th>
+                <th scope="col">Requesters see</th>
+                <th scope="col" class="sb-hide-sm">SLA clock</th>
+                <th scope="col" class="sb-num-cell sb-hide-sm">Tickets</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Model.Statuses.Count; i++)
+            {
+                var row = Model.Statuses[i];
+                var s = row.Status;
+                <tr id="status-@s.Id" data-sb-href="/admin/statuses/@s.Id">
+                    <td class="sb-col-check">
+                        <form method="post" asp-page-handler="Move" class="sb-order">
+                            <input type="hidden" name="statusId" value="@s.Id">
+                            <input type="hidden" name="Ws" value="@Model.Workspace.Key">
+                            <button class="btn btn-ghost btn-icon" type="submit" name="delta" value="-1" aria-label="Move @s.Name up" disabled="@(i == 0)"><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
+                            <button class="btn btn-ghost btn-icon" type="submit" name="delta" value="1" aria-label="Move @s.Name down" disabled="@(i == Model.Statuses.Count - 1)"><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+                        </form>
+                    </td>
+                    <td>
+                        <div class="sb-name-row">
+                            <a class="sb-subject" href="/admin/statuses/@s.Id">@s.Name</a>
+                            @if (s.IsDefault)
+                            {
+                                <span class="sb-tag">Default</span>
+                            }
+                            @if (s.IsSystem)
+                            {
+                                <span class="sb-tag">Built-in</span>
+                            }
+                        </div>
+                        <div class="mt-1"><sb-status name="@s.Category.ToString()" category="@s.Category" /></div>
+                    </td>
+                    <td>@(s.RequesterLabel ?? s.Name)</td>
+                    <td class="sb-hide-sm">@(s.SlaTimerOn ? "Running" : "Paused")</td>
+                    <td class="sb-num-cell tabular sb-hide-sm">@row.Tickets</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<form method="post" class="sb-pane sb-form-narrow mt-4" novalidate>
+    <input type="hidden" name="Ws" value="@Model.Workspace.Key">
+    <div class="sb-pane-header"><h2 class="sb-pane-title">Add a status</h2></div>
+    <div class="sb-pane-body">
+        <partial name="_Errors" />
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" asp-for="Input.Name">Name agents see</label>
+                <input class="form-control" asp-for="Input.Name" maxlength="100" placeholder="Waiting on vendor">
+                <partial name="_FieldError" model="@("Input.Name")" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" asp-for="Input.RequesterLabel">Name requesters see</label>
+                <input class="form-control" asp-for="Input.RequesterLabel" maxlength="100" placeholder="Waiting on a supplier" aria-describedby="labelHelp">
+                <div class="form-text" id="labelHelp">Leave empty to show the same name.</div>
+            </div>
+            <div class="col-12">
+                <fieldset>
+                    <legend class="form-label">Kind</legend>
+                    <div class="row g-2">
+                        @foreach (var c in categories)
+                        {
+                            <div class="col-sm-6">
+                                <div class="sb-choice">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" asp-for="Input.Category" value="@c" id="cat_@c">
+                                        <label class="form-check-label" for="cat_@c">@c</label>
+                                        <div class="form-text">@Switchboard.Modules.Admin.Pages.Statuses.IndexModel.CategoryHint(c)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </fieldset>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input class="form-check-input" asp-for="Input.SlaTimerOn">
+                    <label class="form-check-label" asp-for="Input.SlaTimerOn">Keep the SLA clock running in this status</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" asp-for="Input.IsDefault">
+                    <label class="form-check-label" asp-for="Input.IsDefault">New tickets start in this status</label>
+                </div>
+                <partial name="_FieldError" model="@("Input.IsDefault")" />
+            </div>
+        </div>
+    </div>
+    <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Add status</button></div>
+</form>

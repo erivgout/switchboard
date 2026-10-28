@@ -1,0 +1,22 @@
+@{
+    var errors = (ViewData["prt.errors"] as IEnumerable<string> ?? ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)).Distinct().ToList();
+}
+@if (errors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert" tabindex="-1" data-prt-focus>
+        @if (errors.Count == 1)
+        {
+            @errors[0]
+        }
+        else
+        {
+            <p class="mb-1">Fix these to continue:</p>
+            <ul class="mb-0">
+                @foreach (var e in errors)
+                {
+                    <li>@e</li>
+                }
+            </ul>
+        }
+    </div>
+}

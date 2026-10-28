@@ -1,0 +1,100 @@
+@inject IShellContext Shell
+@{
+    var shell = await Shell.GetAsync();
+    var title = ViewData["Title"] as string;
+    var path = Context.Request.Path.Value ?? "/";
+    var watchTicket = ViewData["WatchTicket"]?.ToString();
+
+    static bool IsCurrent(string path, string href) =>
+        href == "/" ? path == "/" : path.Equals(href, StringComparison.OrdinalIgnoreCase) || path.StartsWith(href.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <partial name="_ShellHead" />
+    <title>@(string.IsNullOrEmpty(title) ? shell.OrganizationName : $"{title} | {shell.OrganizationName}")</title>
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="sb-agent" data-sb-watch-ticket="@watchTicket">
+    <a class="sb-skip visually-hidden-focusable" href="#main">Skip to content</a>
+    <div class="sb-shell">
+        <nav class="sb-rail" id="sbRail" aria-label="Main">
+            <a class="sb-brand" href="/">
+                <img class="sb-brand-mark" src="~/_content/Switchboard.UI/img/mark.svg" alt="">
+                <span class="sb-wordmark">Switchboard</span>
+            </a>
+            <ul class="sb-nav">
+                @foreach (var item in shell.AgentNav)
+                {
+                    <li>
+                        <a class="sb-nav-link" href="@item.Href" aria-current="@(IsCurrent(path, item.Href) ? "page" : null)">
+                            <i class="bi @item.Icon" aria-hidden="true"></i><span>@item.Title</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+            <div class="sb-rail-foot">
+                <ul class="sb-nav p-0">
+                    @if (shell.HasAdmin)
+                    {
+                        <li>
+                            <a class="sb-nav-link" href="/admin" aria-current="@(IsCurrent(path, "/admin") ? "page" : null)">
+                                <i class="bi bi-sliders" aria-hidden="true"></i><span>Admin</span>
+                            </a>
+                        </li>
+                    }
+                    <li>
+                        <a class="sb-nav-link" href="/portal">
+                            <i class="bi bi-window" aria-hidden="true"></i><span>Employee portal</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="sb-main">
+            <header class="sb-topbar">
+                <button class="btn btn-ghost btn-icon sb-rail-toggle" type="button" data-sb-rail-toggle aria-controls="sbRail" aria-expanded="false" aria-label="Open navigation">
+                    <i class="bi bi-list" aria-hidden="true"></i>
+                </button>
+                <form class="sb-search" role="search" action="/search" method="get">
+                    <label class="visually-hidden" for="sbSearch">Search</label>
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input id="sbSearch" class="form-control" type="search" name="q" placeholder="Search tickets, people and articles"
+                           autocomplete="off" data-sb-search value="@Context.Request.Query["q"]">
+                    <span class="sb-kbd" aria-hidden="true">/</span>
+                </form>
+                <div class="sb-topbar-end">
+                    <a class="sb-lampcount" href="/tickets?view=waiting" title="Tickets waiting on you or your groups">
+                        <sb-lamp lit="@(shell.WaitingCount > 0)" label="@(shell.WaitingCount == 0 ? "Nothing waiting" : $"{shell.WaitingCount} waiting")" />
+                        <span><strong>@shell.WaitingCount</strong> <span class="sb-lampcount-text">waiting</span></span>
+                    </a>
+                    <div class="dropdown">
+                        <button class="btn btn-primary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">New</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/tickets/new?type=incident"><i class="bi bi-exclamation-diamond me-2" aria-hidden="true"></i>Incident</a></li>
+                            <li><a class="dropdown-item" href="/tickets/new?type=request"><i class="bi bi-bag me-2" aria-hidden="true"></i>Service request</a></li>
+                            <sb-slot name="topbar.new" model="shell" />
+                        </ul>
+                    </div>
+                    <sb-slot name="topbar.end" model="shell" />
+                    @if (shell.User is not null)
+                    {
+                        <partial name="_UserMenu" model="shell" />
+                    }
+                </div>
+            </header>
+
+            <main id="main" class="sb-content @(ViewData["FlushContent"] is true ? "sb-content--flush" : "")" tabindex="-1">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <partial name="_Toasts" />
+    <partial name="_ShellScripts" />
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

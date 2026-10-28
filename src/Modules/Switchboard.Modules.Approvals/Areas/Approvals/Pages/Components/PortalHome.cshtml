@@ -1,0 +1,21 @@
+@using Switchboard.Modules.Approvals.Web
+@model PortalHomeApprovalsModel
+<section class="sb-pane mt-4" aria-labelledby="aprHomeTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="aprHomeTitle">Waiting for your approval</h2>
+        <a class="ms-auto small" href="/portal/approvals">See all @Model.Total</a>
+    </div>
+    <ul class="list-unstyled mb-0">
+        @foreach (var item in Model.Items)
+        {
+            <li class="d-flex gap-3 align-items-center px-3 py-2 border-top">
+                <sb-avatar name="@item.RequesterName" size="sm" />
+                <div class="min-w-0 flex-grow-1">
+                    <a class="fw-semibold" href="/portal/approvals/@item.Id">@item.Title</a>
+                    <div class="small text-muted">@item.RequesterName, <sb-time value="@(item.WaitingSince ?? item.CreatedAt)" /></div>
+                </div>
+                <a class="btn btn-outline-secondary btn-sm" href="/portal/approvals/@item.Id">Review</a>
+            </li>
+        }
+    </ul>
+</section>

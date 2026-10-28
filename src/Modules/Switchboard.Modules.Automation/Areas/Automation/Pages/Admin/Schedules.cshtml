@@ -1,0 +1,90 @@
+@page "/admin/automations/schedules"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.SchedulesModel
+@{
+    ViewData["Title"] = "Scheduled tickets";
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+
+<sb-page-header title="Automations" subtitle="Workflows act on tickets for you: routing, reminders, notifications and follow-ups.">
+    <a class="btn btn-primary" href="/admin/automations/schedules/new@(Model.WsQuery)"><i class="bi bi-plus-lg" aria-hidden="true"></i> New schedule</a>
+</sb-page-header>
+<partial name="_AutomationTabs" model="@(("schedules", Model.WsQuery))" />
+
+<p class="sb-form-narrow">Scheduled tickets open on a repeating schedule for routine work, like monthly patching or a weekly backup check.</p>
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-calendar-event" title="Nothing is scheduled">
+            <p class="sb-empty-text">Schedule the first routine job so nobody has to remember to file it.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="/admin/automations/schedules/new@(Model.WsQuery)">New schedule</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th scope="col">Schedule</th>
+                <th scope="col" class="sb-hide-sm">Next ticket</th>
+                <th scope="col" class="sb-hide-sm">Last ticket</th>
+                <th scope="col"><span class="visually-hidden">On or off</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                var s = row.Schedule;
+                <tr data-sb-href="/admin/automations/schedules/@s.Id">
+                    <td>
+                        <a class="sb-subject" href="/admin/automations/schedules/@s.Id">@s.Name</a>
+                        <div class="aut-wf-summary">@row.When. Creates “@row.Subject”.</div>
+                    </td>
+                    <td class="sb-hide-sm">
+                        @if (!s.IsEnabled)
+                        {
+                            <span class="aut-state aut-state--off"><i class="bi bi-pause-circle" aria-hidden="true"></i>Off</span>
+                        }
+                        else if (s.NextRunAt is { } next)
+                        {
+                            <sb-time value="next" mode="datetime" />
+                        }
+                        else
+                        {
+                            <span class="text-muted">Ended</span>
+                        }
+                    </td>
+                    <td class="sb-hide-sm">
+                        @if (s.LastError is not null)
+                        {
+                            <span class="aut-state aut-state--bad" title="@s.LastError"><i class="bi bi-x-octagon" aria-hidden="true"></i>Failed</span>
+                        }
+                        else if (row.LastTicket is not null)
+                        {
+                            <a href="@AutomationAdminPageModel.TicketHref(row.LastTicket)"><span class="sb-stamp">@row.LastTicket</span></a>
+                            <div class="small text-muted"><sb-time value="s.LastRunAt" /></div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">None yet</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <form method="post" asp-page-handler="Enable">
+                            <input type="hidden" name="ws" value="@Model.Workspace.Id">
+                            <input type="hidden" name="id" value="@s.Id">
+                            <input type="hidden" name="enabled" value="@(s.IsEnabled ? "false" : "true")">
+                            <button class="btn btn-sm btn-outline-secondary text-nowrap" type="submit" aria-label="@(s.IsEnabled ? "Turn off" : "Turn on") @s.Name">@(s.IsEnabled ? "Turn off" : "Turn on")</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

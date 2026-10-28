@@ -1,0 +1,103 @@
+@page "/admin/catalog/categories"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Admin.CategoriesModel
+@{
+    ViewData["Title"] = "Catalog categories";
+    var icons = Switchboard.Modules.Catalog.Services.CatalogAdmin.Icons;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+<sb-page-header title="Categories" subtitle="How the catalog is organized for requesters, in this order. An item can sit in several categories." />
+
+<div class="sb-form-narrow">
+    <section class="sb-pane" aria-labelledby="catCats">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="catCats">Categories</h2></div>
+        @if (Model.Categories.Count == 0)
+        {
+            <sb-empty icon="bi-folder" title="No categories yet">
+                <p class="sb-empty-text">Add a few broad ones, like Devices, Software and Access. Requesters browse by them.</p>
+            </sb-empty>
+        }
+        else
+        {
+            <ul class="cat-fields">
+                @for (var i = 0; i < Model.Categories.Count; i++)
+                {
+                    var c = Model.Categories[i];
+                    var meta = (c.ItemCount == 1 ? "1 item" : $"{c.ItemCount} items") + (c.Description is null ? "" : $". {c.Description}");
+                    var confirm = $"Delete {c.Name}? Its items stay in the catalog and in any other categories.";
+                    <li class="cat-field">
+                        <div class="d-flex align-items-start">
+                            <details class="flex-grow-1 min-w-0">
+                                <summary>
+                                    <span class="cat-icon cat-icon--sm" aria-hidden="true"><i class="bi @c.Icon"></i></span>
+                                    <span class="min-w-0">
+                                        <span class="cat-field-label">@c.Name</span>
+                                        <span class="cat-field-type d-block">@meta</span>
+                                    </span>
+                                </summary>
+                                <form method="post" asp-page-handler="Save" class="cat-field-edit">
+                                    <input type="hidden" name="id" value="@c.Id">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label small" for="cn-@c.Id">Name</label>
+                                            <input class="form-control form-control-sm" id="cn-@c.Id" name="name" value="@c.Name" maxlength="100" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small" for="ci-@c.Id">Icon</label>
+                                            <select class="form-select form-select-sm" id="ci-@c.Id" name="icon">
+                                                @foreach (var icon in icons)
+                                                {
+                                                    <option value="@icon" selected="@(icon == c.Icon)">@icon[3..]</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label small" for="cd-@c.Id">Description</label>
+                                            <input class="form-control form-control-sm" id="cd-@c.Id" name="description" value="@c.Description" maxlength="500">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button class="btn btn-outline-secondary btn-sm" type="submit">Save category</button>
+                                        <button class="btn btn-ghost btn-sm ms-auto" type="submit" asp-page-handler="Delete" data-sb-confirm="@confirm">Delete</button>
+                                    </div>
+                                </form>
+                            </details>
+                            <form method="post" asp-page-handler="Move" class="cat-field-tools p-2">
+                                <input type="hidden" name="id" value="@c.Id">
+                                <button class="btn btn-ghost btn-icon btn-sm" type="submit" name="direction" value="-1" aria-label="Move @c.Name up" disabled="@(i == 0)"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                                <button class="btn btn-ghost btn-icon btn-sm" type="submit" name="direction" value="1" aria-label="Move @c.Name down" disabled="@(i == Model.Categories.Count - 1)"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="sb-pane" aria-labelledby="catNewCat">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="catNewCat">Add a category</h2></div>
+        <form method="post" asp-page-handler="Save" class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="newCatName">Name</label>
+                    <input class="form-control" id="newCatName" name="name" maxlength="100" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="newCatIcon">Icon</label>
+                    <select class="form-select" id="newCatIcon" name="icon">
+                        @foreach (var icon in icons)
+                        {
+                            <option value="@icon">@icon[3..]</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="newCatDesc">Description (optional)</label>
+                    <input class="form-control" id="newCatDesc" name="description" maxlength="500" placeholder="For example: Laptops, monitors, phones and accessories.">
+                </div>
+            </div>
+            <button class="btn btn-primary mt-3" type="submit">Add category</button>
+        </form>
+    </section>
+</div>

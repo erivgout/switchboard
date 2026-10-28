@@ -1,0 +1,52 @@
+@page "/admin/import"
+@model Switchboard.Modules.Admin.Pages.Import.IndexModel
+@using Switchboard.Modules.Admin.Data
+@{
+    ViewData["Title"] = "Import requesters";
+}
+<sb-page-header title="Import requesters" subtitle="Add or update many requesters at once from a CSV file. You'll match the columns and see a preview before anything changes." />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" enctype="multipart/form-data" class="sb-pane">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Upload a file</h2></div>
+        <div class="sb-pane-body">
+            <p>Put one person per row, with a header row naming the columns. Name and email are required; you can also include phone, mobile, job title, department, location, manager's email, VIP, time zone, language, address and your custom people fields.</p>
+            <label class="form-label" for="importFile">CSV file</label>
+            <input class="form-control" id="importFile" type="file" name="Upload" accept=".csv,text/csv" required aria-describedby="importHelp">
+            <div class="form-text" id="importHelp">Up to @RequesterImportService.MaxRows.ToString("N0") people and 5 MB. Departments and locations must already exist.</div>
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Upload and match columns</button></div>
+    </form>
+
+    @if (Model.Recent.Count > 0)
+    {
+        <section class="sb-pane" aria-labelledby="recentTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="recentTitle">Recent imports</h2></div>
+            <div class="sb-queue-wrap">
+                <table class="sb-queue">
+                    <thead><tr><th scope="col">File</th><th scope="col">Result</th><th scope="col" class="sb-hide-sm">Uploaded</th></tr></thead>
+                    <tbody>
+                        @foreach (var i in Model.Recent)
+                        {
+                            <tr data-sb-href="/admin/import/@i.Id">
+                                <td><a class="sb-subject" href="/admin/import/@i.Id">@i.FileName</a><div class="sb-meta">@i.TotalRows.ToString("N0") rows</div></td>
+                                <td>
+                                    @if (i.Status == ImportStatus.Completed)
+                                    {
+                                        <span>@i.CreatedCount added, @i.UpdatedCount updated, @(i.SkippedCount + i.ErrorCount) not imported</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not run yet</span>
+                                    }
+                                </td>
+                                <td class="sb-hide-sm text-muted"><sb-time value="@i.CreatedAt" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</div>

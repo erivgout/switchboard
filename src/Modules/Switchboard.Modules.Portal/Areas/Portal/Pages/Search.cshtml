@@ -1,0 +1,43 @@
+@page "/portal/search"
+@model SearchModel
+@{
+    ViewData["Title"] = Model.Text.Length > 0 ? $"Search for {Model.Text}" : "Search";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Portal/css/portal.css" asp-append-version="true">
+}
+
+<sb-page-header title="Search" />
+
+<form class="sb-hero-search prt-search" method="get" action="/portal/search" role="search">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <label class="visually-hidden" for="prtSearch">Search for answers or your requests</label>
+    <input id="prtSearch" class="form-control" type="search" name="q" value="@Model.Text" placeholder="Search for answers or your requests" autocomplete="off" maxlength="200" data-sb-search>
+</form>
+
+@if (Model.Text.Length == 0)
+{
+    <p class="prt-lead">Type a few words about your problem, or a request number like INC-1042.</p>
+}
+else
+{
+    <section class="prt-results" aria-labelledby="prtYourRequests">
+        <h2 class="prt-section-title" id="prtYourRequests">Your requests</h2>
+        @if (Model.Requests.Count == 0)
+        {
+            <p class="prt-none">None of your requests mention “@Model.Text”.</p>
+        }
+        else
+        {
+            <div class="sb-pane">
+                <partial name="_RequestList" model="new RequestListModel(Model.Requests, ShowRequester: true)" />
+            </div>
+        }
+    </section>
+
+    <sb-slot name="portal.search" model="Model.Text" />
+
+    <p class="prt-search-help">
+        Can't find what you need? <a href="/portal/new">Report a problem</a> and the service desk will help.
+    </p>
+}

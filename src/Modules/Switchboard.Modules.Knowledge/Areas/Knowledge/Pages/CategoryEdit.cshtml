@@ -1,0 +1,54 @@
+@page "/kb/categories/edit/{id:guid?}"
+@model CategoryEditModel
+@{
+    var title = Model.IsNew ? "New category" : $"Edit {Model.Name}";
+    ViewData["Title"] = title;
+    var nameError = ViewData.ModelState["Name"]?.Errors.FirstOrDefault()?.ErrorMessage;
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li><a href="/kb/folders">Folders</a></li>
+        <li aria-current="page">@title</li>
+    </ol>
+</nav>
+
+<sb-page-header title="@title" subtitle="Categories group folders on the portal, for example IT help, Policies or Onboarding." />
+
+<form method="post" class="sb-form-narrow" novalidate>
+    <div class="sb-pane">
+        <div class="sb-pane-body">
+            <div class="kb-form-section">
+                <label class="form-label" for="kbCatName">Name</label>
+                <input id="kbCatName" class="form-control @(nameError is null ? null : "is-invalid")" name="Name" value="@Model.Name" maxlength="200" required
+                       aria-describedby="@(nameError is null ? null : "kbCatNameError")">
+                @if (nameError is not null) { <div class="invalid-feedback" id="kbCatNameError">@nameError</div> }
+            </div>
+            <div class="kb-form-section">
+                <label class="form-label" for="kbCatDesc">Description <span class="sb-meta fw-normal">Optional</span></label>
+                <input id="kbCatDesc" class="form-control" name="Description" value="@Model.Description" maxlength="1000">
+            </div>
+            @if (Model.IsNew && Model.Workspaces.Count > 1)
+            {
+                <div class="kb-form-section">
+                    <label class="form-label" for="kbCatWs">Workspace</label>
+                    <select id="kbCatWs" class="form-select" name="WorkspaceId">
+                        @foreach (var w in Model.Workspaces) { <option value="@w.Id" selected="@(w.Id == Model.WorkspaceId)">@w.Name</option> }
+                    </select>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" name="WorkspaceId" value="@Model.WorkspaceId">
+            }
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create category" : "Save category")</button>
+        <a class="btn btn-ghost" href="/kb/folders">Cancel</a>
+    </div>
+</form>

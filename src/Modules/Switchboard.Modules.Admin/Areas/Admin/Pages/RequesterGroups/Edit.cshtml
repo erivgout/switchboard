@@ -1,0 +1,74 @@
+@page "/admin/requester-groups/{id}"
+@model Switchboard.Modules.Admin.Pages.RequesterGroups.EditModel
+@{
+    var title = Model.IsNew ? "New requester group" : Model.Group!.Name;
+    ViewData["Title"] = title;
+    var back = ("/admin/requester-groups", "Requester groups");
+    var picker = new PersonPickerModel("newMember", "NewMemberId", "Person", "all", null) { NoneLabel = "Search to find someone" };
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@title" subtitle="@(Model.IsNew ? "Name the group, then add people to it." : Model.Group!.Description)" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" class="sb-pane">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Details</h2></div>
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.Name">Name</label>
+                    <input class="form-control" asp-for="Input.Name" maxlength="200" required>
+                    <partial name="_FieldError" model="@("Input.Name")" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label" asp-for="Input.Description">Description</label>
+                    <input class="form-control" asp-for="Input.Description" maxlength="1000">
+                    <partial name="_FieldError" model="@("Input.Description")" />
+                </div>
+            </div>
+            <p class="form-text mb-0 mt-3">Membership is managed by hand: people stay in the group until you remove them.</p>
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create group" : "Save group")</button></div>
+    </form>
+
+    @if (!Model.IsNew)
+    {
+        <section class="sb-pane" aria-labelledby="membersTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="membersTitle">Members</h2><span class="ms-auto text-muted small tabular">@Model.Members.Count</span></div>
+            <form method="post" asp-page-handler="Add" class="sb-pane-body border-bottom">
+                <partial name="_PersonPicker" model="picker" />
+                <button class="btn btn-outline-secondary mt-2" type="submit">Add to group</button>
+            </form>
+            @if (Model.Members.Count == 0)
+            {
+                <div class="sb-pane-body text-muted">Nobody is in this group yet.</div>
+            }
+            else
+            {
+                <ul class="sb-actions">
+                    @foreach (var m in Model.Members)
+                    {
+                        <li>
+                            <span class="d-inline-flex gap-2 align-items-center">
+                                <sb-avatar name="@m.Name" size="sm" />
+                                <span><a href="/admin/people/@m.UserId">@m.Name</a><span class="sb-meta d-block">@m.Email</span></span>
+                            </span>
+                            <form method="post" asp-page-handler="Remove">
+                                <input type="hidden" name="userId" value="@m.UserId">
+                                <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Delete group</h2></div>
+            <div class="sb-pane-body"><p class="mb-0">The people stay; only the group goes. Anything that used the group to decide visibility or approvals stops matching them.</p></div>
+            <div class="sb-pane-footer">
+                <button class="btn btn-danger" type="submit" data-sb-confirm="Delete @Model.Group!.Name? Its @Model.Members.Count members stay in Switchboard.">Delete group</button>
+            </div>
+        </form>
+    }
+</div>

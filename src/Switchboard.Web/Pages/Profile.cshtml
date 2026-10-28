@@ -1,0 +1,131 @@
+@page "/profile"
+@model Switchboard.Web.Pages.ProfileModel
+@{
+    ViewData["Title"] = "Profile and security";
+    if (!Model.IsAgent)
+    {
+        Layout = "_PortalLayout";
+    }
+}
+<sb-page-header title="Profile and security" subtitle="How you appear to others, and how you sign in." />
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <section class="sb-pane" aria-labelledby="detailsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="detailsTitle">Your details</h2></div>
+            <form method="post" asp-page-handler="Details" class="sb-pane-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Details.DisplayName">Name</label>
+                        <input class="form-control" asp-for="Details.DisplayName" autocomplete="name" required>
+                        <span asp-validation-for="Details.DisplayName" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Details.JobTitle">Job title</label>
+                        <input class="form-control" asp-for="Details.JobTitle" autocomplete="organization-title">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Details.Phone">Work phone</label>
+                        <input class="form-control" asp-for="Details.Phone" type="tel" autocomplete="tel">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Details.Mobile">Mobile</label>
+                        <input class="form-control" asp-for="Details.Mobile" type="tel">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Details.TimeZone">Time zone</label>
+                        <select class="form-select" asp-for="Details.TimeZone" asp-items="Model.TimeZones"></select>
+                    </div>
+                    @if (Model.IsAgent)
+                    {
+                        <div class="col-12">
+                            <label class="form-label" asp-for="Details.Signature">Reply signature</label>
+                            <textarea class="form-control" asp-for="Details.Signature" rows="3" data-sb-autosize></textarea>
+                            <div class="form-text">Added below your replies to requesters. Plain text.</div>
+                        </div>
+                    }
+                </div>
+                <div class="mt-3"><button class="btn btn-primary" type="submit">Save details</button></div>
+            </form>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="passwordTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="passwordTitle">Password</h2></div>
+            <form method="post" asp-page-handler="Password" class="sb-pane-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Passwords.Current">Current password</label>
+                        <input class="form-control" asp-for="Passwords.Current" type="password" autocomplete="current-password">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Passwords.New">New password</label>
+                        <input class="form-control" asp-for="Passwords.New" type="password" autocomplete="new-password" minlength="12">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Passwords.Confirm">Type it again</label>
+                        <input class="form-control" asp-for="Passwords.Confirm" type="password" autocomplete="new-password">
+                    </div>
+                </div>
+                <span asp-validation-for="Passwords" class="text-danger small"></span>
+                <div class="mt-3"><button class="btn btn-outline-secondary" type="submit">Change password</button></div>
+            </form>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="mfaTitle">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="mfaTitle">Two-step verification</h2>
+                @if (Model.MfaEnabled)
+                {
+                    <span class="sb-status sb-status--resolved ms-auto">On</span>
+                }
+                else
+                {
+                    <span class="sb-status sb-status--closed ms-auto">Off</span>
+                }
+            </div>
+            <div class="sb-pane-body">
+                @if (Model.RecoveryCodes is { Count: > 0 })
+                {
+                    <div class="alert alert-warning">
+                        <p class="fw-semibold mb-2">Save these recovery codes somewhere safe. Each works once if you lose your phone. They won't be shown again.</p>
+                        <ul class="list-unstyled tabular mb-0 row row-cols-2 row-cols-md-5">
+                            @foreach (var code in Model.RecoveryCodes)
+                            {
+                                <li class="col"><code>@code</code></li>
+                            }
+                        </ul>
+                    </div>
+                }
+                @if (Model.MfaEnabled)
+                {
+                    <p>Each sign-in asks for a code from your authenticator app.</p>
+                    <form method="post" class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-secondary" asp-page-handler="RecoveryCodes" type="submit">Make new recovery codes</button>
+                        <button class="btn btn-outline-secondary" asp-page-handler="DisableMfa" type="submit" data-sb-confirm="Turn off two-step verification? Your account will only be protected by your password.">Turn off</button>
+                    </form>
+                }
+                else
+                {
+                    <p>Add a code from an authenticator app to every sign-in. Scan this with the app, then enter the 6-digit code it shows.</p>
+                    <div class="d-flex flex-wrap gap-4 align-items-start">
+                        <div class="border rounded p-2 bg-white sb-qr">@Html.Raw(Model.QrSvg)</div>
+                        <div>
+                            <p class="small text-muted mb-1">Can't scan? Enter this key:</p>
+                            <p><code class="tabular">@Model.SharedKey</code></p>
+                            <form method="post" asp-page-handler="EnableMfa" class="d-flex gap-2 align-items-end">
+                                <div>
+                                    <label class="form-label" asp-for="MfaCode">Code from the app</label>
+                                    <input class="form-control tabular" asp-for="MfaCode" autocomplete="one-time-code" inputmode="numeric" maxlength="7" style="width: 9rem">
+                                </div>
+                                <button class="btn btn-primary" type="submit">Turn on</button>
+                            </form>
+                            <span asp-validation-for="MfaCode" class="text-danger small"></span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <sb-slot name="profile.sections" model="Model.UserId" />
+    </div>
+</div>

@@ -1,0 +1,128 @@
+@page "/admin/service-levels/policies"
+@model Switchboard.Modules.ServiceLevels.Areas.ServiceLevels.Pages.Admin.PoliciesModel
+@{
+    ViewData["Title"] = "SLA policies";
+    var ws = Model.Workspaces.Count > 1 ? Model.Workspace.Key : null;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceLevels/css/service-levels.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceLevels/js/service-levels.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="SLA policies" subtitle="Response and resolution targets. Each ticket gets the first active policy, from the top, whose conditions it matches.">
+    <a class="btn btn-outline-secondary" href="@Model.WithWorkspace("/admin/service-levels/calendars")"><i class="bi bi-calendar-week" aria-hidden="true"></i> Business calendars</a>
+    <a class="btn btn-primary" href="@Model.WithWorkspace("/admin/service-levels/policies/new")"><i class="bi bi-plus-lg" aria-hidden="true"></i> New policy</a>
+</sb-page-header>
+
+<partial name="_WorkspacePicker" model="Model" />
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-stopwatch" title="No SLA policies yet">
+            <p class="sb-empty-text">Without a policy, tickets have no response or resolution targets. Add one to start the clock.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="@Model.WithWorkspace("/admin/service-levels/policies/new")">New policy</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <p class="sb-meta mb-2" id="slaOrderHelp">Drag a row, or use the arrows, to change the order. Targets show first response, then resolution.</p>
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue sla-policies" aria-describedby="slaOrderHelp"
+               data-sla-reorder="@Model.WithWorkspace("/admin/service-levels/policies?handler=Reorder")">
+            <thead>
+            <tr>
+                <th class="sla-col-order"><span class="visually-hidden">Order</span></th>
+                <th>Policy</th>
+                <th class="sb-hide-sm">Applies to</th>
+                <th class="sb-hide-sm">Targets</th>
+                <th>Status</th>
+                <th class="text-end"><span class="visually-hidden">Actions</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            @for (var i = 0; i < Model.Rows.Count; i++)
+            {
+                var row = Model.Rows[i];
+                var p = row.Policy;
+                <tr data-id="@p.Id" draggable="true" class="@(p.IsActive ? "" : "is-off")">
+                    <td class="sla-col-order">
+                        <span class="sla-handle" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+                        <span class="sla-order tabular">@(i + 1)</span>
+                    </td>
+                    <td>
+                        <a class="sb-subject" href="@Model.WithWorkspace($"/admin/service-levels/policies/{p.Id}")">@p.Name</a>
+                        <div class="sb-meta">
+                            @(row.Tickets == 1 ? "1 ticket" : $"{row.Tickets} tickets")
+                            @if (row.CalendarName is not null)
+                            {
+                                <span>, @row.CalendarName</span>
+                            }
+                        </div>
+                    </td>
+                    <td class="sb-hide-sm sla-applies">@row.AppliesTo</td>
+                    <td class="sb-hide-sm">
+                        <dl class="sla-targets">
+                            @foreach (var t in p.Targets.OrderByDescending(t => t.Priority))
+                            {
+                                <div>
+                                    <dt>@t.Priority</dt>
+                                    <dd class="tabular">@SlaText.Short(t.FirstResponseMinutes) / @SlaText.Short(t.ResolutionMinutes)@(t.BusinessHours ? "" : ", calendar hours")</dd>
+                                </div>
+                            }
+                        </dl>
+                    </td>
+                    <td>
+                        <form method="post" asp-page-handler="Active">
+                            <input type="hidden" name="ws" value="@ws">
+                            <input type="hidden" name="id" value="@p.Id">
+                            <input type="hidden" name="active" value="@(p.IsActive ? "false" : "true")">
+                            @if (p.IsActive)
+                            {
+                                <span class="sla-state is-on"><i class="bi bi-check-circle" aria-hidden="true"></i>On</span>
+                                <button class="btn btn-ghost btn-sm" type="submit">Turn off</button>
+                            }
+                            else
+                            {
+                                <span class="sla-state"><i class="bi bi-slash-circle" aria-hidden="true"></i>Off</span>
+                                <button class="btn btn-ghost btn-sm" type="submit">Turn on</button>
+                            }
+                        </form>
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <form method="post" asp-page-handler="Move" class="d-inline">
+                            <input type="hidden" name="ws" value="@ws">
+                            <input type="hidden" name="id" value="@p.Id">
+                            <input type="hidden" name="by" value="-1">
+                            <button class="btn btn-ghost btn-icon" type="submit" aria-label="Move @p.Name up" disabled="@(i == 0)"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                        </form>
+                        <form method="post" asp-page-handler="Move" class="d-inline">
+                            <input type="hidden" name="ws" value="@ws">
+                            <input type="hidden" name="id" value="@p.Id">
+                            <input type="hidden" name="by" value="1">
+                            <button class="btn btn-ghost btn-icon" type="submit" aria-label="Move @p.Name down" disabled="@(i == Model.Rows.Count - 1)"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<form method="post" asp-page-handler="Settings" class="sb-pane mt-4">
+    <input type="hidden" name="ws" value="@ws">
+    <div class="sb-pane-header"><h2 class="sb-pane-title">When a ticket changes</h2></div>
+    <div class="sb-pane-body">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="reevaluate" value="true" id="slaReevaluate" checked="@Model.ReevaluateOnChange">
+            <input type="hidden" name="reevaluate" value="false">
+            <label class="form-check-label" for="slaReevaluate">Check the policy and targets again when the priority or a field a policy matches on changes</label>
+        </div>
+        <p class="form-text mb-0">Turn this off to keep the targets each ticket got when it was created. A manual due date always stays as set.</p>
+    </div>
+    <div class="sb-pane-footer"><button class="btn btn-outline-secondary" type="submit">Save setting</button></div>
+</form>

@@ -1,0 +1,81 @@
+@page "/portal/catalog/requests/{number:int}"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Portal.RequestModel
+@using Switchboard.Modules.Approvals.Domain
+@{
+    var v = Model.View;
+    ViewData["Title"] = $"{v.DisplayId} {v.Subject}";
+    var open = Model.StatusCategory is StatusCategory.Open or StatusCategory.Pending;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+<p class="mb-3"><a href="/portal/catalog" class="small"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Request catalog</a></p>
+<div class="sb-page-header">
+    <div>
+        <h1 class="sb-title">@v.Subject</h1>
+        <p class="sb-subtitle"><span class="sb-stamp">@v.DisplayId</span> requested <sb-time value="@Model.CreatedAt" /></p>
+    </div>
+    <div class="sb-page-actions">
+        <sb-status name="@Model.StatusName" category="@Model.StatusCategory" for-requester="true" requester-label="@Model.StatusLabel" />
+    </div>
+</div>
+
+@if (v.RejectionReason is not null)
+{
+    <div class="alert alert-warning d-flex flex-wrap gap-3 align-items-start" role="status">
+        <i class="bi bi-x-circle mt-1" aria-hidden="true"></i>
+        <div class="flex-grow-1">
+            <p class="mb-1"><strong>This request wasn't approved.</strong> @v.RejectedBy said:</p>
+            <p class="mb-0" style="white-space: pre-line">@v.RejectionReason</p>
+        </div>
+        @if (v.CanResubmit)
+        {
+            <a class="btn btn-primary" href="/portal/catalog/requests/@v.TicketNumber/edit">Change and send again</a>
+        }
+    </div>
+}
+else if (open && v.PostSubmitMessage is not null)
+{
+    <div class="alert alert-info d-flex gap-2" role="status"><i class="bi bi-info-circle mt-1" aria-hidden="true"></i><div>@v.PostSubmitMessage</div></div>
+}
+
+<div class="sb-split">
+    <div class="min-w-0">
+        <section class="sb-pane" aria-labelledby="catAsked">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="catAsked">What you asked for</h2></div>
+            <div class="sb-pane-body">
+                <partial name="_RequestedItems" model="new RequestedItemsModel(v, true, false)" />
+            </div>
+        </section>
+        @if (Model.ConversationHref is not null)
+        {
+            <p class="mt-3"><a href="@Model.ConversationHref">See the conversation with the service desk</a></p>
+        }
+    </div>
+    <aside class="sb-sticky">
+        <section class="sb-pane" aria-labelledby="catApproval">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="catApproval">Approval</h2>
+                @if (Model.Approval is not null)
+                {
+                    <span class="ms-auto"><partial name="/Areas/Approvals/Pages/Shared/_Status.cshtml" model="Model.Approval.Request.Status" /></span>
+                }
+            </div>
+            <div class="sb-pane-body">
+                @if (Model.Approval is null)
+                {
+                    <p class="text-muted mb-0">This item doesn't need approval. The team works on it straight away.</p>
+                }
+                else
+                {
+                    <partial name="/Areas/Approvals/Pages/Shared/_Chain.cshtml" model="Model.Approval" />
+                }
+            </div>
+            @if (Model.Approval is { Request.Status: ApprovalStatus.Requested } pending)
+            {
+                <div class="sb-pane-footer"><a class="small" href="/portal/approvals/@pending.Request.Id">Send a reminder</a></div>
+            }
+        </section>
+    </aside>
+</div>

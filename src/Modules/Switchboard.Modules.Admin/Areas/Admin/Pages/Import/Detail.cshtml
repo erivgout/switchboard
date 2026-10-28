@@ -1,0 +1,132 @@
+@page "/admin/import/{id:guid}"
+@model Switchboard.Modules.Admin.Pages.Import.DetailModel
+@using Switchboard.Modules.Admin.Data
+@{
+    ViewData["Title"] = $"Import {Model.Import.FileName}";
+    var done = Model.Import.Status == ImportStatus.Completed;
+    var back = ("/admin/import", "Import requesters");
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@Model.Import.FileName" subtitle="@($"{Model.Import.TotalRows:N0} rows")" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+
+    @if (done)
+    {
+        <section class="sb-pane" aria-labelledby="resultTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="resultTitle">Imported</h2></div>
+            <div class="sb-metrics">
+                <div class="sb-metric"><div class="sb-num">@Model.Import.CreatedCount</div><div class="sb-metric-label">Added</div></div>
+                <div class="sb-metric"><div class="sb-num">@Model.Import.UpdatedCount</div><div class="sb-metric-label">Updated</div></div>
+                <div class="sb-metric"><div class="sb-num">@Model.Import.SkippedCount</div><div class="sb-metric-label">Skipped</div></div>
+                <div class="sb-metric"><div class="sb-num">@Model.Import.ErrorCount</div><div class="sb-metric-label">With problems</div></div>
+            </div>
+            <div class="sb-pane-footer d-flex flex-wrap gap-2">
+                @if (Model.Import.SkippedCount + Model.Import.ErrorCount > 0)
+                {
+                    <a class="btn btn-outline-secondary" href="/admin/import/@Model.Import.Id?handler=Errors"><i class="bi bi-download" aria-hidden="true"></i> Download rows that weren't imported</a>
+                }
+                <a class="btn btn-ghost" href="/admin/people?kind=requesters">See requesters</a>
+            </div>
+        </section>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="Preview" class="sb-pane">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Match columns</h2></div>
+            <div class="sb-pane-body">
+                <p class="text-muted">Choose which column of your file fills each field. Columns you don't choose are ignored.</p>
+                <div class="row g-3">
+                    @foreach (var f in Model.Fields)
+                    {
+                        var id = "map_" + f.Key.Replace(':', '_');
+                        Model.Mapping.TryGetValue(f.Key, out var current);
+                        <div class="col-md-6">
+                            <label class="form-label" for="@id">@f.Title@(f.Required ? " (required)" : "")</label>
+                            <select class="form-select" id="@id" name="Mapping[@f.Key]">
+                                <option value="">@(f.Required ? "Choose a column" : "Don't import")</option>
+                                @foreach (var h in Model.Headers)
+                                {
+                                    <option value="@h" selected="@(h == current)">@h</option>
+                                }
+                            </select>
+                            <partial name="_FieldError" model="@($"Mapping.{f.Key}")" />
+                        </div>
+                    }
+                </div>
+                <fieldset class="sb-fieldset mt-3">
+                    <legend class="sb-section-label">People who are already in Switchboard</legend>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="UpdateExisting" id="existingSkip" value="false" checked="@(!Model.UpdateExisting)">
+                        <label class="form-check-label" for="existingSkip">Skip them</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="UpdateExisting" id="existingUpdate" value="true" checked="@Model.UpdateExisting">
+                        <label class="form-check-label" for="existingUpdate">Update their details from the file</label>
+                    </div>
+                    <div class="form-text">Matched by email address. Empty cells never clear a value, and agents are never changed by an import.</div>
+                </fieldset>
+            </div>
+            <div class="sb-pane-footer"><button class="btn @(Model.Result is null ? "btn-primary" : "btn-outline-secondary")" type="submit">@(Model.Result is null ? "Preview import" : "Preview again")</button></div>
+        </form>
+
+        @if (Model.Result is { } r)
+        {
+            var importable = r.Create + r.Update;
+            <section class="sb-pane" aria-labelledby="previewTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="previewTitle">Preview</h2></div>
+                <div class="sb-metrics">
+                    <div class="sb-metric"><div class="sb-num">@r.Create</div><div class="sb-metric-label">Will be added</div></div>
+                    <div class="sb-metric"><div class="sb-num">@r.Update</div><div class="sb-metric-label">Will be updated</div></div>
+                    <div class="sb-metric"><div class="sb-num">@r.Skip</div><div class="sb-metric-label">Will be skipped</div></div>
+                    <div class="sb-metric"><div class="sb-num">@r.Errors</div><div class="sb-metric-label">Have problems</div></div>
+                </div>
+                <div class="sb-queue-wrap border-top">
+                    <table class="sb-queue">
+                        <thead><tr><th scope="col">Row</th><th scope="col">Person</th><th scope="col">Result</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in r.Rows)
+                            {
+                                var (icon, label) = row.Outcome switch
+                                {
+                                    ImportOutcome.Create => ("bi-plus-circle", "Add"),
+                                    ImportOutcome.Update => ("bi-pencil", "Update"),
+                                    ImportOutcome.Skip => ("bi-dash-circle", "Skip"),
+                                    _ => ("bi-exclamation-circle", "Problem"),
+                                };
+                                <tr>
+                                    <td class="tabular">@row.Row</td>
+                                    <td>@(row.Name ?? "")<div class="sb-meta">@(row.Email ?? "No email")</div></td>
+                                    <td>
+                                        <span class="sb-outcome sb-outcome--@row.Outcome.ToString().ToLowerInvariant()"><i class="bi @icon" aria-hidden="true"></i>@label</span>
+                                        @if (row.Message is not null)
+                                        {
+                                            <div class="sb-meta">@row.Message</div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (r.Total > r.Rows.Count)
+                {
+                    <p class="text-muted px-3 pt-2 mb-0">Showing problems first, then the first rows. The full list of problems is in the download.</p>
+                }
+                <div class="sb-pane-footer d-flex flex-wrap gap-2">
+                    @if (importable > 0)
+                    {
+                        <form method="post" asp-page-handler="Run">
+                            <button class="btn btn-primary" type="submit" data-sb-confirm="Import @importable @(importable == 1 ? "person" : "people")? Rows with problems are left out.">Import @importable @(importable == 1 ? "person" : "people")</button>
+                        </form>
+                    }
+                    @if (r.Errors + r.Skip > 0)
+                    {
+                        <a class="btn btn-outline-secondary" href="/admin/import/@Model.Import.Id?handler=Errors"><i class="bi bi-download" aria-hidden="true"></i> Download problems</a>
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>

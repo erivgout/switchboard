@@ -1,0 +1,138 @@
+@page "/kb/announcements/edit/{id:guid?}"
+@model AnnouncementEditModel
+@{
+    var heading = Model.IsNew ? "New announcement" : "Edit announcement";
+    ViewData["Title"] = heading;
+    string? Err(string key) => ViewData.ModelState[key]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var titleError = Err("Title");
+    var bodyError = Err("BodyHtml");
+    var endError = Err("ActiveTo");
+    var audienceError = Err("Audience");
+    var audiences = new (KbAnnouncementAudience Value, string Label, string Help)[]
+    {
+        (KbAnnouncementAudience.Everyone, "Everyone", "Agents on their dashboard and requesters on the portal home page."),
+        (KbAnnouncementAudience.Requesters, "Requesters", "The portal home page only."),
+        (KbAnnouncementAudience.Agents, "Agents", "The agent dashboard only."),
+        (KbAnnouncementAudience.Specific, "Selected groups and departments", "Only the people you pick below."),
+    };
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li><a href="/kb/announcements">Announcements</a></li>
+        <li aria-current="page">@heading</li>
+    </ol>
+</nav>
+
+<sb-page-header title="@heading" />
+
+<form method="post" class="sb-form-narrow" data-kb-editor novalidate>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">
+            <p class="fw-semibold mb-1">The announcement wasn't saved.</p>
+            <div asp-validation-summary="All" class="mb-0"></div>
+        </div>
+    }
+    <input type="hidden" name="TzOffset" value="0" data-kb-tz>
+    <input type="hidden" name="WorkspaceId" value="@Model.WorkspaceId">
+
+    <div class="sb-pane">
+        <div class="sb-pane-body">
+            <div class="kb-form-section">
+                <label class="form-label" for="kbAnnTitle">Title</label>
+                <input id="kbAnnTitle" class="form-control @(titleError is null ? null : "is-invalid")" name="Title" value="@Model.Title" maxlength="200" required
+                       placeholder="For example, Email is slow this morning" aria-describedby="@(titleError is null ? null : "kbAnnTitleError")">
+                @if (titleError is not null) { <div class="invalid-feedback" id="kbAnnTitleError">@titleError</div> }
+            </div>
+            <div class="kb-form-section">
+                <span class="form-label d-block" id="kbAnnBodyLabel">Message</span>
+                <partial name="_RichText" model="@(new KbRichText("BodyHtml", Model.BodyHtml, "Announcement message", "What's happening, who it affects, and what to do.", "kbAnn", Small: true))" />
+                @if (bodyError is not null) { <div class="invalid-feedback d-block">@bodyError</div> }
+            </div>
+        </div>
+    </div>
+
+    <fieldset class="sb-pane">
+        <div class="sb-pane-header"><legend class="sb-pane-title mb-0 float-none w-auto">Who sees it</legend></div>
+        <div class="sb-pane-body">
+            @if (audienceError is not null) { <div class="alert alert-danger py-2">@audienceError</div> }
+            <div class="kb-choice">
+                @foreach (var (value, label, help) in audiences)
+                {
+                    var id = $"kbAud{value}";
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="@id" name="Audience" value="@value" checked="@(Model.Audience == value)">
+                        <label class="form-check-label" for="@id">@label</label>
+                        <span class="form-text">@help</span>
+                    </div>
+                }
+            </div>
+            <div class="row g-3 mt-1" data-kb-show-when="Audience=Specific">
+                <fieldset class="col-md-4">
+                    <legend class="form-label fs-6">Agent groups</legend>
+                    @foreach (var g in Model.AgentGroups)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="aag-@g.Id" name="AgentGroupIds" value="@g.Id" checked="@Model.AgentGroupIds.Contains(g.Id)">
+                            <label class="form-check-label" for="aag-@g.Id">@g.Name</label>
+                        </div>
+                    }
+                </fieldset>
+                <fieldset class="col-md-4">
+                    <legend class="form-label fs-6">Requester groups</legend>
+                    @if (Model.RequesterGroups.Count == 0) { <p class="sb-meta">No requester groups yet.</p> }
+                    @foreach (var g in Model.RequesterGroups)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="arg-@g.Id" name="RequesterGroupIds" value="@g.Id" checked="@Model.RequesterGroupIds.Contains(g.Id)">
+                            <label class="form-check-label" for="arg-@g.Id">@g.Name</label>
+                        </div>
+                    }
+                </fieldset>
+                <fieldset class="col-md-4">
+                    <legend class="form-label fs-6">Departments</legend>
+                    @foreach (var d in Model.Departments)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="adp-@d.Id" name="DepartmentIds" value="@d.Id" checked="@Model.DepartmentIds.Contains(d.Id)">
+                            <label class="form-check-label" for="adp-@d.Id">@d.Name</label>
+                        </div>
+                    }
+                </fieldset>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="sb-pane">
+        <div class="sb-pane-header"><legend class="sb-pane-title mb-0 float-none w-auto">When it shows</legend></div>
+        <div class="sb-pane-body row g-3">
+            <div class="col-sm-6">
+                <label class="form-label" for="kbAnnFrom">From</label>
+                <input id="kbAnnFrom" class="form-control" type="datetime-local" name="ActiveFrom" data-kb-utc="@Model.ActiveFromUtc?.ToString("O")">
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="kbAnnTo">Until <span class="sb-meta fw-normal">Optional</span></label>
+                <input id="kbAnnTo" class="form-control @(endError is null ? null : "is-invalid")" type="datetime-local" name="ActiveTo" data-kb-utc="@Model.ActiveToUtc?.ToString("O")"
+                       aria-describedby="kbAnnToHelp">
+                @if (endError is not null) { <div class="invalid-feedback">@endError</div> }
+                <div class="form-text" id="kbAnnToHelp">Leave empty to show it until you remove it. Times are in your time zone.</div>
+            </div>
+        </div>
+    </fieldset>
+
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        <button class="btn btn-primary" type="submit" name="intent" value="post">@(Model.IsNew || !Model.IsPublished ? "Post announcement" : "Save announcement")</button>
+        <button class="btn btn-outline-secondary" type="submit" name="intent" value="draft">@(Model.IsPublished ? "Hide as draft" : "Save as draft")</button>
+        <a class="btn btn-ghost" href="/kb/announcements">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script src="@KbUi.EditorJs" asp-append-version="true"></script>
+    <script src="@KbUi.PagesJs" asp-append-version="true"></script>
+}

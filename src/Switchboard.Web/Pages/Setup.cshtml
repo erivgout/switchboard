@@ -1,0 +1,36 @@
+@page "/setup"
+@model Switchboard.Web.Pages.SetupModel
+@{
+    ViewData["Title"] = "Set up Switchboard";
+    Layout = "_AuthLayout";
+}
+<h1>Set up Switchboard</h1>
+<p class="text-muted mb-4">Create the first admin account. You can invite agents and connect email afterwards.</p>
+
+<div asp-validation-summary="All" class="alert alert-danger" role="alert" hidden="@ModelState.IsValid"></div>
+
+<form method="post" novalidate>
+    <div class="mb-3">
+        <label class="form-label" asp-for="Token">Setup token</label>
+        <input class="form-control tabular" asp-for="Token" autocomplete="off" required>
+        <div class="form-text">Printed in the server log when Switchboard started. It proves you run this server.</div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="OrganizationName">Organization name</label>
+        <input class="form-control" asp-for="OrganizationName" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="Name">Your name</label>
+        <input class="form-control" asp-for="Name" autocomplete="name" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="Email">Your work email</label>
+        <input class="form-control" asp-for="Email" type="email" autocomplete="username" required>
+    </div>
+    <div class="mb-4">
+        <label class="form-label" asp-for="Password">Password</label>
+        <input class="form-control" asp-for="Password" type="password" autocomplete="new-password" minlength="12" required>
+        <div class="form-text">At least 12 characters.</div>
+    </div>
+    <button class="btn btn-primary w-100" type="submit">Create admin account</button>
+</form>

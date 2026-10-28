@@ -1,0 +1,17 @@
+@model PagerModel
+@if (Model.Pages > 1)
+{
+    <nav class="sb-pager" aria-label="Pages">
+        <span class="text-muted tabular">Page @Model.Page of @Model.Pages, @Model.Total.ToString("N0") in all</span>
+        <div class="d-flex gap-2">
+            @if (Model.Page > 1)
+            {
+                <a class="btn btn-outline-secondary btn-sm" href="@Model.Url(Model.Page - 1)" rel="prev">Previous</a>
+            }
+            @if (Model.Page < Model.Pages)
+            {
+                <a class="btn btn-outline-secondary btn-sm" href="@Model.Url(Model.Page + 1)" rel="next">Next</a>
+            }
+        </div>
+    </nav>
+}

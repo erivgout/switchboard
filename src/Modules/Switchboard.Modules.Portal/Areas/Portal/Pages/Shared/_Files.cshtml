@@ -1,0 +1,12 @@
+@model IReadOnlyList<PortalFile>
+@if (Model.Count > 0)
+{
+    <div class="sb-attachments">
+        @foreach (var f in Model)
+        {
+            <a class="sb-attachment" href="@f.Url" target="_blank" rel="noopener">
+                <i class="bi bi-file-earmark" aria-hidden="true"></i><span>@f.FileName</span><span class="prt-file-size">@PortalText.FileSize(f.Size)</span>
+            </a>
+        }
+    </div>
+}

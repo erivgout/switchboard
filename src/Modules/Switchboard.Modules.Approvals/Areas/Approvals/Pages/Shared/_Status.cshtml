@@ -1,0 +1,17 @@
+@using Switchboard.Modules.Approvals.Domain
+@model ApprovalStatus
+@switch (Model)
+{
+    case ApprovalStatus.Approved:
+        <span class="sb-status sb-status--resolved"><i class="bi bi-check2" aria-hidden="true"></i>Approved</span>
+        break;
+    case ApprovalStatus.Rejected:
+        <span class="sb-status apr-status--rejected"><i class="bi bi-x-lg" aria-hidden="true"></i>Rejected</span>
+        break;
+    case ApprovalStatus.Cancelled:
+        <span class="sb-status sb-status--closed"><i class="bi bi-slash-circle" aria-hidden="true"></i>Cancelled</span>
+        break;
+    default:
+        <span class="sb-status sb-status--pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Waiting for approval</span>
+        break;
+}

@@ -1,0 +1,196 @@
+@page "/styleguide"
+@model Switchboard.Web.Pages.StyleguideModel
+@{
+    ViewData["Title"] = "Styleguide";
+    var now = DateTimeOffset.UtcNow;
+}
+<sb-page-header title="Styleguide" subtitle="Every shared component, in context. Build new screens from these pieces; read docs/DESIGN_SYSTEM.md for the rules.">
+    <button class="btn btn-outline-secondary" type="button" data-sb-theme-set="light">Light</button>
+    <button class="btn btn-outline-secondary" type="button" data-sb-theme-set="dark">Dark</button>
+</sb-page-header>
+
+<section class="mb-5" aria-labelledby="sgLamps">
+    <h2 id="sgLamps" class="mb-3">Lamps</h2>
+    <div class="sb-pane sb-pane-body d-flex flex-wrap gap-4 align-items-center">
+        <span class="d-inline-flex gap-2 align-items-center"><sb-lamp lit="false" /> Not waiting</span>
+        <span class="d-inline-flex gap-2 align-items-center"><sb-lamp lit="true" /> Waiting on an agent</span>
+        <span class="d-inline-flex gap-2 align-items-center"><sb-lamp lit="true" alert="true" /> Waiting and overdue</span>
+        <span class="d-inline-flex gap-2 align-items-center"><sb-lamp lit="true" arriving="true" /> Arriving (plays once)</span>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="sgBadges">
+    <h2 id="sgBadges" class="mb-3">Status, priority, due, tags, people</h2>
+    <div class="sb-pane sb-pane-body">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <sb-status name="Open" category="Open" />
+            <sb-status name="Pending" category="Pending" />
+            <sb-status name="Resolved" category="Resolved" />
+            <sb-status name="Closed" category="Closed" />
+        </div>
+        <div class="d-flex flex-wrap gap-4 mb-3">
+            <sb-priority value="Low" />
+            <sb-priority value="Medium" />
+            <sb-priority value="High" />
+            <sb-priority value="Urgent" />
+        </div>
+        <div class="d-flex flex-wrap gap-4 mb-3">
+            <sb-due due="@now.AddHours(26)" category="Open" />
+            <sb-due due="@now.AddMinutes(70)" category="Open" />
+            <sb-due due="@now.AddHours(-3)" category="Open" />
+            <sb-due due="@now.AddHours(5)" category="Pending" />
+            <sb-due due="@now.AddHours(1)" category="Resolved" resolved-at="@now" />
+            <sb-due due="@now.AddHours(-1)" category="Closed" resolved-at="@now" />
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="sb-tag">vip</span><span class="sb-tag">travel</span>
+            <span class="sb-vip">VIP</span>
+            <sb-avatar name="Dana Whitfield" size="sm" /><sb-avatar name="Marcus Chen" /><sb-avatar name="Priya Shah" size="lg" />
+            <span class="sb-stamp">INC-1042</span>
+            <span class="sb-kbd">/</span>
+        </div>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="sgButtons">
+    <h2 id="sgButtons" class="mb-3">Buttons and forms</h2>
+    <div class="sb-pane sb-pane-body">
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button class="btn btn-primary" type="button">Send reply</button>
+            <button class="btn btn-outline-secondary" type="button">Add private note</button>
+            <button class="btn btn-outline-primary" type="button">Assign to me</button>
+            <button class="btn btn-ghost" type="button">Cancel</button>
+            <button class="btn btn-danger" type="button">Delete permanently</button>
+            <button class="btn btn-ghost btn-icon" type="button" aria-label="More actions"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+            <button class="btn btn-primary btn-sm" type="button">Small</button>
+        </div>
+        <div class="row g-3 sb-form-narrow">
+            <div class="col-md-6"><label class="form-label" for="sg1">Subject</label><input id="sg1" class="form-control" placeholder="What's going on?"></div>
+            <div class="col-md-6"><label class="form-label" for="sg2">Group</label><select id="sg2" class="form-select"><option>Service Desk</option><option>Network</option></select></div>
+            <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="sg3" checked><label class="form-check-label" for="sg3">Notify the requester</label></div></div>
+        </div>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="sgQueue">
+    <h2 id="sgQueue" class="mb-3">Queue</h2>
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr><th class="sb-col-lamp"><span class="visually-hidden">Waiting</span></th><th>Subject</th><th>Status</th><th>Priority</th><th class="sb-hide-sm">Agent</th><th>Due</th></tr>
+            </thead>
+            <tbody>
+            <tr class="is-lit" data-sb-href="#">
+                <td class="sb-col-lamp"><sb-lamp lit="true" alert="true" /></td>
+                <td><a class="sb-subject" href="#">Laptop battery swelling, trackpad is raised</a><div class="sb-meta"><span class="sb-stamp">INC-1003</span> Dana Whitfield, <sb-time value="@now.AddMinutes(-42)" /></div></td>
+                <td><sb-status name="Open" category="Open" /></td>
+                <td><sb-priority value="Urgent" /></td>
+                <td class="sb-hide-sm text-muted">Unassigned</td>
+                <td><sb-due due="@now.AddHours(-2)" category="Open" /></td>
+            </tr>
+            <tr data-sb-href="#">
+                <td class="sb-col-lamp"><sb-lamp lit="false" /></td>
+                <td><a class="sb-subject" href="#">Outlook keeps asking for my password</a><div class="sb-meta"><span class="sb-stamp">INC-1007</span> Dana Whitfield, <sb-time value="@now.AddHours(-5)" /></div></td>
+                <td><sb-status name="Pending" category="Pending" /></td>
+                <td><sb-priority value="Medium" /></td>
+                <td class="sb-hide-sm"><span class="d-inline-flex gap-2 align-items-center"><sb-avatar name="Sam Rivera" size="sm" />Sam Rivera</span></td>
+                <td><sb-due due="@now.AddHours(6)" category="Pending" /></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="sgThread">
+    <h2 id="sgThread" class="mb-3">Conversation</h2>
+    <div class="sb-split">
+        <div>
+            <div class="sb-pane sb-pane-body sb-thread">
+                <article class="sb-msg">
+                    <sb-avatar name="Marcus Chen" />
+                    <div>
+                        <div class="sb-msg-head"><span class="sb-msg-author">Marcus Chen</span><span class="sb-msg-kind">by email</span><sb-time value="@now.AddHours(-3)" /></div>
+                        <div class="sb-msg-body"><p>I'm travelling for the client summit and the VPN disconnects roughly every 20 minutes.</p></div>
+                    </div>
+                </article>
+                <article class="sb-msg sb-msg--note">
+                    <sb-avatar name="Priya Shah" />
+                    <div class="sb-msg-card">
+                        <div class="sb-msg-head"><span class="sb-note-label"><i class="bi bi-lock-fill" aria-hidden="true"></i>Private note</span><span class="sb-msg-author">Priya Shah</span><sb-time value="@now.AddHours(-2)" /></div>
+                        <div class="sb-msg-body"><p>Likely the hotel's captive portal. Trying the TCP 443 fallback profile.</p></div>
+                    </div>
+                </article>
+                <article class="sb-msg sb-msg--agent">
+                    <sb-avatar name="Priya Shah" />
+                    <div>
+                        <div class="sb-msg-head"><span class="sb-msg-author">Priya Shah</span><span class="sb-msg-kind">replied</span><sb-time value="@now.AddHours(-2)" /></div>
+                        <div class="sb-msg-body"><p>Thanks Marcus. I've pushed a VPN profile that falls back to TCP 443. Restart the VPN client and tell me if the drops continue.</p></div>
+                        <div class="sb-attachments"><a class="sb-attachment" href="#"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>vpn-profile.xml</span></a></div>
+                    </div>
+                </article>
+                <div class="sb-msg--system"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>Priya Shah changed status to Pending</div>
+            </div>
+            <div class="sb-composer mt-3">
+                <div class="sb-composer-modes" role="group" aria-label="Message type">
+                    <button class="btn btn-sm btn-ghost" type="button" aria-pressed="true">Reply</button>
+                    <button class="btn btn-sm btn-ghost" type="button" aria-pressed="false">Private note</button>
+                    <button class="btn btn-sm btn-ghost" type="button" aria-pressed="false">Forward</button>
+                </div>
+                <label class="visually-hidden" for="sgReply">Reply</label>
+                <textarea id="sgReply" placeholder="Write a reply to Marcus" data-sb-autosize></textarea>
+                <div class="sb-composer-foot">
+                    <button class="btn btn-ghost btn-icon" type="button" aria-label="Attach a file"><i class="bi bi-paperclip" aria-hidden="true"></i></button>
+                    <button class="btn btn-ghost btn-sm" type="button"><i class="bi bi-chat-square-quote me-1" aria-hidden="true"></i>Canned response</button>
+                    <div class="ms-auto d-flex gap-2"><button class="btn btn-primary" type="button">Send reply</button></div>
+                </div>
+            </div>
+            <div class="sb-composer is-note mt-3">
+                <div class="sb-composer-modes" role="group" aria-label="Message type">
+                    <button class="btn btn-sm btn-ghost" type="button" aria-pressed="false">Reply</button>
+                    <button class="btn btn-sm btn-ghost" type="button" aria-pressed="true">Private note</button>
+                </div>
+                <label class="visually-hidden" for="sgNote">Private note</label>
+                <textarea id="sgNote" placeholder="Only agents can see this note"></textarea>
+                <div class="sb-composer-foot"><span class="sb-note-label"><i class="bi bi-lock-fill" aria-hidden="true"></i>Only agents see this</span><button class="btn btn-outline-secondary ms-auto" type="button">Add private note</button></div>
+            </div>
+        </div>
+        <aside class="sb-pane">
+            <div class="sb-pane-header"><h3 class="sb-pane-title">Properties</h3></div>
+            <dl class="sb-props sb-pane-body">
+                <div><dt>Status</dt><dd><select class="form-select form-select-sm" aria-label="Status"><option>Open</option><option selected>Pending</option></select></dd></div>
+                <div><dt>Priority</dt><dd><sb-priority value="High" /></dd></div>
+                <div><dt>Group</dt><dd>Network</dd></div>
+                <div><dt>Agent</dt><dd><span class="d-inline-flex gap-2 align-items-center"><sb-avatar name="Priya Shah" size="sm" />Priya Shah</span></dd></div>
+                <div><dt>Due</dt><dd><sb-due due="@now.AddHours(3)" category="Open" /></dd></div>
+            </dl>
+        </aside>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="sgMetrics">
+    <h2 id="sgMetrics" class="mb-3">Metrics, timeline, empty state</h2>
+    <div class="sb-metrics mb-3">
+        <div class="sb-metric"><div class="sb-num">7</div><div class="sb-metric-label">Waiting on you</div></div>
+        <div class="sb-metric"><div class="sb-num">3</div><div class="sb-metric-label">Overdue</div></div>
+        <div class="sb-metric"><div class="sb-num">94%</div><div class="sb-metric-label">First responses on time, 7 days</div></div>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="sb-pane sb-pane-body">
+                <ul class="sb-timeline">
+                    <li>Sam Rivera replied <sb-time value="@now.AddMinutes(-12)" /></li>
+                    <li>Status changed from Open to Pending <sb-time value="@now.AddMinutes(-12)" /></li>
+                    <li>Created by email <sb-time value="@now.AddHours(-4)" /></li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="sb-pane">
+                <sb-empty icon="bi-inbox" title="No tickets are waiting">
+                    <p class="sb-empty-text">New requests light up here as they arrive.</p>
+                    <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="#">See all open tickets</a></div>
+                </sb-empty>
+            </div>
+        </div>
+    </div>
+</section>

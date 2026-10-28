@@ -1,0 +1,23 @@
+@page "/admin/people/{id:guid}"
+@model Switchboard.Modules.Admin.Pages.People.EditModel
+@{
+    ViewData["Title"] = Model.Detail.User.DisplayName;
+}
+<partial name="_PersonHeader" model='new PersonHeaderModel(Model.Detail, "profile")' />
+
+<form method="post" class="sb-form-narrow" novalidate>
+    <partial name="_Errors" />
+    @if (Model.ReadOnlyReason is not null)
+    {
+        <p class="text-muted"><i class="bi bi-lock me-1" aria-hidden="true"></i>@Model.ReadOnlyReason</p>
+    }
+    <div class="sb-pane">
+        <div class="sb-pane-body">
+            <partial name="_ProfileFields" model="Model.Form" />
+        </div>
+        @if (Model.CanEdit)
+        {
+            <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save profile</button></div>
+        }
+    </div>
+</form>

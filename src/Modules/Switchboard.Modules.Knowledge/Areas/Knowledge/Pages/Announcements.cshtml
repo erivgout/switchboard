@@ -1,0 +1,76 @@
+@page "/kb/announcements"
+@model AnnouncementsModel
+@{
+    ViewData["Title"] = "Announcements";
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<nav aria-label="Breadcrumb">
+    <ol class="kb-crumbs">
+        <li><a href="/kb">Knowledge</a></li>
+        <li aria-current="page">Announcements</li>
+    </ol>
+</nav>
+
+<sb-page-header title="Announcements" subtitle="Outages, maintenance and changes people should know about. They show on the agent dashboard and the portal home page.">
+    <a class="btn btn-primary" href="/kb/announcements/edit"><i class="bi bi-plus-lg" aria-hidden="true"></i> New announcement</a>
+</sb-page-header>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-megaphone" title="No announcements yet">
+            <p class="sb-empty-text">Post one before planned maintenance, so people know what to expect instead of raising a ticket.</p>
+            <div class="sb-empty-actions"><a class="btn btn-primary" href="/kb/announcements/edit">New announcement</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+                <tr>
+                    <th scope="col">Announcement</th>
+                    <th scope="col">State</th>
+                    <th scope="col" class="sb-hide-sm">Shown to</th>
+                    <th scope="col" class="sb-hide-sm">Shows</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Model.Items)
+                {
+                    var (cls, label) = a.State switch
+                    {
+                        KbAnnouncementState.Active => ("kb-state--published", "Showing"),
+                        KbAnnouncementState.Scheduled => ("kb-state--inreview", "Scheduled"),
+                        KbAnnouncementState.Draft => ("kb-state--draft", "Draft"),
+                        _ => ("kb-state--archived", "Ended"),
+                    };
+                    <tr data-sb-href="/kb/announcements/edit/@a.Id">
+                        <td>
+                            <a class="sb-subject" href="/kb/announcements/edit/@a.Id">@a.Title</a>
+                            @if (a.AuthorName is not null) { <div class="sb-meta">Posted by @a.AuthorName</div> }
+                        </td>
+                        <td><span class="kb-state @cls">@label</span></td>
+                        <td class="sb-hide-sm">@AnnouncementsModel.AudienceLabel(a)</td>
+                        <td class="sb-hide-sm">
+                            From <sb-time value="@a.ActiveFrom" mode="datetime" />
+                            @if (a.ActiveTo is { } end) { <div class="sb-meta">until <sb-time value="@end" mode="datetime" /></div> }
+                            else { <div class="sb-meta">until you remove it</div> }
+                        </td>
+                        <td class="text-end">
+                            <form method="post" asp-page-handler="Delete" data-sb-confirm="Delete “@a.Title”? This can't be undone.">
+                                <input type="hidden" name="id" value="@a.Id">
+                                <button class="btn btn-sm btn-ghost" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

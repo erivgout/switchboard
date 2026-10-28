@@ -1,0 +1,23 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.PeopleOptionsModel
+@foreach (var p in Model.People)
+{
+    var label = p.Email is null ? p.Name : $"{p.Name} <{p.Email}>";
+    <li role="option" class="dropdown-item sd-person-option" id="person-@p.Id" data-sd-person-id="@p.Id" data-sd-person-label="@label" aria-selected="false">
+        <sb-avatar name="@p.Name" size="sm" />
+        <span class="min-w-0">
+            <span class="d-block text-truncate">@p.Name@if (p.IsVip) {<span class="sb-vip ms-1">VIP</span>}</span>
+            <span class="sb-meta d-block text-truncate">@string.Join(", ", new[] { p.Email, p.Department }.Where(x => !string.IsNullOrEmpty(x)))</span>
+        </span>
+    </li>
+}
+@if (Model.OfferNew)
+{
+    <li role="option" class="dropdown-item sd-person-option" id="person-new" data-sd-person-new="@Model.Query" aria-selected="false">
+        <i class="bi bi-person-plus" aria-hidden="true"></i>
+        <span>New requester: <strong>@Model.Query</strong></span>
+    </li>
+}
+@if (Model.People.Count == 0 && !Model.OfferNew && Model.Query.Length >= 2)
+{
+    <li class="dropdown-item-text sb-meta">Nobody matches. Type a full email address to add someone new.</li>
+}

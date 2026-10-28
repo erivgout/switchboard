@@ -1,0 +1,164 @@
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Admin.ItemModel
+@using Switchboard.Modules.Approvals.Domain
+@using Switchboard.Modules.Approvals.Web
+@{
+    var item = Model.Item.Item;
+    var personFields = Model.Item.Fields.Where(f => f.Type == CatFieldType.UserLookup).ToList();
+}
+<div class="sb-form-narrow">
+    <form method="post" asp-page-handler="Audience" asp-route-id="@item.Id">
+        <section class="sb-pane" aria-labelledby="catAudience">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="catAudience">Who can request it</h2></div>
+            <div class="sb-pane-body">
+                <p class="text-muted">Leave everything unticked to offer it to everyone. Otherwise, people in any ticked group or department see it. Agents can always request it on someone's behalf, for people in this audience.</p>
+                <div class="row g-4">
+                    <fieldset class="col-md-6">
+                        <legend class="form-label">Requester groups</legend>
+                        @if (Model.RequesterGroups.Count == 0)
+                        {
+                            <p class="small text-muted mb-0">No requester groups exist yet.</p>
+                        }
+                        @foreach (var g in Model.RequesterGroups)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rg-@g.Id" name="groupIds" value="@g.Id" checked="@item.VisibleToGroupIds.Contains(g.Id)">
+                                <label class="form-check-label" for="rg-@g.Id">@g.Name</label>
+                            </div>
+                        }
+                    </fieldset>
+                    <fieldset class="col-md-6">
+                        <legend class="form-label">Departments</legend>
+                        @foreach (var d in Model.Departments)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="dep-@d.Id" name="departmentIds" value="@d.Id" checked="@item.VisibleToDepartmentIds.Contains(d.Id)">
+                                <label class="form-check-label" for="dep-@d.Id">@d.Name</label>
+                            </div>
+                        }
+                    </fieldset>
+                </div>
+            </div>
+            <div class="sb-pane-footer"><button class="btn btn-outline-secondary" type="submit">Save audience</button></div>
+        </section>
+    </form>
+
+    <form method="post" asp-page-handler="Approval" asp-route-id="@item.Id" class="mt-3">
+        <section class="sb-pane" aria-labelledby="catApprovals">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="catApprovals">Approvals</h2>
+                <span class="ms-auto small text-muted">@(Model.Levels.Count == 0 ? "None needed" : Model.Levels.Count == 1 ? "1 level" : $"{Model.Levels.Count} levels, in order")</span>
+            </div>
+            <div class="sb-pane-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                @if (Model.LevelsChangedNotSaved)
+                {
+                    <div class="alert alert-info small" role="status">Changes aren't saved yet. Save the approval chain when you're done.</div>
+                }
+                @if (Model.Levels.Count == 0)
+                {
+                    <p class="text-muted mb-3">Requests go straight to the delivering group. Add a level when someone has to say yes first. Levels run in order: the next one starts when the one before is approved.</p>
+                }
+                <ol class="cat-levels">
+                    @for (var i = 0; i < Model.Levels.Count; i++)
+                    {
+                        var l = Model.Levels[i];
+                        var p = $"Levels[{i}]";
+                        var selected = l.UserIds.Where(Model.People.ContainsKey).Select(id => new PersonChoice(id, Model.People[id])).ToList();
+                        var picker = new PeoplePickerModel($"{p}.UserIds", $"lvl{i}Users", "Choose people", Multiple: true, Selected: selected);
+                        <li class="cat-level">
+                            <div class="cat-level-head">
+                                <span class="cat-level-num" aria-hidden="true">@(i + 1)</span>
+                                <label class="visually-hidden" for="lvl@(i)Name">Level @(i + 1) name</label>
+                                <input class="form-control form-control-sm" id="lvl@(i)Name" name="@(p).Name" value="@l.Name" placeholder="Level @(i + 1) name, for example Manager approval" maxlength="200">
+                                <button class="btn btn-ghost btn-icon btn-sm" type="submit" name="command" value="remove-@i" aria-label="Remove level @(i + 1)"><i class="bi bi-trash3" aria-hidden="true"></i></button>
+                            </div>
+                            <div class="mb-2" style="max-width: 20rem">
+                                <label class="form-label small" for="lvl@(i)Rule">Who needs to approve</label>
+                                <select class="form-select form-select-sm" id="lvl@(i)Rule" name="@(p).Rule">
+                                    <option value="Any" selected="@(l.Rule == ApprovalRule.Any)">Any one of the approvers</option>
+                                    <option value="Everyone" selected="@(l.Rule == ApprovalRule.Everyone)">Every approver</option>
+                                    <option value="Majority" selected="@(l.Rule == ApprovalRule.Majority)">More than half of the approvers</option>
+                                </select>
+                            </div>
+                            <p class="small text-muted mb-1">Approvers</p>
+                            <div class="cat-source" data-cat-source>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="lvl@(i)M" name="@(p).UseManager" value="true" checked="@l.UseManager" data-cat-source-toggle>
+                                    <label class="form-check-label" for="lvl@(i)M">The requester's manager</label>
+                                </div>
+                                <div class="ms-4 mt-1 d-flex gap-2 align-items-center small" data-cat-source-body>
+                                    <label for="lvl@(i)ML">Levels up</label>
+                                    <select class="form-select form-select-sm w-auto" id="lvl@(i)ML" name="@(p).ManagerLevel">
+                                        @for (var n = 1; n <= 5; n++)
+                                        {
+                                            <option value="@n" selected="@(l.ManagerLevel == n)">@(n == 1 ? "1, their manager" : n == 2 ? "2, manager's manager" : n.ToString())</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="cat-source">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="lvl@(i)D" name="@(p).UseDepartmentHead" value="true" checked="@l.UseDepartmentHead">
+                                    <label class="form-check-label" for="lvl@(i)D">The head of the requester's department</label>
+                                </div>
+                            </div>
+                            <div class="cat-source" data-cat-source>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="lvl@(i)U" name="@(p).UseUsers" value="true" checked="@l.UseUsers" data-cat-source-toggle>
+                                    <label class="form-check-label" for="lvl@(i)U">Specific people</label>
+                                </div>
+                                <div class="ms-4 mt-1" data-cat-source-body><partial name="/Areas/Approvals/Pages/Shared/_PeoplePicker.cshtml" model="picker" /></div>
+                            </div>
+                            <div class="cat-source" data-cat-source>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="lvl@(i)G" name="@(p).UseGroup" value="true" checked="@l.UseGroup" data-cat-source-toggle>
+                                    <label class="form-check-label" for="lvl@(i)G">Members of an agent group</label>
+                                </div>
+                                <div class="ms-4 mt-1" data-cat-source-body>
+                                    <label class="visually-hidden" for="lvl@(i)GS">Agent group</label>
+                                    <select class="form-select form-select-sm w-auto" id="lvl@(i)GS" name="@(p).GroupId">
+                                        @foreach (var g in Model.Groups)
+                                        {
+                                            <option value="@g.Id" selected="@(l.GroupId == g.Id)">@g.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="cat-source" data-cat-source>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="lvl@(i)L" name="@(p).UseLookup" value="true" checked="@l.UseLookup" disabled="@(personFields.Count == 0 && !l.UseLookup)" data-cat-source-toggle>
+                                    <label class="form-check-label" for="lvl@(i)L">The person picked in a question on the form</label>
+                                </div>
+                                @if (personFields.Count == 0)
+                                {
+                                    <p class="ms-4 small text-muted mb-0">Add a Person question to the request form first.</p>
+                                }
+                                else
+                                {
+                                    <div class="ms-4 mt-1" data-cat-source-body>
+                                        <label class="visually-hidden" for="lvl@(i)LS">Question</label>
+                                        <select class="form-select form-select-sm w-auto" id="lvl@(i)LS" name="@(p).FieldKey">
+                                            @foreach (var f in personFields)
+                                            {
+                                                <option value="@f.Key" selected="@(l.FieldKey == f.Key)">@f.Label</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ol>
+                <button class="btn btn-outline-secondary btn-sm mt-3" type="submit" name="command" value="add"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add a level</button>
+                <p class="small text-muted mt-3 mb-0">Requesters never approve their own requests, and anyone asking on someone's behalf is left out too. People with a delegate get their approvals covered while they're away.</p>
+            </div>
+            <div class="sb-pane-footer">
+                <button class="btn btn-primary" type="submit" name="command" value="save">Save approval chain</button>
+                @if (Model.Item.Approval is not null)
+                {
+                    <button class="btn btn-ghost" type="submit" name="command" value="none" data-sb-confirm="Turn off approvals for this item? New requests will go straight to the delivering group.">Turn off approvals</button>
+                }
+            </div>
+        </section>
+    </form>
+</div>

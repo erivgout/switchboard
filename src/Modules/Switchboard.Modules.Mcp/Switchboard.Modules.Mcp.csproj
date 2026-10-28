@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <RootNamespace>Switchboard.Modules.Mcp</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\Switchboard.Core\Switchboard.Core.csproj" />
+    <ProjectReference Include="..\..\Switchboard.UI\Switchboard.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MIT (modelcontextprotocol/csharp-sdk) and Apache-2.0 (OpenIddict). -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
+    <PackageReference Include="OpenIddict.AspNetCore" Version="7.7.2" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.7.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Switchboard.Modules.Mcp.Tests" />
+  </ItemGroup>
+
+</Project>

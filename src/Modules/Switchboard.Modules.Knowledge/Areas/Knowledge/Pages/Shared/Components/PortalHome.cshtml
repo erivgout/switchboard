@@ -1,0 +1,38 @@
+@model KbPortalHomeModel
+@if (Model.Announcements.Count > 0 || Model.Popular.Count > 0)
+{
+    <link rel="stylesheet" href="@Url.Content(KbUi.Css)" asp-append-version="true">
+}
+@if (Model.Announcements.Count > 0)
+{
+    <section class="sb-pane mb-4" aria-labelledby="kbPortalAnnouncements">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="kbPortalAnnouncements">Announcements</h2></div>
+        <ul class="kb-announcements">
+            @foreach (var a in Model.Announcements)
+            {
+                <li class="kb-announcement">
+                    <h3 class="kb-announcement-title"><i class="bi bi-megaphone" aria-hidden="true"></i>@a.Title</h3>
+                    <div class="kb-announcement-body">@Html.Raw(a.BodyHtml)</div>
+                </li>
+            }
+        </ul>
+    </section>
+}
+@if (Model.Popular.Count > 0)
+{
+    <section class="sb-pane" aria-labelledby="kbPortalPopular">
+        <div class="sb-pane-header">
+            <h2 class="sb-pane-title" id="kbPortalPopular">Popular articles</h2>
+            <a class="btn btn-sm btn-ghost ms-auto" href="/portal/kb">Browse all articles</a>
+        </div>
+        <ul class="kb-slot-list">
+            @foreach (var item in Model.Popular)
+            {
+                <li>
+                    <a class="kb-slot-title" href="/portal/kb/@item.Id">@item.Title</a>
+                    <p class="kb-snippet">@item.Snippet</p>
+                </li>
+            }
+        </ul>
+    </section>
+}

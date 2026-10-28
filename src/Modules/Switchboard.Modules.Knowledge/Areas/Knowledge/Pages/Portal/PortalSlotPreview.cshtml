@@ -1,0 +1,24 @@
+@page "/portal/kb/dev/slots"
+@model PortalSlotPreviewModel
+@{
+    ViewData["Title"] = "Knowledge portal slots preview";
+}
+
+<sb-page-header title="Knowledge portal slots" subtitle="Development preview of what this module adds to the portal module's pages." />
+
+<p class="sb-section-label">portal.newticket.aside (type in the subject)</p>
+<div class="sb-split mb-5">
+    <div class="sb-pane sb-pane-body">
+        <label class="form-label" for="previewSubject">What's the problem?</label>
+        <input id="previewSubject" class="form-control form-control-lg" data-sb-deflect-source autocomplete="off" placeholder="For example, Outlook keeps asking for my password">
+    </div>
+    <aside>
+        <sb-slot name="portal.newticket.aside" />
+    </aside>
+</div>
+
+<p class="sb-section-label">portal.home</p>
+<div class="mb-5"><sb-slot name="portal.home" /></div>
+
+<p class="sb-section-label">portal.search for “@Model.Q”</p>
+<sb-slot name="portal.search" model="Model.Q" />

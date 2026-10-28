@@ -1,0 +1,34 @@
+@page "/admin/people/{id:guid}/forget"
+@model Switchboard.Modules.Admin.Pages.People.ForgetModel
+@{
+    var u = Model.Detail.User;
+    ViewData["Title"] = $"Erase {u.DisplayName}'s personal data";
+    var back = ($"/admin/people/{u.Id}/account", u.DisplayName);
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@($"Erase {u.DisplayName}'s personal data")" />
+
+<form method="post" class="sb-form-narrow">
+    <partial name="_Errors" />
+    <section class="sb-pane sb-pane--caution">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">This can't be undone</h2></div>
+        <div class="sb-pane-body">
+            <p>Use this for a request to be forgotten. Switchboard will:</p>
+            <ul class="sb-consequences">
+                <li>Replace their name with a placeholder and remove their email addresses, phone numbers, address, job title, background and custom fields.</li>
+                <li>Remove their name and addresses from the tickets they raised and from messages they wrote.</li>
+                <li>Deactivate the account, end their sessions and revoke their API keys.</li>
+                <li>Keep the tickets and history, so reports and other people's records still make sense.</li>
+            </ul>
+            <p>The audit log records that the data was erased, not what it was. Export their data first if you need to send it to them.</p>
+            <label class="form-label" for="confirmation">Type <strong>@Model.Expected</strong> to confirm</label>
+            <input class="form-control" id="confirmation" name="Confirmation" value="@Model.Confirmation" autocomplete="off" spellcheck="false"
+                   data-sb-confirm-text="@Model.Expected" data-sb-confirm-button="#forgetButton">
+            <partial name="_FieldError" model="@("Confirmation")" />
+        </div>
+        <div class="sb-pane-footer d-flex gap-2">
+            <button class="btn btn-danger" type="submit" id="forgetButton">Erase personal data</button>
+            <a class="btn btn-ghost" href="/admin/people/@u.Id/account">Cancel</a>
+        </div>
+    </section>
+</form>

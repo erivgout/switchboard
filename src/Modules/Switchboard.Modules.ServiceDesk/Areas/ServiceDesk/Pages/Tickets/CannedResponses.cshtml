@@ -1,0 +1,216 @@
+@page "/tickets/canned-responses"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.CannedResponsesModel
+@using Switchboard.Modules.ServiceDesk.Data
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var folderById = Model.Folders.ToDictionary(f => f.Id);
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+
+<sb-page-header title="Canned responses" subtitle="Replies you write once and reuse. Insert them from the composer on any ticket.">
+    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#sdFolderDialog"><i class="bi bi-folder-plus" aria-hidden="true"></i> New folder</button>
+    <a class="btn btn-primary" href="/tickets/canned-responses?new=true@(Model.SelectedFolder is { } sf ? $"&folder={sf}" : "")"><i class="bi bi-plus-lg" aria-hidden="true"></i> New response</a>
+</sb-page-header>
+
+<div class="sd-canned-page">
+    <nav class="sb-pane sd-canned-folders" aria-label="Folders">
+        <ul class="sb-views">
+            <li>
+                <a href="/tickets/canned-responses" aria-current="@(Model.SelectedFolder is null ? "page" : null)">
+                    <i class="bi bi-collection text-muted" aria-hidden="true"></i><span>All responses</span>
+                </a>
+            </li>
+            @foreach (var f in Model.Folders)
+            {
+                <li>
+                    <a href="/tickets/canned-responses?folder=@f.Id" aria-current="@(Model.SelectedFolder == f.Id ? "page" : null)">
+                        <i class="bi @(f.Visibility switch { CannedVisibility.Personal => "bi-person", CannedVisibility.Shared => "bi-people", _ => "bi-diagram-3" }) text-muted" aria-hidden="true"></i>
+                        <span class="text-truncate">@f.Name</span>
+                        <span class="visually-hidden">(@Model.VisibilityText(f))</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+
+    <div class="min-w-0">
+        @if (Model.Editing)
+        {
+            <form class="sb-pane" method="post" asp-page-handler="Save" data-sd-sync-editors>
+                <input type="hidden" asp-for="Input.Id">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">@(Model.Input.Id is null ? "New response" : "Edit response")</h2></div>
+                <div class="sb-pane-body">
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <strong>The response wasn't saved.</strong>
+                            <ul class="mb-0 mt-1">
+                                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                                {
+                                    <li>@error.ErrorMessage</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <label class="form-label" for="cannedTitle">Title</label>
+                            <input class="form-control" id="cannedTitle" asp-for="Input.Title" maxlength="200" required placeholder="Password reset steps">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label" for="cannedFolder">Folder</label>
+                            <select class="form-select" id="cannedFolder" asp-for="Input.FolderId">
+                                @if (!Model.EditableFolders.Any(f => f.Visibility == CannedVisibility.Personal))
+                                {
+                                    <option value="">@CannedResponseService.PersonalFolderName (only you)</option>
+                                }
+                                @foreach (var f in Model.EditableFolders)
+                                {
+                                    <option value="@f.Id">@f.Name (@Model.VisibilityText(f).ToLowerInvariant())</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <span class="form-label d-block" id="cannedBodyLabel">Response</span>
+                            <div class="sb-composer sd-editor-wrap" data-sd-editor>
+                                <div class="sd-editor-toolbar" role="toolbar" aria-label="Formatting">
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="bold" aria-label="Bold"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="italic" aria-label="Italic"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertUnorderedList" aria-label="Bulleted list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="insertOrderedList" aria-label="Numbered list"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
+                                    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-sd-cmd="createLink" aria-label="Add link"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
+                                </div>
+                                <div class="sd-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="cannedBodyLabel" data-sd-editor-area
+                                     data-placeholder="Hi {{requester.first_name}}, ...">@Html.Raw(Model.Input.BodyHtml)</div>
+                                <input type="hidden" name="Input.BodyHtml" data-sd-editor-value>
+                            </div>
+                        </div>
+                    </div>
+                    <details class="sd-placeholders mt-3">
+                        <summary>Placeholders you can use</summary>
+                        <dl class="sd-field-help mt-2">
+                            @foreach (var (token, meaning) in CannedResponseService.Placeholders)
+                            {
+                                <div><dt><code>@token</code></dt><dd>@meaning</dd></div>
+                            }
+                        </dl>
+                    </details>
+                </div>
+                <div class="sb-pane-footer">
+                    <a class="btn btn-ghost ms-auto" href="/tickets/canned-responses@(Model.SelectedFolder is { } back ? $"?folder={back}" : "")">Cancel</a>
+                    <button class="btn btn-primary" type="submit">Save response</button>
+                </div>
+            </form>
+        }
+        else
+        {
+            <form class="sd-canned-search mb-3" method="get" role="search">
+                @if (Model.SelectedFolder is { } sel)
+                {
+                    <input type="hidden" name="folder" value="@sel">
+                }
+                <label class="visually-hidden" for="cannedQ">Search responses</label>
+                <input class="form-control" id="cannedQ" type="search" name="q" value="@Model.Q" placeholder="Search responses">
+            </form>
+            @if (Model.SelectedFolder is { } fid && folderById.TryGetValue(fid, out var current))
+            {
+                <div class="sd-folder-head">
+                    <h2 class="h5 m-0">@current.Name</h2>
+                    <span class="sb-meta">Visible to: @Model.VisibilityText(current)</span>
+                    @if (Model.EditableFolderIds.Contains(fid))
+                    {
+                        <form class="ms-auto" method="post" asp-page-handler="DeleteFolder" asp-route-id="@fid" data-sb-confirm="Delete the folder &quot;@current.Name&quot;? It has to be empty.">
+                            <button class="btn btn-ghost btn-sm" type="submit">Delete folder</button>
+                        </form>
+                    }
+                </div>
+            }
+            @if (Model.Responses.Count == 0)
+            {
+                <div class="sb-pane">
+                    <sb-empty icon="bi-chat-square-quote" title="@(string.IsNullOrEmpty(Model.Q) ? "No responses here yet" : "No responses match")">
+                        <p class="sb-empty-text">Write the replies you send again and again, like reset steps or a polite follow-up. Placeholders fill in names and ticket details for you.</p>
+                        <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/tickets/canned-responses?new=true">Write a response</a></div>
+                    </sb-empty>
+                </div>
+            }
+            else
+            {
+                <ul class="sb-pane sd-canned-rows">
+                    @foreach (var r in Model.Responses)
+                    {
+                        var editable = Model.EditableFolderIds.Contains(r.FolderId);
+                        <li>
+                            <div class="min-w-0">
+                                <div class="fw-semibold">@r.Title</div>
+                                <div class="sb-meta text-truncate">@Switchboard.Modules.ServiceDesk.Services.CannedPreview.Render(r.Preview)</div>
+                                <div class="sb-meta">@r.FolderName</div>
+                            </div>
+                            @if (editable)
+                            {
+                                <a class="btn btn-ghost btn-sm" href="/tickets/canned-responses?edit=@r.Id">Edit</a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@r.Id" data-sb-confirm="Delete the response &quot;@r.Title&quot;?">
+                                    <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                                </form>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="sdFolderDialog" tabindex="-1" aria-labelledby="sdFolderTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" asp-page-handler="CreateFolder">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="sdFolderTitle">New folder</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="folderName">Name</label>
+                <input class="form-control" id="folderName" asp-for="Folder.Name" maxlength="100" required>
+                <fieldset class="mt-3">
+                    <legend class="form-label">Who can use it</legend>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="visPersonal" name="Folder.Visibility" value="Personal" checked>
+                        <label class="form-check-label" for="visPersonal">Only me</label>
+                    </div>
+                    @if (Model.CanManageShared)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="visShared" name="Folder.Visibility" value="Shared">
+                            <label class="form-check-label" for="visShared">Every agent</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="visGroup" name="Folder.Visibility" value="Group">
+                            <label class="form-check-label" for="visGroup">One group</label>
+                        </div>
+                        <label class="form-label mt-2" for="folderGroup">Group</label>
+                        <select class="form-select" id="folderGroup" name="Folder.GroupId">
+                            @foreach (var g in Model.GroupNames)
+                            {
+                                <option value="@g.Key">@g.Value</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <p class="form-text">Shared and group folders are set up by an admin.</p>
+                    }
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create folder</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/editor.js" asp-append-version="true"></script>
+}

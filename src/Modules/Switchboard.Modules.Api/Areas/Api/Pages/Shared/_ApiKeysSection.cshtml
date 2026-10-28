@@ -1,0 +1,151 @@
+@model ApiKeysSectionModel
+@{
+    var now = Model.Now;
+    var scopeGroups = Model.Scopes.GroupBy(s => s.Group).ToList();
+}
+<section class="sb-pane" id="apiKeys" aria-labelledby="apiKeysTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="apiKeysTitle">API keys</h2>
+        <a class="ms-auto small" href="/api-docs">API reference</a>
+    </div>
+    <div class="sb-pane-body">
+        <p class="text-muted mb-3">Scripts and other systems use a key to reach the Switchboard API as you. Treat a key like your password.</p>
+
+        @if (Model.Created is { } created)
+        {
+            <partial name="/Areas/Api/Pages/Shared/_SecretReveal.cshtml"
+                     model="@(new SecretRevealModel("newApiKey", $"Your key \"{created.Key.Name}\" is ready. Copy it now. It won't be shown again.", created.Secret, "Send it as Authorization: Bearer followed by the key."))" />
+        }
+
+        @if (Model.Keys.Count == 0)
+        {
+            <p class="mb-0">You don't have any keys yet. Create one for each script or system, so you can revoke one without breaking the others.</p>
+        }
+        else
+        {
+            <div class="sb-pane sb-queue-wrap">
+                <table class="sb-queue">
+                    <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th class="sb-hide-sm">Access</th>
+                        <th class="sb-hide-sm">Last used</th>
+                        <th>Expires</th>
+                        <th><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var key in Model.Keys)
+                    {
+                        var state = key.State(now);
+                        <tr class="@(state == ApiKeyState.Active ? null : "sb-api-inactive")">
+                            <td>
+                                <div class="fw-semibold">@key.Name</div>
+                                <div class="sb-meta"><span class="sb-api-prefix">@key.Prefix…</span> created <sb-time value="@key.CreatedAt" /></div>
+                            </td>
+                            <td class="sb-hide-sm">
+                                @if (key.Scopes.Count == 0)
+                                {
+                                    <span>Full access</span>
+                                }
+                                else
+                                {
+                                    <span class="sb-api-scopes">@foreach (var s in key.Scopes) { <span class="sb-tag">@s</span> }</span>
+                                }
+                            </td>
+                            <td class="sb-hide-sm">@if (key.LastUsedAt is { } used) { <sb-time value="@used" /> } else { <span class="text-muted">Never</span> }</td>
+                            <td>
+                                @switch (state)
+                                {
+                                    case ApiKeyState.Revoked:
+                                        <span class="sb-status sb-status--closed">Revoked</span>
+                                        break;
+                                    case ApiKeyState.Expired:
+                                        <span class="sb-status sb-status--pending">Expired</span>
+                                        break;
+                                    default:
+                                        if (key.ExpiresAt is { } exp) { <time class="tabular text-nowrap" datetime="@exp.ToUniversalTime().ToString("O")">@exp.ToUniversalTime().ToString("MMM d, yyyy")</time> } else { <span>Never</span> }
+                                        break;
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (state == ApiKeyState.Active)
+                                {
+                                    <form method="post" action="/profile/api-keys?handler=revoke" hx-post="/profile/api-keys?handler=revoke" hx-target="#apiKeys" hx-swap="outerHTML"
+                                          hx-confirm="Revoke &quot;@key.Name&quot;? Anything using it stops working right away.">
+                                        <input type="hidden" name="id" value="@key.Id">
+                                        <button class="btn btn-outline-secondary btn-sm" type="submit">Revoke</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <details class="sb-pane-footer d-block sb-api-create" open="@Model.FormOpen">
+        <summary class="btn btn-outline-secondary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create a key</summary>
+        <form method="post" action="/profile/api-keys?handler=create" hx-post="/profile/api-keys?handler=create" hx-target="#apiKeys" hx-swap="outerHTML" class="mt-3 sb-form-narrow" novalidate>
+            @if (Model.FormOpen)
+            {
+                <div class="alert alert-danger" role="alert">@string.Join(" ", Model.Errors!.SelectMany(e => e.Value))</div>
+            }
+            <div class="row g-3">
+                <div class="col-md-7">
+                    <label class="form-label" for="apiKeyName">Name</label>
+                    <input class="form-control @(Model.Error("name") is null ? null : "is-invalid")" id="apiKeyName" name="Form.Name" value="@Model.Form.Name" maxlength="100" required
+                           placeholder="What will use it, e.g. Monitoring sync" aria-describedby="apiKeyNameHelp">
+                    @if (Model.Error("name") is { } nameError) { <div class="invalid-feedback">@nameError</div> }
+                    <div class="form-text" id="apiKeyNameHelp">Shown in your list and to admins.</div>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="apiKeyExpires">Expires</label>
+                    <select class="form-select @(Model.Error("expiresInDays") is null ? null : "is-invalid")" id="apiKeyExpires" name="Form.Expires">
+                        @foreach (var days in Model.LifetimeChoices)
+                        {
+                            <option value="@days" selected="@(Model.Form.Expires == days.ToString())">In @ApiKeysSectionModel.Lifetime(days)</option>
+                        }
+                        @if (Model.MaxLifetimeDays is null)
+                        {
+                            <option value="never" selected="@(Model.Form.Expires == "never")">Never</option>
+                        }
+                    </select>
+                    @if (Model.Error("expiresInDays") is { } expError) { <div class="invalid-feedback">@expError</div> }
+                </div>
+                <fieldset class="col-12">
+                    <legend class="form-label fs-6">Access</legend>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="Form.Access" id="apiAccessFull" value="full" checked="@(Model.Form.Access != "limited")" data-sb-scope-mode>
+                        <label class="form-check-label" for="apiAccessFull">Everything you can do in Switchboard</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="Form.Access" id="apiAccessLimited" value="limited" checked="@(Model.Form.Access == "limited")" data-sb-scope-mode>
+                        <label class="form-check-label" for="apiAccessLimited">Only what I choose</label>
+                    </div>
+                    <div class="sb-api-scope-list" data-sb-scope-list hidden="@(Model.Form.Access != "limited")">
+                        @if (Model.Error("scopes") is { } scopeError) { <div class="text-danger small mb-2">@scopeError</div> }
+                        @foreach (var group in scopeGroups)
+                        {
+                            <div class="sb-api-scope-group">
+                                <p class="sb-section-label">@group.Key</p>
+                                @foreach (var scope in group)
+                                {
+                                    var id = "apiScope_" + scope.Key.Replace(':', '_');
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="Form.Scopes" value="@scope.Key" id="@id" checked="@Model.Form.Scopes.Contains(scope.Key)">
+                                        <label class="form-check-label" for="@id">@scope.Title</label>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <p class="form-text mb-0">Changing, replying to or deleting tickets also gives read access to them. A key never gets more than you have.</p>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="mt-3"><button class="btn btn-primary" type="submit">Create key</button></div>
+        </form>
+    </details>
+</section>

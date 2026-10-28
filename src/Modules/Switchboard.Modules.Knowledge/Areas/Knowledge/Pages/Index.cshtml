@@ -1,0 +1,201 @@
+@page "/kb"
+@model IndexModel
+@{
+    ViewData["Title"] = "Knowledge";
+    var canWrite = Model.Viewer.WriteWorkspaces.Count > 0 || Model.Viewer.IsInternal;
+    var canManage = Model.Viewer.CanManageAny;
+    var categories = Model.Index.Categories.Values
+        .Where(c => !c.InTrash && Model.Viewer.IsKbAgent(c.WorkspaceId))
+        .OrderBy(c => c.Order).ThenBy(c => c.Name).ToList();
+    var newHref = Model.Folder is { } nf ? $"/kb/new?folder={nf}" : "/kb/new";
+}
+@section Head {
+    <link rel="stylesheet" href="@KbUi.Css" asp-append-version="true">
+}
+
+<sb-page-header title="Knowledge" subtitle="Answers your team and requesters can find on their own.">
+    @if (canManage)
+    {
+        <a class="btn btn-outline-secondary" href="/kb/announcements"><i class="bi bi-megaphone" aria-hidden="true"></i> Announcements</a>
+        <a class="btn btn-outline-secondary" href="/kb/folders"><i class="bi bi-folder2" aria-hidden="true"></i> Folders</a>
+    }
+    <a class="btn btn-outline-secondary" href="/kb/trash"><i class="bi bi-trash3" aria-hidden="true"></i> Trash</a>
+    @if (canWrite && Model.AgentFolders.Count > 0)
+    {
+        <a class="btn btn-primary" href="@newHref"><i class="bi bi-plus-lg" aria-hidden="true"></i> New article</a>
+    }
+</sb-page-header>
+
+<div class="kb-browse">
+    <nav class="sb-pane kb-side" aria-label="Knowledge views and folders">
+        <ul class="sb-views">
+            <li><a href="/kb" aria-current="@(Model.View is null && !Model.Filtered ? "page" : null)"><i class="bi bi-journal-text" aria-hidden="true"></i>All articles</a></li>
+            <li><a href="/kb?view=mine" aria-current="@(Model.View == "mine" ? "page" : null)"><i class="bi bi-person" aria-hidden="true"></i>Owned by me</a></li>
+            <li><a href="/kb?view=drafts" aria-current="@(Model.View == "drafts" ? "page" : null)"><i class="bi bi-pencil" aria-hidden="true"></i>My drafts</a></li>
+            <li>
+                <a href="/kb?view=approval" aria-current="@(Model.View == "approval" ? "page" : null)">
+                    <i class="bi bi-hourglass-split" aria-hidden="true"></i>Waiting for my approval
+                    @if (Model.AwaitingMe > 0) { <span class="sb-count">@Model.AwaitingMe</span> }
+                </a>
+            </li>
+            <li>
+                <a href="/kb?view=review" aria-current="@(Model.View == "review" ? "page" : null)">
+                    <i class="bi bi-calendar-check" aria-hidden="true"></i>Due for review
+                    @if (Model.NeedsReviewCount > 0) { <span class="sb-count">@Model.NeedsReviewCount</span> }
+                </a>
+            </li>
+            <li><a href="/kb?view=archived" aria-current="@(Model.View == "archived" ? "page" : null)"><i class="bi bi-archive" aria-hidden="true"></i>Archived</a></li>
+        </ul>
+        <hr class="sb-divider my-0">
+        <p class="sb-section-label">Folders</p>
+        @if (categories.Count == 0)
+        {
+            <p class="sb-meta px-3 pb-3 mb-0">No folders yet.@if (canManage) { <text> <a href="/kb/folders">Set up folders</a></text> }</p>
+        }
+        <ul class="kb-tree">
+            @foreach (var category in categories)
+            {
+                var folders = KbUi.Tree(Model.Index, category.Id, Model.AgentFolders).ToList();
+                if (folders.Count == 0) { continue; }
+                <li class="kb-tree-cat">@category.Name</li>
+                @foreach (var (folder, depth) in folders)
+                {
+                    <li data-depth="@depth">
+                        <a href="/kb?folder=@folder.Id" aria-current="@(Model.Folder == folder.Id ? "page" : null)">
+                            <i class="bi @(folder.Visibility == KbFolderVisibility.AgentsOnly ? "bi-folder-x" : folder.Visibility == KbFolderVisibility.Restricted ? "bi-folder-symlink" : "bi-folder2")" aria-hidden="true"></i>
+                            <span>@folder.Name</span>
+                            <span class="sb-count">@(Model.FolderCounts.GetValueOrDefault(folder.Id))</span>
+                        </a>
+                    </li>
+                }
+            }
+        </ul>
+    </nav>
+
+    <section aria-labelledby="kbResultsTitle">
+        <form class="kb-filters" method="get" action="/kb" role="search">
+            @if (Model.Folder is not null) { <input type="hidden" name="folder" value="@Model.Folder"> }
+            @if (Model.View is not null) { <input type="hidden" name="view" value="@Model.View"> }
+            <div class="kb-filter-search">
+                <label class="visually-hidden" for="kbQ">Search articles</label>
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input id="kbQ" class="form-control" type="search" name="q" value="@Model.Q" placeholder="Search titles, tags and article text" autocomplete="off">
+            </div>
+            <label class="visually-hidden" for="kbStatus">Status</label>
+            <select id="kbStatus" name="status" class="form-select">
+                <option value="">Any status</option>
+                @foreach (var s in new[] { KbArticleStatus.Draft, KbArticleStatus.InReview, KbArticleStatus.Published, KbArticleStatus.Archived })
+                {
+                    <option value="@s.ToString().ToLowerInvariant()" selected="@(string.Equals(Model.Status, s.ToString(), StringComparison.OrdinalIgnoreCase))">@KbUi.StatusLabel(s)</option>
+                }
+            </select>
+            <label class="visually-hidden" for="kbOwner">Owner</label>
+            <select id="kbOwner" name="owner" class="form-select">
+                <option value="">Any owner</option>
+                <option value="me" selected="@(Model.Owner == "me")">Owned by me</option>
+            </select>
+            <label class="visually-hidden" for="kbSort">Sort</label>
+            <select id="kbSort" name="sort" class="form-select">
+                <option value="">Best match</option>
+                <option value="updated" selected="@(Model.Sort == "updated")">Recently updated</option>
+                <option value="popular" selected="@(Model.Sort == "popular")">Most viewed</option>
+                <option value="title" selected="@(Model.Sort == "title")">Title</option>
+            </select>
+            <button class="btn btn-outline-secondary" type="submit">Search</button>
+        </form>
+
+        <h2 class="visually-hidden" id="kbResultsTitle">@Model.Heading</h2>
+        <p class="kb-results-note">
+            <strong>@Model.Heading</strong>, @KbUi.Plural(Model.Results.Total, "article", "articles")
+            @if (Model.Filtered) { <text> </text><a href="/kb@(Model.View is null ? "" : $"?view={Model.View}")">Clear filters</a> }
+        </p>
+
+        @if (Model.Results.Items.Count == 0)
+        {
+            <div class="sb-pane">
+                @if (!string.IsNullOrWhiteSpace(Model.Q))
+                {
+                    <sb-empty icon="bi-search" title="No articles match">
+                        <p class="sb-empty-text">Try fewer or different words, or search every folder and status.</p>
+                        @if (canWrite) { <div class="sb-empty-actions"><a class="btn btn-primary" href="/kb/new">Write an article</a></div> }
+                    </sb-empty>
+                }
+                else if (Model.View == "approval")
+                {
+                    <sb-empty icon="bi-check2-all" title="Nothing is waiting for you">
+                        <p class="sb-empty-text">Articles sent for review in folders you approve show up here.</p>
+                    </sb-empty>
+                }
+                else if (Model.View == "review")
+                {
+                    <sb-empty icon="bi-calendar-check" title="Every article is up to date">
+                        <p class="sb-empty-text">Articles whose review-by date has passed show up here.</p>
+                    </sb-empty>
+                }
+                else
+                {
+                    <sb-empty icon="bi-journal-text" title="No articles yet">
+                        <p class="sb-empty-text">Write the first one so requesters can help themselves.</p>
+                        @if (canWrite && Model.AgentFolders.Count > 0) { <div class="sb-empty-actions"><a class="btn btn-primary" href="@newHref">New article</a></div> }
+                        else if (canManage) { <div class="sb-empty-actions"><a class="btn btn-primary" href="/kb/folders">Set up folders</a></div> }
+                    </sb-empty>
+                }
+            </div>
+        }
+        else
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            <div class="sb-pane sb-queue-wrap">
+                <table class="sb-queue">
+                    <thead>
+                        <tr>
+                            <th scope="col">Article</th>
+                            <th scope="col" class="sb-hide-sm">Status</th>
+                            <th scope="col" class="sb-hide-sm">Owner</th>
+                            <th scope="col" class="sb-hide-sm">Updated</th>
+                            <th scope="col" class="sb-hide-sm text-end">Views</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Results.Items)
+                        {
+                            <tr data-sb-href="/kb/@item.Id">
+                                <td class="kb-title-cell">
+                                    <a class="sb-subject" href="/kb/@item.Id">@item.Title</a>
+                                    <p class="kb-snippet">@item.Snippet</p>
+                                    <div class="kb-row-flags sb-meta">
+                                        <span class="sb-stamp">@item.DisplayId</span>
+                                        <span>@item.FolderPath</span>
+                                        @if (item.Type == KbArticleType.Workaround) { <span class="kb-kind"><i class="bi bi-bandaid" aria-hidden="true"></i> Workaround</span> }
+                                        @if (item.ExternalUrl is not null) { <span class="kb-kind"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> External link</span> }
+                                        @if (item.ReviewBy is { } rb && rb <= today && item.Status != KbArticleStatus.Archived) { <span class="kb-review-due"><i class="bi bi-calendar-x" aria-hidden="true"></i> Review was due @KbUi.Date(rb)</span> }
+                                        <span class="d-lg-none">@KbUi.StatusLabel(item.Status)</span>
+                                    </div>
+                                </td>
+                                <td class="sb-hide-sm">@KbUi.State(item.Status, item.PendingChanges)</td>
+                                <td class="sb-hide-sm kb-nowrap">
+                                    @if (item.OwnerName is not null)
+                                    {
+                                        <span class="d-inline-flex align-items-center gap-2"><sb-avatar name="@item.OwnerName" size="sm" />@item.OwnerName</span>
+                                    }
+                                </td>
+                                <td class="sb-hide-sm kb-nowrap"><sb-time value="@item.UpdatedAt" /></td>
+                                <td class="sb-hide-sm text-end tabular">@item.Views.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Results.Pages > 1)
+            {
+                <nav class="kb-pager" aria-label="Pages">
+                    <span>Page @Model.Results.Page of @Model.Results.Pages</span>
+                    <span class="d-flex gap-2">
+                        @if (Model.Results.Page > 1) { <a class="btn btn-sm btn-outline-secondary" href="@Model.PageLink(Model.Results.Page - 1)">Previous</a> }
+                        @if (Model.Results.Page < Model.Results.Pages) { <a class="btn btn-sm btn-outline-secondary" href="@Model.PageLink(Model.Results.Page + 1)">Next</a> }
+                    </span>
+                </nav>
+            }
+        }
+    </section>
+</div>

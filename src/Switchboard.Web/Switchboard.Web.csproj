@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Switchboard.Web</RootNamespace>
+    <UserSecretsId>switchboard-web</UserSecretsId>
+    <!--
+      Module selection. Unset = every module. Set SWITCHBOARD_MODULES to a semicolon list
+      (e.g. "ServiceDesk;Knowledge") to build the host with only those modules; parallel
+      agents use this so one module's work in progress can't break another's build.
+    -->
+    <_SbModules>;$(SWITCHBOARD_MODULES);</_SbModules>
+    <_SbAll Condition="'$(SWITCHBOARD_MODULES)' == ''">true</_SbAll>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Switchboard.Core\Switchboard.Core.csproj" />
+    <ProjectReference Include="..\Switchboard.UI\Switchboard.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\Switchboard.Modules.ServiceDesk\Switchboard.Modules.ServiceDesk.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';ServiceDesk;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Messaging\Switchboard.Modules.Messaging.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Messaging;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Portal\Switchboard.Modules.Portal.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Portal;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Catalog\Switchboard.Modules.Catalog.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Catalog;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Approvals\Switchboard.Modules.Approvals.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Approvals;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Knowledge\Switchboard.Modules.Knowledge.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Knowledge;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.ServiceLevels\Switchboard.Modules.ServiceLevels.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';ServiceLevels;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Automation\Switchboard.Modules.Automation.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Automation;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Admin\Switchboard.Modules.Admin.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Admin;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Insights\Switchboard.Modules.Insights.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Insights;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Api\Switchboard.Modules.Api.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Api;'))" />
+    <ProjectReference Include="..\Modules\Switchboard.Modules.Mcp\Switchboard.Modules.Mcp.csproj" Condition="'$(_SbAll)' == 'true' Or $(_SbModules.Contains(';Mcp;'))" />
+  </ItemGroup>
+
+</Project>

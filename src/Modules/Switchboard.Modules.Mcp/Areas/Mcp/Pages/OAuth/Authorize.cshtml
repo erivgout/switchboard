@@ -1,0 +1,111 @@
+@page "/oauth/authorize"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.OAuth.AuthorizeModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = Model.Problem is null ? $"Connect {Model.ClientName}" : "Can't connect";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+
+@if (Model.Problem is not null)
+{
+    <h1>Can't connect</h1>
+    <p class="mcp-lede">@Model.Problem</p>
+    @if (Model.Parameters.Count > 0)
+    {
+        <form method="post" action="/oauth/authorize" asp-antiforgery="true" class="d-grid mt-4">
+            @foreach (var p in Model.Parameters)
+            {
+                <input type="hidden" name="@p.Key" value="@p.Value">
+            }
+            <button class="btn btn-outline-secondary" type="submit" name="Decision" value="deny">Return to @Model.ClientName</button>
+        </form>
+    }
+}
+else
+{
+    <h1>Connect @Model.ClientName?</h1>
+    <p class="mcp-lede">
+        It will act as you, <strong>@Model.UserName</strong>, in @Model.OrganizationName@(Model.EndpointName.Length > 0 ? $" ({Model.EndpointName})" : ""),
+        with your permissions, limited to what you allow below.
+    </p>
+
+    @if (Model.ClientUnverified)
+    {
+        <div class="alert alert-warning mcp-alert" role="note">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            <span>Switchboard can't confirm who made this app. Continue only if you started this connection yourself.</span>
+        </div>
+    }
+
+    <dl class="mcp-facts">
+        <div>
+            <dt>App</dt>
+            <dd>
+                @Model.ClientName
+                <span class="mcp-facts-note">@Model.ClientSource</span>
+            </dd>
+        </div>
+        <div>
+            <dt>Returns to</dt>
+            <dd>@Model.RedirectHost</dd>
+        </div>
+        <div>
+            <dt>Covers</dt>
+            <dd>@string.Join(", ", Model.Workspaces)</dd>
+        </div>
+    </dl>
+
+    <form method="post" action="/oauth/authorize" asp-antiforgery="true">
+        @foreach (var p in Model.Parameters)
+        {
+            <input type="hidden" name="@p.Key" value="@p.Value">
+        }
+
+        <fieldset class="mcp-scopes" aria-describedby="scopeLimits">
+            <legend class="form-label">It may</legend>
+            @for (var i = 0; i < Model.Scopes.Count; i++)
+            {
+                var scope = Model.Scopes[i];
+                <div class="form-check mcp-scope">
+                    <input class="form-check-input" type="checkbox" name="GrantedScopes" value="@scope.Key" id="scope-@i" checked="@scope.Checked">
+                    <label class="form-check-label" for="scope-@i">
+                        <span class="mcp-scope-title">@scope.Title</span>
+                        <span class="mcp-scope-text">@scope.Consent</span>
+                    </label>
+                </div>
+            }
+        </fieldset>
+        <p class="mcp-limits" id="scopeLimits">
+            @if (Model.IsAgent)
+            {
+                <text>It can never change settings, delete anything for good, or see what your role can't.
+                Messages to other people, deletions and decisions wait until you confirm them in Switchboard.</text>
+            }
+            else
+            {
+                <text>It sees only what you can see in the portal and can never change settings. Decisions, such as approvals, wait until you confirm them in Switchboard.</text>
+            }
+        </p>
+
+        <label class="form-label" for="ExpiryDays">Keep access for</label>
+        <select class="form-select" id="ExpiryDays" name="ExpiryDays" aria-describedby="expiryHelp">
+            @foreach (var days in Switchboard.Modules.Mcp.Areas.Mcp.Pages.OAuth.AuthorizeModel.ExpiryChoices)
+            {
+                <option value="@days" selected="@(days == Model.ExpiryDays)">@Model.ExpiryLabel(days)</option>
+            }
+        </select>
+        <div class="form-text" id="expiryHelp">You can disconnect it any time under Profile and security.</div>
+
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert-danger mt-3 mb-0" role="alert">@Model.Error</div>
+        }
+
+        <div class="d-grid gap-2 mt-4">
+            <button class="btn btn-primary" type="submit" name="Decision" value="allow">Allow access</button>
+            <button class="btn btn-outline-secondary" type="submit" name="Decision" value="deny">Deny</button>
+        </div>
+    </form>
+}

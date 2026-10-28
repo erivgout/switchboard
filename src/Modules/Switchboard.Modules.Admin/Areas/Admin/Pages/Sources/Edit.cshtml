@@ -1,0 +1,60 @@
+@page "/admin/sources/{id:guid}"
+@model Switchboard.Modules.Admin.Pages.Sources.EditModel
+@{
+    ViewData["Title"] = Model.Source.Name;
+    var back = ("/admin/sources", "Ticket sources");
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@Model.Source.Name" subtitle="@($"{Model.Tickets} tickets came in through this source.")" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" class="sb-pane">
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-7">
+                    <label class="form-label" for="sourceName">Name</label>
+                    <input class="form-control" id="sourceName" name="Name" value="@Model.Name" maxlength="100" required>
+                    <partial name="_FieldError" model="@("Name")" />
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="sourceIcon">Icon</label>
+                    <select class="form-select" id="sourceIcon" name="Icon">
+                        @foreach (var icon in TicketConfigService.SourceIcons)
+                        {
+                            <option value="@icon" selected="@(icon == Model.Icon)">@icon.Replace("bi-", "").Replace('-', ' ')</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <p class="form-text mb-0 mt-3">The key <code>@Model.Source.Key</code> stays the same, so saved filters keep working.</p>
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save source</button></div>
+    </form>
+
+    <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Delete source</h2></div>
+        <div class="sb-pane-body">
+            @if (Model.Tickets > 0)
+            {
+                <p>@Model.Tickets @(Model.Tickets == 1 ? "ticket shows" : "tickets show") this source. Choose the source they show instead.</p>
+                <label class="form-label" for="replacement">Replacement source</label>
+                <select class="form-select" id="replacement" name="ReplacementId">
+                    <option value="">Choose a source</option>
+                    @foreach (var s in Model.Others)
+                    {
+                        <option value="@s.Id" selected="@(s.Id == Model.ReplacementId)">@s.Name</option>
+                    }
+                </select>
+                <partial name="_FieldError" model="@("ReplacementId")" />
+            }
+            else
+            {
+                <p class="mb-0">No tickets use this source.</p>
+            }
+        </div>
+        <div class="sb-pane-footer">
+            <button class="btn btn-danger" type="submit" data-sb-confirm="Delete the source @Model.Source.Name?">Delete source</button>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,37 @@
+@page "/admin/departments"
+@model Switchboard.Modules.Admin.Pages.Departments.IndexModel
+@{
+    ViewData["Title"] = "Departments";
+}
+<sb-page-header title="Departments" subtitle="Department heads and prime contacts can follow their department's tickets in the portal. Email domains place new requesters automatically.">
+    <a class="btn btn-primary" href="/admin/departments/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> New department</a>
+</sb-page-header>
+
+@if (Model.Departments.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-briefcase" title="No departments yet">
+            <p class="sb-empty-text">Add departments such as Finance or Sales so tickets and reports can be grouped by them.</p>
+            <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/departments/new">New department</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead><tr><th scope="col">Department</th><th scope="col" class="sb-hide-sm">Head</th><th scope="col" class="sb-hide-sm">Email domains</th><th scope="col" class="sb-num-cell">People</th></tr></thead>
+            <tbody>
+                @foreach (var d in Model.Departments)
+                {
+                    <tr data-sb-href="/admin/departments/@d.Id">
+                        <td><a class="sb-subject" href="/admin/departments/@d.Id">@d.Name</a></td>
+                        <td class="sb-hide-sm">@(d.Head ?? "")</td>
+                        <td class="sb-hide-sm text-muted">@string.Join(", ", d.Domains)</td>
+                        <td class="sb-num-cell tabular">@d.People</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

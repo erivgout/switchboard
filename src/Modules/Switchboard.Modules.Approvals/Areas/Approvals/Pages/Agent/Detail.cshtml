@@ -1,0 +1,10 @@
+@page "/approvals/{id:guid}"
+@model Switchboard.Modules.Approvals.Areas.Approvals.Pages.Agent.DetailModel
+@{
+    ViewData["Title"] = Model.Details.Request.Title;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Approvals/css/approvals.css" asp-append-version="true">
+}
+<p class="mb-2"><a href="/approvals" class="small"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>All approvals</a></p>
+<partial name="_DetailContent" model="Model" />

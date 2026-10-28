@@ -1,0 +1,150 @@
+@page "/admin/groups/{id}"
+@model Switchboard.Modules.Admin.Pages.Groups.EditModel
+@{
+    var title = Model.IsNew ? "New agent group" : Model.Group!.Name;
+    ViewData["Title"] = title;
+    var back = ($"/admin/groups?ws={Model.Workspace.Key}", "Agent groups");
+    var escalatePicker = new PersonPickerModel("escalateTo", "Input.EscalateToUserId", "Tell this person", "agents", Model.EscalateTo) { NoneLabel = "Choose an agent" };
+    var modes = new (AssignmentMode Mode, string Hint)[]
+    {
+        (AssignmentMode.None, "Tickets wait in the group's queue until an agent picks one up or a supervisor assigns it."),
+        (AssignmentMode.RoundRobin, "Each new ticket goes to the next available member in turn."),
+        (AssignmentMode.LoadBased, "Each new ticket goes to the available member with the fewest open tickets."),
+    };
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@title" subtitle="@(Model.IsNew ? $"In the {Model.Workspace.Name} workspace." : Model.Group!.Description)" />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post">
+        <input type="hidden" name="Ws" value="@Model.Workspace.Key">
+        <section class="sb-pane" aria-labelledby="detailsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="detailsTitle">Details</h2></div>
+            <div class="sb-pane-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.Name">Name</label>
+                        <input class="form-control" asp-for="Input.Name" maxlength="200" required>
+                        <partial name="_FieldError" model="@("Input.Name")" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" asp-for="Input.Description">Description</label>
+                        <input class="form-control" asp-for="Input.Description" maxlength="1000" placeholder="What this group handles">
+                        <partial name="_FieldError" model="@("Input.Description")" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="assignTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="assignTitle">How new tickets are assigned</h2></div>
+            <div class="sb-pane-body">
+                <fieldset class="sb-fieldset">
+                    <legend class="visually-hidden">Assignment</legend>
+                    @foreach (var (mode, hint) in modes)
+                    {
+                        <div class="sb-choice">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" asp-for="Input.Mode" value="@mode" id="mode_@mode">
+                                <label class="form-check-label" for="mode_@mode">@AdminPageModel.ModeLabel(mode)</label>
+                                <div class="form-text">@hint</div>
+                            </div>
+                        </div>
+                    }
+                </fieldset>
+                <div class="row g-3" data-sb-show-when="Input.Mode=RoundRobin,LoadBased">
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.MaxOpenPerAgent">Most open tickets per agent</label>
+                        <input class="form-control" asp-for="Input.MaxOpenPerAgent" type="number" min="1" max="1000" aria-describedby="maxHelp">
+                        <div class="form-text" id="maxHelp">Agents at this number are skipped. Leave empty for no limit.</div>
+                        <partial name="_FieldError" model="@("Input.MaxOpenPerAgent")" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="escTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="escTitle">Unassigned tickets</h2></div>
+            <div class="sb-pane-body">
+                <p class="text-muted">Tell someone when a ticket sits in this group without an agent for too long.</p>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Input.EscalationMinutes">After (minutes)</label>
+                        <input class="form-control" asp-for="Input.EscalationMinutes" type="number" min="1" max="10080" aria-describedby="escHelp">
+                        <div class="form-text" id="escHelp">Leave empty to turn this off.</div>
+                        <partial name="_FieldError" model="@("Input.EscalationMinutes")" />
+                    </div>
+                    <div class="col-md-8">
+                        <partial name="_PersonPicker" model="escalatePicker" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="membersTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="membersTitle">Members</h2></div>
+            <div class="sb-pane-body">
+                <p class="text-muted">Members are assigned work and see the group's tickets. Observers see the tickets and get notifications but aren't assigned work. Only agents with a role in @Model.Workspace.Name can join.</p>
+                @if (Model.Candidates.Count == 0 && Model.FormerMembers.Count == 0)
+                {
+                    <p class="mb-0">There are no agents in this workspace yet. <a href="/admin/people/new?kind=agent">Add an agent</a>.</p>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var c in Model.Candidates)
+                        {
+                            Model.Input.Members.TryGetValue(c.Id, out var role);
+                            var id = "member_" + c.Id.ToString("N");
+                            <div class="col-md-6">
+                                <label class="form-label" for="@id">@c.Name</label>
+                                <select class="form-select" id="@id" name="Input.Members[@c.Id]">
+                                    <option value="@GroupRole.None" selected="@(role == GroupRole.None)">Not a member</option>
+                                    <option value="@GroupRole.Member" selected="@(role == GroupRole.Member)">Member</option>
+                                    <option value="@GroupRole.Observer" selected="@(role == GroupRole.Observer)">Observer</option>
+                                </select>
+                            </div>
+                        }
+                        @foreach (var f in Model.FormerMembers)
+                        {
+                            var id = "member_" + f.UserId.ToString("N");
+                            <div class="col-md-6">
+                                <label class="form-label" for="@id">@f.Name <span class="text-muted">(no longer an active agent here)</span></label>
+                                <select class="form-select" id="@id" name="Input.Members[@f.UserId]">
+                                    <option value="@(f.IsObserver ? GroupRole.Observer : GroupRole.Member)" selected>Keep for now</option>
+                                    <option value="@GroupRole.None">Remove</option>
+                                </select>
+                            </div>
+                        }
+                    </div>
+                }
+                <partial name="_FieldError" model="@("Input.Members")" />
+            </div>
+            <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create group" : "Save group")</button></div>
+        </section>
+    </form>
+
+    @if (!Model.IsNew)
+    {
+        <form method="post" asp-page-handler="Delete" class="sb-pane sb-pane--caution">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Delete group</h2></div>
+            <div class="sb-pane-body">
+                @if (Model.Tickets > 0)
+                {
+                    <p>@Model.Tickets @(Model.Tickets == 1 ? "ticket belongs" : "tickets belong") to this group, including closed ones. Choose where they go.</p>
+                    <label class="form-label" for="replacement">Move its tickets to</label>
+                    <select class="form-select" id="replacement" name="Replacement" asp-items="Model.Replacements"></select>
+                    <partial name="_FieldError" model="@("ReplacementId")" />
+                }
+                else
+                {
+                    <p class="mb-0">No tickets belong to this group, so deleting it moves nothing.</p>
+                }
+            </div>
+            <div class="sb-pane-footer">
+                <button class="btn btn-danger" type="submit" data-sb-confirm="Delete @Model.Group!.Name? Its members stay agents; its tickets move as you chose.">Delete group</button>
+            </div>
+        </form>
+    }
+</div>

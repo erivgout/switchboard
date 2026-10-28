@@ -1,0 +1,60 @@
+@page "/admin/features"
+@model Switchboard.Modules.Admin.Pages.Settings.FeaturesModel
+@using Switchboard.Modules.Admin.Pages.Settings
+@{
+    ViewData["Title"] = "Features";
+    var perWorkspace = Model.Workspaces.Count > 1;
+}
+<sb-page-header title="Features" subtitle="Turn parts of Switchboard off when your organization doesn't use them. Turning a feature off hides it; its data stays." />
+
+@if (Model.Features.Count == 0)
+{
+    <div class="sb-pane sb-form-narrow">
+        <sb-empty icon="bi-toggles" title="Nothing to switch">
+            <p class="sb-empty-text">Only the admin console is installed on this server. Features from other modules appear here when they're installed.</p>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <form method="post" class="sb-form-narrow">
+        <div class="sb-pane">
+            <ul class="sb-actions">
+                @foreach (var f in Model.Features)
+                {
+                    var id = "on_" + f.Module;
+                    <li>
+                        <div>
+                            <h3><label for="@id">@FeaturesModel.Title(f.Module)</label></h3>
+                            <p>@FeaturesModel.Describe(f.Module)</p>
+                            @if (perWorkspace)
+                            {
+                                <div class="row g-2 mt-1">
+                                    @foreach (var w in Model.Workspaces)
+                                    {
+                                        var wsId = $"ws_{f.Module}_{w.Id:N}";
+                                        var current = f.Workspaces.GetValueOrDefault(w.Id);
+                                        <div class="col-sm-6">
+                                            <label class="form-label small mb-1" for="@wsId">In @w.Name</label>
+                                            <select class="form-select form-select-sm" id="@wsId" name="ws.@f.Module.@w.Id">
+                                                <option value="" selected="@(current is null)">Same as everyone</option>
+                                                <option value="on" selected="@(current == true)">On</option>
+                                                <option value="off" selected="@(current == false)">Off</option>
+                                            </select>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="on.@f.Module" value="false">
+                            <input class="form-check-input" type="checkbox" role="switch" id="@id" name="on.@f.Module" value="true" checked="@f.Enabled">
+                            <span class="form-check-label small text-muted">@(perWorkspace ? "On for everyone" : "On")</span>
+                        </div>
+                    </li>
+                }
+            </ul>
+            <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save features</button></div>
+        </div>
+    </form>
+}

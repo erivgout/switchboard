@@ -1,0 +1,115 @@
+@page "/admin/catalog/fields"
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Admin.FieldsModel
+@{
+    ViewData["Title"] = "Shared fields";
+    var types = Enum.GetValues<CatFieldType>();
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Catalog/js/catalog.js" asp-append-version="true"></script>
+}
+<sb-page-header title="Shared fields" subtitle="Questions you ask on many items, defined once. Changing the wording here changes it on every item that uses it." />
+
+<div class="sb-form-narrow">
+    <section class="sb-pane" aria-labelledby="catShared">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="catShared">Shared fields</h2></div>
+        @if (Model.Fields.Count == 0)
+        {
+            <sb-empty icon="bi-input-cursor-text" title="No shared fields yet">
+                <p class="sb-empty-text">Add questions like "Why do you need it?" or "Cost centre" once, then reuse them on any item's form.</p>
+            </sb-empty>
+        }
+        else
+        {
+            <ul class="cat-fields">
+                @foreach (var (f, used) in Model.Fields)
+                {
+                    var meta = CatalogFormBinding.TypeLabel(f.FieldType) + (used == 1 ? ", used on 1 item" : $", used on {used} items") + (f.IsArchived ? ", archived" : "");
+                    <li class="cat-field">
+                        <div class="d-flex align-items-start">
+                            <details class="flex-grow-1 min-w-0">
+                                <summary>
+                                    <span class="cat-icon cat-icon--sm" aria-hidden="true"><i class="bi @(f.IsArchived ? "bi-archive" : "bi-input-cursor-text")"></i></span>
+                                    <span class="min-w-0">
+                                        <span class="cat-field-label @(f.IsArchived ? "text-muted" : null)">@f.Label</span>
+                                        <span class="cat-field-type d-block">@meta</span>
+                                    </span>
+                                </summary>
+                                <form method="post" asp-page-handler="Save" class="cat-field-edit" data-cat-field-form>
+                                    <input type="hidden" name="id" value="@f.Id">
+                                    <input type="hidden" name="fieldType" value="@f.FieldType">
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <label class="form-label small" for="sl-@f.Id">Question</label>
+                                            <input class="form-control form-control-sm" id="sl-@f.Id" name="label" value="@f.Label" maxlength="200" required>
+                                        </div>
+                                        @if (CatalogForm.UsesOptions(f.FieldType))
+                                        {
+                                            <div class="col-12">
+                                                <label class="form-label small" for="so-@f.Id">Options, one per line</label>
+                                                <textarea class="form-control form-control-sm" id="so-@f.Id" name="options" rows="3">@string.Join("\n", f.Options)</textarea>
+                                            </div>
+                                        }
+                                        <div class="col-12">
+                                            <label class="form-label small" for="sh-@f.Id">Help text</label>
+                                            <input class="form-control form-control-sm" id="sh-@f.Id" name="helpText" value="@f.HelpText" maxlength="500">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-3 align-items-center mt-2">
+                                        <span class="small text-muted">Key: <code>@f.Key</code></span>
+                                        <button class="btn btn-outline-secondary btn-sm ms-auto" type="submit">Save field</button>
+                                    </div>
+                                </form>
+                            </details>
+                            <form method="post" asp-page-handler="Archive" class="cat-field-tools p-2">
+                                <input type="hidden" name="id" value="@f.Id">
+                                @if (f.IsArchived)
+                                {
+                                    <button class="btn btn-ghost btn-sm" type="submit" name="archived" value="false">Restore</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-ghost btn-sm" type="submit" name="archived" value="true">Archive</button>
+                                }
+                            </form>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        <div class="sb-pane-footer small text-muted">Archived fields can't be added to more items. Items already using them keep asking them.</div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="catNewShared">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="catNewShared">Add a shared field</h2></div>
+        <form method="post" asp-page-handler="Save" class="sb-pane-body" data-cat-field-form>
+            <div class="row g-3">
+                <div class="col-md-7">
+                    <label class="form-label" for="newSharedLabel">Question</label>
+                    <input class="form-control" id="newSharedLabel" name="label" maxlength="200" required placeholder="For example: Cost centre">
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="newSharedType">Answer type</label>
+                    <select class="form-select" id="newSharedType" name="fieldType" data-cat-type>
+                        @foreach (var t in types)
+                        {
+                            <option value="@t">@CatalogFormBinding.TypeLabel(t)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12" data-cat-options hidden>
+                    <label class="form-label" for="newSharedOptions">Options, one per line</label>
+                    <textarea class="form-control" id="newSharedOptions" name="options" rows="3"></textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="newSharedHelp">Help text (optional)</label>
+                    <input class="form-control" id="newSharedHelp" name="helpText" maxlength="500">
+                </div>
+            </div>
+            <p class="form-text">The answer type can't change later, so past answers stay readable.</p>
+            <button class="btn btn-primary" type="submit">Add shared field</button>
+        </form>
+    </section>
+</div>

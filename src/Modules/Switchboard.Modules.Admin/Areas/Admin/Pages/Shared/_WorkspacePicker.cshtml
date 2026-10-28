@@ -1,0 +1,18 @@
+@model WorkspacePickerModel
+@if (Model.Workspaces.Count > 1)
+{
+    <form method="get" class="sb-ws-picker" data-sb-autosubmit>
+        @foreach (var (name, value) in Model.Keep)
+        {
+            <input type="hidden" name="@name" value="@value">
+        }
+        <label class="form-label mb-0" for="wsPicker">Workspace</label>
+        <select class="form-select form-select-sm" id="wsPicker" name="ws">
+            @foreach (var w in Model.Workspaces)
+            {
+                <option value="@w.Key" selected="@(w.Id == Model.Current.Id)">@w.Name</option>
+            }
+        </select>
+        <button class="btn btn-outline-secondary btn-sm" type="submit">Show</button>
+    </form>
+}

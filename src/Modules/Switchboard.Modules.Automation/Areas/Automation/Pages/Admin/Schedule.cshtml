@@ -1,0 +1,250 @@
+@page "/admin/automations/schedules/{id}"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.ScheduleModel
+@using Switchboard.Modules.Automation.Scheduling
+@{
+    var isNew = Model.Schedule is null;
+    ViewData["Title"] = isNew ? "New schedule" : Model.Name;
+    Layout = "_AdminLayout";
+    var dayNames = System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat.AbbreviatedDayNames;
+    string? Invalid(string key) => Model.ErrorFor(key) is null ? null : "is-invalid";
+    var order = new[] { 1, 2, 3, 4, 5, 6, 0 };
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Automation/js/automation-admin.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="@(isNew ? "New schedule" : Model.Name)" subtitle="Opens a ticket from this template on a repeating schedule.">
+    <button class="btn btn-primary" type="submit" form="autSchedule" asp-page-handler="Save">Save schedule</button>
+</sb-page-header>
+<p class="mb-3"><a href="/admin/automations/schedules@(Model.WsQuery)"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>All scheduled tickets</a></p>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <p class="fw-semibold mb-1">The schedule wasn't saved:</p>
+        <ul class="mb-0">
+            @foreach (var e in Model.Errors.SelectMany(x => x.Value))
+            {
+                <li>@e</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="sb-split">
+    <form id="autSchedule" method="post" class="min-w-0">
+        <input type="hidden" name="ws" value="@Model.Workspace.Id">
+        <div class="sb-pane mb-3">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Schedule</h2></div>
+            <div class="sb-pane-body row g-3">
+                <div class="col-md-8">
+                    <label class="form-label" for="sName">Name</label>
+                    <input class="form-control @Invalid("Name")" id="sName" name="Name" value="@Model.Name" maxlength="200" required placeholder="Monthly server patching">
+                    <div class="invalid-feedback">@Model.ErrorFor("Name")</div>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="sEnabled" name="IsEnabled" value="true" checked="@Model.IsEnabled">
+                        <input type="hidden" name="IsEnabled" value="false">
+                        <label class="form-check-label" for="sEnabled">Turned on</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sFrequency">Repeats</label>
+                    <select class="form-select" id="sFrequency" name="Frequency">
+                        <option value="Daily" selected="@(Model.Frequency == ScheduleFrequency.Daily)">Every day</option>
+                        <option value="Weekdays" selected="@(Model.Frequency == ScheduleFrequency.Weekdays)">Every weekday</option>
+                        <option value="Weekly" selected="@(Model.Frequency == ScheduleFrequency.Weekly)">Every week</option>
+                        <option value="Monthly" selected="@(Model.Frequency == ScheduleFrequency.Monthly)">Every month</option>
+                    </select>
+                </div>
+                <div class="col-md-6" data-aut-show-when="sFrequency=Monthly">
+                    <label class="form-label" for="sDay">Day of the month</label>
+                    <input class="form-control @Invalid("DayOfMonth")" id="sDay" name="DayOfMonth" type="number" min="1" max="31" value="@Model.DayOfMonth" aria-describedby="sDayHelp">
+                    <div class="form-text" id="sDayHelp">Short months use their last day.</div>
+                </div>
+                <fieldset class="col-12" data-aut-show-when="sFrequency=Weekly">
+                    <legend class="form-label fs-6">On these days</legend>
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach (var d in order)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="sDow@(d)" name="Days" value="@d" checked="@Model.Days.Contains(d)">
+                                <label class="form-check-label" for="sDow@(d)">@dayNames[d]</label>
+                            </div>
+                        }
+                    </div>
+                    @if (Model.ErrorFor("DaysOfWeek") is { } daysError)
+                    {
+                        <div class="text-danger small mt-1">@daysError</div>
+                    }
+                </fieldset>
+                <div class="col-md-4">
+                    <label class="form-label" for="sTime">At</label>
+                    <input class="form-control" id="sTime" name="Time" type="time" value="@Model.Time" required>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" for="sZone">Time zone</label>
+                    <select class="form-select @Invalid("TimeZone")" id="sZone" name="TimeZone">
+                        @foreach (var z in Model.Zones)
+                        {
+                            <option value="@z" selected="@(z == Model.TimeZone)">@z.Replace('_', ' ')</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sStart">Starts on</label>
+                    <input class="form-control" id="sStart" name="StartDate" type="date" value="@Model.StartDate.ToString("yyyy-MM-dd")" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sEnd">Ends on (optional)</label>
+                    <input class="form-control @Invalid("EndDate")" id="sEnd" name="EndDate" type="date" value="@Model.EndDate?.ToString("yyyy-MM-dd")">
+                    <div class="invalid-feedback">@Model.ErrorFor("EndDate")</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sb-pane">
+            <div class="sb-pane-header"><h2 class="sb-pane-title">Ticket to create</h2></div>
+            <div class="sb-pane-body row g-3">
+                <div class="col-12">
+                    <label class="form-label" for="sSubject">Subject</label>
+                    <input class="form-control @Invalid("Subject")" id="sSubject" name="Subject" value="@Model.Subject" maxlength="400" required placeholder="Patch servers for {{month}}" aria-describedby="sSubjectHelp">
+                    <div class="form-text" id="sSubjectHelp">{{date}} becomes the date, like 2026-11-03. {{month}} becomes the month, like November 2026.</div>
+                    <div class="invalid-feedback">@Model.ErrorFor("Subject")</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="sDescription">Description (optional)</label>
+                    <textarea class="form-control" id="sDescription" name="Description" rows="4" data-sb-autosize>@Model.Description</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="sRequester">Requester email</label>
+                    <input class="form-control @Invalid("RequesterEmail")" id="sRequester" name="RequesterEmail" type="email" value="@Model.RequesterEmail" required aria-describedby="sRequesterHelp">
+                    <div class="form-text" id="sRequesterHelp">The person the tickets are filed for.</div>
+                    <div class="invalid-feedback">@Model.ErrorFor("RequesterEmail")</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sType">Type</label>
+                    <select class="form-select" id="sType" name="Type">
+                        <option value="ServiceRequest" selected="@(Model.Type == TicketType.ServiceRequest)">Service request</option>
+                        <option value="Incident" selected="@(Model.Type == TicketType.Incident)">Incident</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sPriority">Priority</label>
+                    <select class="form-select" id="sPriority" name="Priority">
+                        @foreach (var p in Enum.GetValues<Priority>())
+                        {
+                            <option value="@p" selected="@(p == Model.Priority)">@p</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sGroup">Group (optional)</label>
+                    <select class="form-select @Invalid("GroupId")" id="sGroup" name="GroupId">
+                        <option value="">No group</option>
+                        @foreach (var g in Model.Catalog.Field("ticket.group")!.Options)
+                        {
+                            <option value="@g.Value" selected="@(g.Value == Model.GroupId?.ToString())">@g.Label</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sAgent">Agent (optional)</label>
+                    <select class="form-select @Invalid("AgentId")" id="sAgent" name="AgentId">
+                        <option value="">Nobody yet</option>
+                        @foreach (var a in Model.Catalog.Field("ticket.agent")!.Options)
+                        {
+                            <option value="@a.Value" selected="@(a.Value == Model.AgentId?.ToString())">@a.Label</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sCategory">Category (optional)</label>
+                    <select class="form-select @Invalid("CategoryId")" id="sCategory" name="CategoryId">
+                        <option value="">No category</option>
+                        @foreach (var c in Model.Catalog.Field("ticket.category")!.Options)
+                        {
+                            <option value="@c.Value" selected="@(c.Value == Model.CategoryId?.ToString())">@c.Label</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="sTags">Tags (optional)</label>
+                    <input class="form-control" id="sTags" name="Tags" value="@Model.Tags" placeholder="maintenance, patching">
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <aside class="sb-sticky">
+        @if (Model.Schedule is { } s)
+        {
+            <div class="sb-pane">
+                <dl class="sb-props sb-pane-body">
+                    <div><dt>Repeats</dt><dd>@Recurrence.Describe(s)</dd></div>
+                    <div>
+                        <dt>Next ticket</dt>
+                        <dd>
+                            @if (!s.IsEnabled)
+                            {
+                                <span class="aut-state aut-state--off"><i class="bi bi-pause-circle" aria-hidden="true"></i>Turned off</span>
+                            }
+                            else if (s.NextRunAt is { } next)
+                            {
+                                <sb-time value="next" mode="datetime" />
+                            }
+                            else
+                            {
+                                <span class="text-muted">The schedule has ended</span>
+                            }
+                        </dd>
+                    </div>
+                    @if (s.LastError is not null)
+                    {
+                        <div><dt>Last attempt</dt><dd class="text-danger">@s.LastError</dd></div>
+                    }
+                </dl>
+            </div>
+            <div class="sb-pane">
+                <div class="sb-pane-header"><h2 class="sb-pane-title">Recent tickets</h2></div>
+                @if (Model.Recent.Count == 0)
+                {
+                    <p class="sb-pane-body mb-0 text-muted">None yet. The first one opens at the next scheduled time.</p>
+                }
+                else
+                {
+                    <ul class="list-unstyled sb-pane-body mb-0 d-grid gap-2">
+                        @foreach (var (o, display) in Model.Recent)
+                        {
+                            <li class="d-flex justify-content-between gap-2">
+                                @if (display is not null)
+                                {
+                                    <a href="@AutomationAdminPageModel.TicketHref(display)"><span class="sb-stamp">@display</span></a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Skipped</span>
+                                }
+                                <sb-time value="o.OccurrenceAt" mode="datetime" />
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+            <form method="post" asp-page-handler="Delete" class="mt-3" data-sb-confirm="Delete this schedule? Tickets it already created stay. This can't be undone.">
+                <input type="hidden" name="ws" value="@Model.Workspace.Id">
+                <button class="btn btn-ghost text-danger" type="submit"><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Delete schedule</button>
+            </form>
+        }
+        else
+        {
+            <div class="sb-pane sb-pane-body">
+                <p class="mb-0 text-muted">Each scheduled time opens exactly one ticket, even if the server restarts. If the server was down at that time, the missed ticket is skipped rather than opened late.</p>
+            </div>
+        }
+    </aside>
+</div>

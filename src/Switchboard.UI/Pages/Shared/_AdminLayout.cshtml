@@ -1,0 +1,37 @@
+@inject IShellContext Shell
+@{
+    Layout = "_AgentLayout";
+    var shell = await Shell.GetAsync();
+    var path = Context.Request.Path.Value ?? "/";
+}
+@section Head {
+    @await RenderSectionAsync("Head", required: false)
+}
+@section Scripts {
+    @await RenderSectionAsync("Scripts", required: false)
+}
+<div class="sb-admin">
+    <nav class="sb-admin-nav" aria-label="Admin">
+        <details class="sb-admin-menu" data-sb-open-desktop>
+        <summary><i class="bi bi-list" aria-hidden="true"></i>Admin menu</summary>
+        @foreach (var group in shell.AdminNav)
+        {
+            <p class="sb-section-label">@group.Key</p>
+            <ul class="sb-views">
+                @foreach (var item in group)
+                {
+                    var current = path.Equals(item.Href, StringComparison.OrdinalIgnoreCase) || path.StartsWith(item.Href.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase);
+                    <li>
+                        <a href="@item.Href" aria-current="@(current ? "page" : null)">
+                            <i class="bi @item.Icon text-muted" aria-hidden="true"></i><span>@item.Title</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+        </details>
+    </nav>
+    <div class="min-w-0">
+        @RenderBody()
+    </div>
+</div>

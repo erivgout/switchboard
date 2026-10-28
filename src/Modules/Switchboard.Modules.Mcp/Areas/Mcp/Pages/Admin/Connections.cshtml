@@ -1,0 +1,90 @@
+@page "/admin/mcp/connections"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.Admin.ConnectionsModel
+@using Switchboard.Modules.Mcp.Security
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Connections";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+
+<sb-page-header title="AI agents" subtitle="Who has connected which agent app, and what each may do." />
+<partial name="_Tabs" model="@("connections")" />
+
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+<form method="get" class="d-flex flex-wrap gap-2 align-items-end">
+    <div>
+        <label class="form-label" for="user">Person</label>
+        <input class="form-control" id="user" name="user" value="@Model.UserQuery" placeholder="Name or email">
+    </div>
+    @if (!string.IsNullOrEmpty(Model.Client))
+    {
+        <input type="hidden" name="client" value="@Model.Client">
+    }
+    <button class="btn btn-outline-secondary" type="submit">Filter</button>
+    @if (!string.IsNullOrEmpty(Model.UserQuery) || !string.IsNullOrEmpty(Model.Client))
+    {
+        <a class="btn btn-ghost" href="/admin/mcp/connections">Show all</a>
+    }
+</form>
+    @if (Model.UserId is { } uid && uid != Guid.Empty && Model.Grants.Count > 0)
+    {
+        <form method="post" asp-page-handler="RevokeUser" asp-route-userId="@uid" class="ms-auto"
+              data-sb-confirm="End all of @(Model.UserLabel)'s agent connections? Their agents stop working right away.">
+            <button class="btn btn-outline-secondary" type="submit">End all for @Model.UserLabel</button>
+        </form>
+    }
+</div>
+
+<section class="sb-pane" aria-labelledby="grantsTitle">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="grantsTitle">Active connections</h2><span class="ms-auto small text-muted">@Model.Grants.Count</span></div>
+    @if (Model.Grants.Count == 0)
+    {
+        <sb-empty icon="bi-plug" title="No active connections">
+            <p class="sb-empty-text">@(Model.UserId == Guid.Empty ? "Nobody matches that name or email." : "When someone connects an agent app, it's listed here.")</p>
+        </sb-empty>
+    }
+    else
+    {
+        <div class="table-responsive position-relative">
+            <table class="table mcp-table mb-0">
+                <thead>
+                    <tr><th scope="col">Person</th><th scope="col">App</th><th scope="col" class="sb-hide-sm">May</th><th scope="col" class="sb-hide-sm">Last used</th><th scope="col" class="sb-hide-sm">Ends</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Grants)
+                    {
+                        var g = row.Grant;
+                        <tr>
+                            <td>
+                                <a href="/admin/mcp/connections?user=@Uri.EscapeDataString(row.UserEmail ?? g.UserId.ToString())">@row.UserName</a>
+                                <div class="small text-muted text-truncate">@row.UserEmail</div>
+                            </td>
+                            <td>
+                                @g.ClientName
+                                <div class="small text-muted">@row.CallsLast7Days calls in 7 days</div>
+                            </td>
+                            <td class="sb-hide-sm">
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var s in g.Scopes)
+                                    {
+                                        <span class="mcp-scope-chip">@(McpScopes.Find(s)?.Title ?? s)</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="sb-hide-sm">@if (g.LastUsedAt is { } used) { <sb-time value="@used" /> } else { <span class="text-muted">Not yet</span> }</td>
+                            <td class="sb-hide-sm"><sb-time value="@g.ExpiresAt" /></td>
+                            <td class="text-end">
+                                <form method="post" asp-page-handler="Revoke" asp-route-grantId="@g.Id" asp-route-user="@Model.UserQuery" asp-route-client="@Model.Client"
+                                      data-sb-confirm="End @(row.UserName)'s connection to @g.ClientName? It stops working right away.">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">End</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

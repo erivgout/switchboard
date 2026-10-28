@@ -1,0 +1,26 @@
+@page "/admin/audit/integrity"
+@model Switchboard.Modules.Admin.Pages.Audit.IntegrityModel
+@{
+    Layout = null;
+    var s = Model.Status;
+}
+@if (s.Intact)
+{
+    <div class="sb-integrity is-intact" role="status">
+        <i class="bi bi-shield-check" aria-hidden="true"></i>
+        <div>
+            <p class="fw-semibold">The log is intact</p>
+            <p class="text-muted small">Every sealed entry matches its hash chain, so none has been changed or removed.@(s.Unsealed > 0 ? $" {s.Unsealed} recent {(s.Unsealed == 1 ? "entry is" : "entries are")} waiting to be sealed." : "") Checked <sb-time value="@s.CheckedAt" />.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="sb-integrity is-broken" role="alert">
+        <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+        <div>
+            <p class="fw-semibold">Entry @s.BrokenAt doesn't match the hash chain</p>
+            <p class="small">It, or an entry before it, was changed or removed outside Switchboard. Keep a copy of the database for investigation and tell your security team. <a href="/admin/audit/@s.BrokenAt">Open entry @s.BrokenAt</a>.</p>
+        </div>
+    </div>
+}

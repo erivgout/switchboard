@@ -1,0 +1,30 @@
+@page "/admin/people/{id:guid}/merge"
+@model Switchboard.Modules.Admin.Pages.People.MergeModel
+@{
+    var u = Model.Detail.User;
+    ViewData["Title"] = $"Merge {u.DisplayName}";
+    var back = ($"/admin/people/{u.Id}/account", u.DisplayName);
+    var picker = new PersonPickerModel("SurvivorId", "SurvivorId", "Person to keep", "requesters", Model.Survivor) { NoneLabel = "Choose a requester" };
+}
+<partial name="_BackLink" model="back" />
+<sb-page-header title="@($"Merge {u.DisplayName} into another requester")" />
+
+<form method="post" class="sb-form-narrow">
+    <partial name="_Errors" />
+    <section class="sb-pane">
+        <div class="sb-pane-body">
+            <p>Use this when the same person has two records, for example after writing in from a personal address. Moving to the person you keep:</p>
+            <ul class="sb-consequences">
+                <li>Tickets they raised or were raised for, and tickets shared with them.</li>
+                <li>Messages they wrote, and their requester groups.</li>
+                <li>Their email addresses, so new mail from those addresses reaches the person you keep.</li>
+            </ul>
+            <p>@u.DisplayName's record is deactivated and marked as merged. Details the person you keep is missing, like a phone number, are copied over. This can't be undone.</p>
+            <partial name="_PersonPicker" model="picker" />
+        </div>
+        <div class="sb-pane-footer d-flex gap-2">
+            <button class="btn btn-danger" type="submit" data-sb-confirm="Merge @u.DisplayName into the selected person? This can't be undone.">Merge requesters</button>
+            <a class="btn btn-ghost" href="/admin/people/@u.Id/account">Cancel</a>
+        </div>
+    </section>
+</form>

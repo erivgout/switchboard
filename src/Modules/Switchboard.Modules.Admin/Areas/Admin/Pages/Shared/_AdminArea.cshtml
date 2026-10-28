@@ -1,0 +1,12 @@
+@{
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Admin/css/admin.css" asp-append-version="true">
+    @await RenderSectionAsync("Head", required: false)
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Admin/js/admin.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+}
+@RenderBody()

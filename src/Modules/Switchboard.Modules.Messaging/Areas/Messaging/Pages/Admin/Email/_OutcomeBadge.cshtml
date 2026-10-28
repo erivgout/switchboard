@@ -1,0 +1,17 @@
+@model InboundOutcome
+@{
+    var (icon, label, tone) = Model switch
+    {
+        InboundOutcome.Created => ("bi-plus-circle", "New ticket", "ok"),
+        InboundOutcome.Replied => ("bi-reply", "Reply", "ok"),
+        InboundOutcome.Noted => ("bi-sticky", "Note", "ok"),
+        InboundOutcome.Ignored => ("bi-eye-slash", "Ignored", "muted"),
+        InboundOutcome.Duplicate => ("bi-files", "Duplicate", "muted"),
+        InboundOutcome.Blocked => ("bi-shield-x", "Blocked", "warn"),
+        InboundOutcome.Bounced => ("bi-arrow-counterclockwise", "Bounce", "muted"),
+        InboundOutcome.Rejected => ("bi-x-octagon", "Rejected", "danger"),
+        InboundOutcome.Failed => ("bi-exclamation-octagon", "Failed", "danger"),
+        _ => ("bi-hourglass-split", "Processing", "muted"),
+    };
+}
+<span class="sb-delivery sb-delivery--@tone"><i class="bi @icon" aria-hidden="true"></i>@label</span>

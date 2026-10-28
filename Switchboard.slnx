@@ -1,0 +1,37 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Switchboard.Core/Switchboard.Core.csproj" />
+    <Project Path="src/Switchboard.UI/Switchboard.UI.csproj" />
+    <Project Path="src/Switchboard.Web/Switchboard.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Switchboard.Modules.Admin/Switchboard.Modules.Admin.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Api/Switchboard.Modules.Api.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Approvals/Switchboard.Modules.Approvals.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Automation/Switchboard.Modules.Automation.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Catalog/Switchboard.Modules.Catalog.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Insights/Switchboard.Modules.Insights.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Knowledge/Switchboard.Modules.Knowledge.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Mcp/Switchboard.Modules.Mcp.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Messaging/Switchboard.Modules.Messaging.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.Portal/Switchboard.Modules.Portal.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.ServiceDesk/Switchboard.Modules.ServiceDesk.csproj" />
+    <Project Path="src/Modules/Switchboard.Modules.ServiceLevels/Switchboard.Modules.ServiceLevels.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Switchboard.Core.Tests/Switchboard.Core.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Admin.Tests/Switchboard.Modules.Admin.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Api.Tests/Switchboard.Modules.Api.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Approvals.Tests/Switchboard.Modules.Approvals.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Automation.Tests/Switchboard.Modules.Automation.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Catalog.Tests/Switchboard.Modules.Catalog.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Insights.Tests/Switchboard.Modules.Insights.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Knowledge.Tests/Switchboard.Modules.Knowledge.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Mcp.Tests/Switchboard.Modules.Mcp.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Messaging.Tests/Switchboard.Modules.Messaging.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.Portal.Tests/Switchboard.Modules.Portal.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.ServiceDesk.Tests/Switchboard.Modules.ServiceDesk.Tests.csproj" />
+    <Project Path="tests/Switchboard.Modules.ServiceLevels.Tests/Switchboard.Modules.ServiceLevels.Tests.csproj" />
+    <Project Path="tests/Switchboard.Testing/Switchboard.Testing.csproj" />
+  </Folder>
+</Solution>

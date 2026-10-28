@@ -1,0 +1,45 @@
+@page "/reports/trash"
+@model Switchboard.Modules.Insights.Areas.Insights.Pages.Reports.TrashModel
+@using Switchboard.Modules.Insights.Areas.Insights.Pages.Reports
+@{
+    ViewData["Title"] = "Report trash";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Insights/css/insights.css" asp-append-version="true">
+}
+
+<sb-page-header title="Report trash" subtitle="Saved reports you moved to the trash. Restore one to bring it back.">
+    <a class="btn btn-ghost" href="/reports">Back to reports</a>
+</sb-page-header>
+
+<section class="sb-pane sb-form-narrow">
+    @if (Model.Reports.Count == 0)
+    {
+        <sb-empty icon="bi-trash" title="The trash is empty">
+            <p class="sb-empty-text">Saved reports you remove show up here, so you can restore them.</p>
+        </sb-empty>
+    }
+    else
+    {
+        <ul class="ins-saved">
+            @foreach (var r in Model.Reports)
+            {
+                <li>
+                    <div class="min-w-0 flex-grow-1">
+                        <span class="ins-saved-name">@r.Name</span>
+                        <div class="sb-meta">@ReportPage.ReportName(r.Path), moved to trash <sb-time value="@r.DeletedAt" /></div>
+                    </div>
+                    <form method="post" asp-page-handler="Restore" class="d-inline">
+                        <input type="hidden" name="id" value="@r.Id">
+                        <button class="btn btn-outline-secondary btn-sm" type="submit">Restore</button>
+                    </form>
+                    <form method="post" asp-page-handler="Delete" class="d-inline"
+                          data-sb-confirm="Delete &ldquo;@r.Name&rdquo; permanently? This can't be undone.">
+                        <input type="hidden" name="id" value="@r.Id">
+                        <button class="btn btn-ghost btn-sm" type="submit">Delete permanently</button>
+                    </form>
+                </li>
+            }
+        </ul>
+    }
+</section>

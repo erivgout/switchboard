@@ -1,0 +1,144 @@
+@model Switchboard.Modules.Catalog.Areas.Catalog.Pages.Admin.ItemModel
+@{
+    var d = Model.Details;
+    var item = Model.Item.Item;
+    string? Err(string key) => ViewData.ModelState[$"Details.{key}"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    string? Invalid(string key) => Err(key) is null ? null : "is-invalid";
+}
+<form method="post" asp-page-handler="Details" asp-route-id="@item.Id" class="sb-form-narrow">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <section class="sb-pane" aria-labelledby="catBasics">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="catBasics">What it is</h2></div>
+        <div class="sb-pane-body row g-3">
+            <div class="col-12">
+                <label class="form-label" for="dName">Name</label>
+                <input class="form-control @Invalid("Name")" id="dName" name="Details.Name" value="@d.Name" maxlength="200" required>
+                <span class="invalid-feedback">@Err("Name")</span>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="dSummary">One-line summary</label>
+                <input class="form-control @Invalid("ShortDescription")" id="dSummary" name="Details.ShortDescription" value="@d.ShortDescription" maxlength="300" aria-describedby="dSummaryHelp">
+                <div id="dSummaryHelp" class="@(Err("ShortDescription") is null ? "form-text" : "invalid-feedback d-block")">@(Err("ShortDescription") ?? "Shown in the catalog list. Say what people get, not how it's delivered.")</div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="dDescription">Description</label>
+                <textarea class="form-control @Invalid("Description")" id="dDescription" name="Details.Description" rows="5" maxlength="8000" data-sb-autosize aria-describedby="dDescriptionHelp">@d.Description</textarea>
+                <div id="dDescriptionHelp" class="form-text">Shown on the item page. Leave a blank line between paragraphs.</div>
+            </div>
+            <div class="col-12">
+                <fieldset>
+                    <legend class="form-label">Icon</legend>
+                    <div class="cat-icon-pick">
+                        @foreach (var icon in Switchboard.Modules.Catalog.Services.CatalogAdmin.Icons)
+                        {
+                            var iid = "icon-" + icon;
+                            <span><input type="radio" id="@iid" name="Details.Icon" value="@icon" checked="@(d.Icon == icon)"><label for="@iid" title="@icon[3..]"><i class="bi @icon" aria-hidden="true"></i><span class="visually-hidden">@icon[3..]</span></label></span>
+                        }
+                    </div>
+                </fieldset>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="dKind">Kind</label>
+                <select class="form-select" id="dKind" name="Details.Kind">
+                    <option value="Standard" selected="@(d.Kind == CatItemKind.Standard)">Standard</option>
+                    <option value="Hardware" selected="@(d.Kind == CatItemKind.Hardware)">Hardware</option>
+                    <option value="Software" selected="@(d.Kind == CatItemKind.Software)">Software</option>
+                    <option value="Bundle" selected="@(d.Kind == CatItemKind.Bundle)">Bundle of other items</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <fieldset aria-describedby="dCategoriesHelp">
+                    <legend class="form-label">Categories</legend>
+                    @if (Model.Categories.Count == 0)
+                    {
+                        <p class="text-muted small mb-0">No categories yet. <a href="/admin/catalog/categories">Add one</a> so requesters can find this item.</p>
+                    }
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach (var c in Model.Categories)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="cat-@c.Id" name="Details.CategoryIds" value="@c.Id" checked="@d.CategoryIds.Contains(c.Id)">
+                                <label class="form-check-label" for="cat-@c.Id">@c.Name</label>
+                            </div>
+                        }
+                    </div>
+                    <div id="dCategoriesHelp" class="@(Err("CategoryIds") is null ? "form-text" : "invalid-feedback d-block")">@(Err("CategoryIds") ?? "An item can sit in more than one category.")</div>
+                </fieldset>
+            </div>
+            @if (d.Kind == CatItemKind.Bundle)
+            {
+                <div class="col-12">
+                    <fieldset>
+                        <legend class="form-label">Included items</legend>
+                        @foreach (var b in Model.BundleCandidates)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="bundle-@b.Id" name="Details.BundleItemIds" value="@b.Id" checked="@d.BundleItemIds.Contains(b.Id)">
+                                <label class="form-check-label" for="bundle-@b.Id">@b.Name</label>
+                            </div>
+                        }
+                        <div class="@(Err("BundleItemIds") is null ? "form-text" : "invalid-feedback d-block")">@(Err("BundleItemIds") ?? "Each included item becomes its own line on the request, with its own stage.")</div>
+                    </fieldset>
+                </div>
+            }
+            else
+            {
+                @foreach (var b in d.BundleItemIds)
+                {
+                    <input type="hidden" name="Details.BundleItemIds" value="@b">
+                }
+            }
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="catTerms">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="catTerms">Cost and delivery</h2></div>
+        <div class="sb-pane-body row g-3">
+            <div class="col-7 col-md-4">
+                <label class="form-label" for="dCost">Cost per item</label>
+                <input class="form-control tabular @Invalid("Cost")" id="dCost" name="Details.Cost" value="@d.Cost" inputmode="decimal" placeholder="No charge">
+                <span class="invalid-feedback">@Err("Cost")</span>
+            </div>
+            <div class="col-5 col-md-2">
+                <label class="form-label" for="dCurrency">Currency</label>
+                <input class="form-control text-uppercase @Invalid("Currency")" id="dCurrency" name="Details.Currency" value="@d.Currency" maxlength="3">
+                <span class="invalid-feedback">@Err("Currency")</span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="dDelivery">Delivery time (working days)</label>
+                <input class="form-control tabular @Invalid("DeliveryDays")" id="dDelivery" name="Details.DeliveryDays" type="number" min="0" max="365" value="@d.DeliveryDays" aria-describedby="dDeliveryHelp">
+                <div id="dDeliveryHelp" class="@(Err("DeliveryDays") is null ? "form-text" : "invalid-feedback d-block")">@(Err("DeliveryDays") ?? "0 means same day. Leave empty to not show one.")</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="dMax">Most per request</label>
+                <input class="form-control tabular @Invalid("MaxQuantity")" id="dMax" name="Details.MaxQuantity" type="number" min="1" max="100" value="@d.MaxQuantity" aria-describedby="dMaxHelp">
+                <div id="dMaxHelp" class="@(Err("MaxQuantity") is null ? "form-text" : "invalid-feedback d-block")">@(Err("MaxQuantity") ?? "1 hides the quantity question.")</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="dGroup">Delivered by</label>
+                <select class="form-select" id="dGroup" name="Details.FulfillmentGroupId" aria-describedby="dGroupHelp">
+                    <option value="">No group</option>
+                    @foreach (var g in Model.Groups)
+                    {
+                        <option value="@g.Id" selected="@(d.FulfillmentGroupId == g.Id)">@g.Name</option>
+                    }
+                </select>
+                <div id="dGroupHelp" class="form-text">Assigned once the request is approved, or straight away when no approval is needed.</div>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="dFor" name="Details.AllowRequestedFor" value="true" checked="@d.AllowRequestedFor">
+                    <label class="form-check-label" for="dFor">People can request it for someone else</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="dMessage">Message after submitting</label>
+                <textarea class="form-control" id="dMessage" name="Details.PostSubmitMessage" rows="2" maxlength="1000" aria-describedby="dMessageHelp">@d.PostSubmitMessage</textarea>
+                <div id="dMessageHelp" class="form-text">For example: "Bring your old laptop to the service desk when you collect the new one."</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="mt-3"><button class="btn btn-primary" type="submit">Save details</button></div>
+</form>

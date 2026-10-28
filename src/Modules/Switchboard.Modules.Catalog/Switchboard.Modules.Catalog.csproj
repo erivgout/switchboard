@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <RootNamespace>Switchboard.Modules.Catalog</RootNamespace>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\Switchboard.Core\Switchboard.Core.csproj" />
+    <ProjectReference Include="..\..\Switchboard.UI\Switchboard.UI.csproj" />
+    <ProjectReference Include="..\Switchboard.Modules.Approvals\Switchboard.Modules.Approvals.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Switchboard.Modules.Catalog.Tests" />
+  </ItemGroup>
+
+</Project>

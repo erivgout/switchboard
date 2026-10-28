@@ -1,0 +1,82 @@
+@page "/admin/email/incoming"
+@model IncomingModel
+@{
+    ViewData["Title"] = "Incoming mail";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+<sb-page-header title="Email" subtitle="Email to your support addresses becomes tickets. Replies and notifications go out through your mail server." />
+
+<partial name="_EmailNav" model="@("incoming")" />
+
+<nav aria-label="Filter incoming mail">
+        <ul class="sb-views sb-msg-filters">
+            @foreach (var f in IncomingModel.Filters)
+            {
+                <li>
+                    <a href="/admin/email/incoming@(f.Key == "all" ? "" : $"?show={f.Key}")" aria-current="@(f == Model.Current ? "page" : null)">
+                        <i class="bi @f.Icon text-muted" aria-hidden="true"></i><span>@f.Label</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+    <div>
+        @if (Model.Messages.Count == 0)
+        {
+            <div class="sb-pane">
+                <sb-empty icon="bi-inboxes" title="@(Model.Current.Outcome is null ? "No mail yet" : $"Nothing under {Model.Current.Label.ToLowerInvariant()}")">
+                    <p class="sb-empty-text">Messages to your mailboxes appear here with what happened to each. Simulate one to see how routing works.</p>
+                    <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/email/simulate">Simulate incoming email</a></div>
+                </sb-empty>
+            </div>
+        }
+        else
+        {
+            <div class="sb-pane sb-queue-wrap">
+                <table class="sb-queue">
+                    <thead>
+                        <tr>
+                            <th scope="col">Message</th>
+                            <th scope="col" class="sb-hide-sm">Mailbox</th>
+                            <th scope="col" class="sb-hide-sm">Result</th>
+                            <th scope="col" class="sb-hide-sm">Received</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in Model.Messages)
+                        {
+                            <tr data-sb-href="/admin/email/incoming/@m.Id">
+                                <td class="sb-incoming-message">
+                                    <a class="fw-semibold d-block text-truncate" href="/admin/email/incoming/@m.Id">@(string.IsNullOrEmpty(m.Subject) ? "(no subject)" : m.Subject)</a>
+                                    <span class="small text-muted d-block text-truncate">@(m.FromName is { } n ? $"{n} <{m.FromAddress}>" : m.FromAddress)</span>
+                                    <span class="d-lg-none d-flex flex-wrap gap-2 align-items-center mt-1">
+                                        <partial name="_OutcomeBadge" model="m.Outcome" />
+                                        @if (m.TicketId is { } st && Model.TicketIds.TryGetValue(st, out var smallDisplay))
+                                        {
+                                            <span class="sb-stamp">@smallDisplay</span>
+                                        }
+                                        <sb-time value="@m.ReceivedAt" />
+                                    </span>
+                                </td>
+                                <td class="sb-hide-sm">@(m.MailboxId is { } mb && Model.MailboxNames.TryGetValue(mb, out var name) ? name : "")</td>
+                                <td class="sb-hide-sm">
+                                    <partial name="_OutcomeBadge" model="m.Outcome" />
+                                    @if (m.TicketId is { } t && Model.TicketIds.TryGetValue(t, out var display))
+                                    {
+                                        <span class="sb-stamp ms-1">@display</span>
+                                    }
+                                    @if (m.AuthenticationFailed)
+                                    {
+                                        <span class="d-block small text-danger"><i class="bi bi-shield-exclamation me-1" aria-hidden="true"></i>Failed sender checks</span>
+                                    }
+                                </td>
+                                <td class="sb-hide-sm text-nowrap"><sb-time value="@m.ReceivedAt" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>

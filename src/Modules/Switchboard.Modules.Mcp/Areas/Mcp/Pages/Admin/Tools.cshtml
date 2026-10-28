@@ -1,0 +1,128 @@
+@page "/admin/mcp/tools"
+@model Switchboard.Modules.Mcp.Areas.Mcp.Pages.Admin.ToolsModel
+@using Switchboard.Core.Agents
+@using Switchboard.Modules.Mcp.Areas.Mcp.Pages.AgentActions
+@using Switchboard.Modules.Mcp.Security
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Tools and access";
+    var c = Model.Configuration;
+    var isDefault = c.Slug.Length == 0;
+    var route = isDefault ? "" : c.Slug;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Mcp/css/mcp.css" asp-append-version="true">
+}
+
+<sb-page-header title="AI agents" subtitle="Choose who can connect and which tools their agents get." />
+<partial name="_Tabs" model="@("tools")" />
+
+@if (Model.Endpoints.Count > 1)
+{
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-end mb-3">
+        <div>
+            <label class="form-label" for="endpoint">Endpoint</label>
+            <select class="form-select" id="endpoint" name="endpoint">
+                @foreach (var e in Model.Endpoints)
+                {
+                    <option value="@e.Slug" selected="@(e.Slug == c.Slug)">@(e.Slug.Length == 0 ? "Default" : e.Name)</option>
+                }
+            </select>
+        </div>
+        <button class="btn btn-outline-secondary" type="submit">Show</button>
+    </form>
+}
+
+<div class="sb-form-narrow">
+    <form method="post" asp-page-handler="Access" asp-route-endpoint="@route">
+        <section class="sb-pane" aria-labelledby="whoTitle">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="whoTitle">Who can connect</h2>
+                <code class="ms-auto mcp-endpoint small">@Switchboard.Modules.Mcp.Areas.Mcp.Pages.Admin.McpAdminPage.EndpointUrl(Model.BaseUrl, c.Slug)</code>
+            </div>
+            <div class="sb-pane-body">
+                @if (!isDefault)
+                {
+                    <div class="mcp-switch-row form-switch pt-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="EndpointEnabled" name="EndpointEnabled" value="true" checked="@Model.EndpointEnabled">
+                        <label for="EndpointEnabled"><span class="mcp-switch-title">Endpoint on</span><span class="mcp-switch-text">When off, agents connected here are refused.</span></label>
+                    </div>
+                }
+                <fieldset>
+                    <legend class="form-label">Agent roles</legend>
+                    <p class="form-text mt-0">Leave every box empty to allow all agent roles. Org admins can always connect.</p>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="RoleIds" value="@role.Id" id="role-@role.Id" checked="@Model.RoleIds.Contains(role.Id)">
+                            <label class="form-check-label" for="role-@role.Id">@role.Name</label>
+                        </div>
+                    }
+                </fieldset>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="AllowRequesters" value="true" id="AllowRequesters" checked="@Model.AllowRequesters">
+                    <label class="form-check-label" for="AllowRequesters">Requesters can connect too, for their own requests</label>
+                </div>
+                <button class="btn btn-outline-secondary mt-3" type="submit">Save access</button>
+            </div>
+        </section>
+    </form>
+
+    <form method="post" asp-page-handler="Tools" asp-route-endpoint="@route">
+        <section class="sb-pane" aria-labelledby="toolsTitle">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="toolsTitle">Tools</h2>
+                <span class="ms-auto small text-muted">@(Model.Tools.Count - c.DisabledTools.Count) of @Model.Tools.Count on</span>
+            </div>
+            <p class="sb-pane-body small text-muted mb-0 pb-0">Turned-off tools aren't listed or callable. Each person's own permissions and the access they granted still apply to the rest.</p>
+            <div class="table-responsive position-relative">
+                <table class="table mcp-table mb-0">
+                    <thead>
+                        <tr><th scope="col">On</th><th scope="col">Tool</th><th scope="col" class="sb-hide-sm">Needs</th><th scope="col" class="sb-hide-sm">Confirmation</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Tools)
+                        {
+                            var key = AgentActionsPage.ClassKey(t.Class);
+                            <tr>
+                                <td>
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input" type="checkbox" role="switch" name="EnabledTools" value="@t.Name" id="tool-@t.Name"
+                                               checked="@(!c.DisabledTools.Contains(t.Name))" aria-describedby="tool-desc-@t.Name">
+                                    </div>
+                                </td>
+                                <td>
+                                    <label class="fw-semibold" for="tool-@t.Name">@t.Title</label>
+                                    @if (t.RequesterAllowed)
+                                    {
+                                        <span class="mcp-scope-chip ms-1">Requesters too</span>
+                                    }
+                                    <div class="small text-muted" id="tool-desc-@t.Name">@(t.Description.Split(". ")[0].TrimEnd('.')).</div>
+                                </td>
+                                <td class="sb-hide-sm"><span class="mcp-scope-chip">@(McpScopes.Find(t.Scope)?.Title ?? t.Scope)</span></td>
+                                <td class="sb-hide-sm">
+                                    <span class="mcp-class mcp-class--@key">
+                                        @if (t.Class is AgentActionClass.External or AgentActionClass.Authority or AgentActionClass.Destructive)
+                                        {
+                                            <i class="bi @AgentActionsPage.ClassIcon(t.Class)" aria-hidden="true"></i>
+                                        }
+                                        @(t.Class switch
+                                        {
+                                            AgentActionClass.External when t.Name is "create_ticket" or "update_ticket" => "In the agent app, for new recipients",
+                                            AgentActionClass.External => "In the agent app",
+                                            AgentActionClass.Authority => "In Switchboard",
+                                            AgentActionClass.Destructive => "In Switchboard, with password",
+                                            AgentActionClass.InternalWrite => "None",
+                                            _ => "None, read only",
+                                        })
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save tools</button></div>
+        </section>
+    </form>
+</div>

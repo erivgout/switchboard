@@ -1,0 +1,23 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var token = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#16201e">
+<meta name="sb-antiforgery" content="@token">
+<meta name="sb-pwa" content="on">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true}'>
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <meta name="sb-live" content="on">
+}
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="~/_content/Switchboard.UI/img/mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<script src="~/_content/Switchboard.UI/js/theme-init.js" asp-append-version="true"></script>
+<link rel="preload" href="~/_content/Switchboard.UI/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="~/_content/Switchboard.UI/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="~/_content/Switchboard.UI/lib/bootstrap-icons/bootstrap-icons.min.css">
+<link rel="stylesheet" href="~/_content/Switchboard.UI/css/switchboard.css" asp-append-version="true">

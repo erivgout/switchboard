@@ -1,0 +1,229 @@
+@page "/admin/service-levels/calendars/{id}"
+@model Switchboard.Modules.ServiceLevels.Areas.ServiceLevels.Pages.Admin.CalendarModel
+@{
+    ViewData["Title"] = Model.Title;
+    var f = Model.Form;
+    var ws = Model.Workspaces.Count > 1 ? Model.Workspace.Key : null;
+    var allErrors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct().ToList();
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceLevels/css/service-levels.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceLevels/js/service-levels.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="@Model.Title" subtitle="Working hours and holidays, in one timezone. SLA targets in business hours only count this time.">
+    <a class="btn btn-ghost" href="@Model.WithWorkspace("/admin/service-levels/calendars")">Back to calendars</a>
+</sb-page-header>
+
+<form method="post" class="sb-form-narrow sla-editor" novalidate>
+    <input type="hidden" name="ws" value="@ws">
+    @if (allErrors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            <p class="fw-semibold mb-1">The calendar wasn't saved. Fix these and save again:</p>
+            <ul class="mb-0">
+                @foreach (var e in allErrors)
+                {
+                    <li>@e</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <section class="sb-pane" aria-labelledby="calAbout">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="calAbout">About this calendar</h2></div>
+        <div class="sb-pane-body">
+            <div class="mb-3">
+                <label class="form-label" asp-for="Form.Name">Name</label>
+                <input class="form-control @(Model.Errors("name").Any() ? "is-invalid" : "")" asp-for="Form.Name" maxlength="200" placeholder="Head office hours">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Form.Description">Description <span class="text-muted fw-normal">(optional)</span></label>
+                <input class="form-control" asp-for="Form.Description" maxlength="1000">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Form.TimeZoneId">Timezone</label>
+                <select class="form-select @(Model.Errors("timeZoneId").Any() ? "is-invalid" : "")" asp-for="Form.TimeZoneId">
+                    @foreach (var z in Model.Zones)
+                    {
+                        <option value="@z.Id" selected="@(z.Id == f.TimeZoneId)">@z.Name</option>
+                    }
+                </select>
+                <div class="form-text">Working hours and holidays are read in this timezone, including daylight saving changes.</div>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" asp-for="Form.IsDefault">
+                <label class="form-check-label" asp-for="Form.IsDefault">Default: use it when neither the policy nor the ticket's group names a calendar</label>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="calHours">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="calHours">Working hours</h2></div>
+        <div class="sb-pane-body">
+            <fieldset class="mb-3">
+                <legend class="visually-hidden">When the desk works</legend>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="Form.Is24x7" id="calSet" value="false" checked="@(!f.Is24x7)" data-sla-247="off">
+                    <label class="form-check-label" for="calSet">Set working hours</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="Form.Is24x7" id="cal247" value="true" checked="@f.Is24x7" data-sla-247="on">
+                    <label class="form-check-label" for="cal247">24 hours, 7 days</label>
+                </div>
+            </fieldset>
+            <div data-sla-hours hidden="@f.Is24x7">
+                <p class="form-text mt-0">An end time earlier than the start runs into the next day, for overnight shifts. Add a second span for a split day.</p>
+                <div class="table-responsive">
+                    <table class="table sla-hours-table align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Day</th>
+                            <th scope="col">From</th>
+                            <th scope="col">To</th>
+                            <th scope="col">Then from</th>
+                            <th scope="col">To</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @for (var i = 0; i < f.Days.Count; i++)
+                        {
+                            var d = f.Days[i];
+                            <tr data-sla-day class="@(d.Open ? "" : "is-closed")">
+                                <th scope="row">
+                                    <input type="hidden" name="Form.Days[@i].Day" value="@d.Day">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" name="Form.Days[@i].Open" value="true" id="calOpen@(i)" checked="@d.Open" data-sla-open>
+                                        <input type="hidden" name="Form.Days[@i].Open" value="false">
+                                        <label class="form-check-label" for="calOpen@(i)">@d.Day</label>
+                                    </div>
+                                </th>
+                                <td><input class="form-control form-control-sm" type="time" name="Form.Days[@i].Start" value="@d.Start" aria-label="@d.Day from" data-sla-start></td>
+                                <td>
+                                    <input class="form-control form-control-sm" type="time" name="Form.Days[@i].End" value="@d.End" aria-label="@d.Day to" data-sla-end>
+                                    <span class="sb-meta sla-overnight" hidden>Ends next day</span>
+                                </td>
+                                <td><input class="form-control form-control-sm" type="time" name="Form.Days[@i].Start2" value="@d.Start2" aria-label="@d.Day, second span from" data-sla-start></td>
+                                <td>
+                                    <input class="form-control form-control-sm" type="time" name="Form.Days[@i].End2" value="@d.End2" aria-label="@d.Day, second span to" data-sla-end>
+                                    <span class="sb-meta sla-overnight" hidden>Ends next day</span>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="calGroups">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="calGroups">Groups that work these hours</h2></div>
+        <div class="sb-pane-body">
+            @if (Model.Groups.Count == 0)
+            {
+                <p class="form-text m-0">No agent groups yet.</p>
+            }
+            else
+            {
+                <p class="form-text mt-0">Tickets in these groups count this calendar, unless their SLA policy names another.</p>
+                <div class="sla-choices">
+                    @foreach (var g in Model.Groups)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="Form.Groups" value="@g.Id" id="calGroup_@g.Id.ToString("N")" checked="@f.Groups.Contains(g.Id)">
+                            <label class="form-check-label" for="calGroup_@g.Id.ToString("N")">@g.Name</label>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+
+    <div class="sla-actions">
+        <button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create calendar" : "Save calendar")</button>
+        <a class="btn btn-ghost" href="@Model.WithWorkspace("/admin/service-levels/calendars")">Cancel</a>
+    </div>
+</form>
+
+@if (!Model.IsNew)
+{
+    <section class="sb-pane sb-form-narrow mt-4" id="holidays" aria-labelledby="calHolidays">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="calHolidays">Holidays</h2></div>
+        @if (Model.ImportErrors.Count > 0)
+        {
+            <div class="sb-pane-body pb-0">
+                <div class="alert alert-warning mb-0" role="status">
+                    <p class="fw-semibold mb-1">Some lines weren't imported:</p>
+                    <ul class="mb-0">
+                        @foreach (var e in Model.ImportErrors)
+                        {
+                            <li>@e</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+        @if (Model.Holidays.Count == 0)
+        {
+            <div class="sb-pane-body"><p class="text-muted m-0">No holidays yet. The clock stops on these days, so add the dates your desk is closed.</p></div>
+        }
+        else
+        {
+            <table class="table sla-holiday-table mb-0">
+                <thead><tr><th scope="col">Date</th><th scope="col">Name</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead>
+                <tbody>
+                @foreach (var h in Model.Holidays)
+                {
+                    <tr>
+                        <td class="tabular text-nowrap">@h.Date.ToString("ddd, MMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture)</td>
+                        <td>@h.Name</td>
+                        <td class="text-end">
+                            <form method="post" asp-page-handler="RemoveHoliday">
+                                <input type="hidden" name="ws" value="@ws">
+                                <input type="hidden" name="holidayId" value="@h.Id">
+                                <button class="btn btn-ghost btn-icon" type="submit" aria-label="Remove @h.Name"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+        <form method="post" asp-page-handler="Import" class="sb-pane-body border-top">
+            <input type="hidden" name="ws" value="@ws">
+            <label class="form-label" for="holidayText">Add holidays</label>
+            <textarea class="form-control" id="holidayText" name="HolidayText" rows="4" maxlength="40000"
+                      placeholder="2026-12-25, Christmas Day&#10;2027-01-01, New Year's Day"></textarea>
+            <div class="form-text">One per line: a date and a name. You can paste rows from a spreadsheet; a header row is fine. Dates already in the list get the new name.</div>
+            <button class="btn btn-outline-secondary mt-2" type="submit">Import holidays</button>
+        </form>
+    </section>
+
+    <section class="sb-pane sb-form-narrow mt-4" aria-labelledby="calDelete">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="calDelete">Delete this calendar</h2></div>
+        @if (Model.OtherCalendars.Count == 0)
+        {
+            <div class="sb-pane-body"><p class="text-muted m-0">This is the only calendar. Add another one first, so policies and groups have something to use instead.</p></div>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="Delete" class="sb-pane-body d-flex flex-wrap align-items-end gap-3"
+                  data-sb-confirm="Delete &ldquo;@Model.Title&rdquo;? Policies and groups that use it move to the calendar you chose.">
+                <input type="hidden" name="ws" value="@ws">
+                <div>
+                    <label class="form-label" for="calReplacement">Policies and groups that use it move to</label>
+                    <select class="form-select" id="calReplacement" name="replacementId">
+                        @foreach (var c in Model.OtherCalendars)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                </div>
+                <button class="btn btn-outline-secondary" type="submit">Delete calendar</button>
+            </form>
+        }
+    </section>
+}

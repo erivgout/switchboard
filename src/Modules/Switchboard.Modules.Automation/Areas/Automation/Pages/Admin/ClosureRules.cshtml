@@ -1,0 +1,119 @@
+@page "/admin/automations/closure-rules"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.ClosureRulesModel
+@using Switchboard.Modules.Automation.Closure
+@{
+    ViewData["Title"] = "Closure rules";
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Automation/js/automation-admin.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="Automations" subtitle="Workflows act on tickets for you: routing, reminders, notifications and follow-ups." />
+<partial name="_AutomationTabs" model="@(("closure", Model.WsQuery))" />
+
+<p class="sb-form-narrow">Closure rules stop agents from resolving or closing a ticket until something is done. Agents see the reason when they try. Automations and scheduled jobs aren't blocked.</p>
+
+<div class="sb-pane mb-4">
+    <div class="sb-pane-header"><h2 class="sb-pane-title">Rules</h2></div>
+    @if (Model.Rules.Count == 0)
+    {
+        <sb-empty icon="bi-check2-square" title="No closure rules yet">
+            <p class="sb-empty-text">Any ticket can be resolved right now. Add a rule below, such as requiring every task to be completed first.</p>
+        </sb-empty>
+    }
+    else
+    {
+        <div class="sb-queue-wrap">
+            <table class="sb-queue">
+                <thead>
+                <tr>
+                    <th scope="col">Before resolving or closing</th>
+                    <th scope="col" class="sb-hide-sm">Applies to</th>
+                    <th scope="col" class="sb-hide-sm">Message agents see</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var rule in Model.Rules)
+                {
+                    var label = ClosureRuleService.Describe(rule.Kind, Model.FieldLabel(rule.FieldKey));
+                    <tr>
+                        <td>
+                            <span class="fw-semibold">@label</span>
+                            @if (!rule.IsEnabled)
+                            {
+                                <div><span class="aut-state aut-state--off small"><i class="bi bi-pause-circle" aria-hidden="true"></i>Off</span></div>
+                            }
+                        </td>
+                        <td class="sb-hide-sm">@Switchboard.Modules.Automation.Areas.Automation.Pages.Admin.ClosureRulesModel.TypeLabel(rule.TicketType)</td>
+                        <td class="sb-hide-sm text-muted">@(rule.Message ?? "The default message")</td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <form method="post" asp-page-handler="Enable">
+                                    <input type="hidden" name="ws" value="@Model.Workspace.Id">
+                                    <input type="hidden" name="id" value="@rule.Id">
+                                    <input type="hidden" name="enabled" value="@(rule.IsEnabled ? "false" : "true")">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit" aria-label="@(rule.IsEnabled ? "Turn off" : "Turn on"): @label">@(rule.IsEnabled ? "Turn off" : "Turn on")</button>
+                                </form>
+                                <form method="post" asp-page-handler="Delete" data-sb-confirm="Delete the rule &quot;@label&quot;?">
+                                    <input type="hidden" name="ws" value="@Model.Workspace.Id">
+                                    <input type="hidden" name="id" value="@rule.Id">
+                                    <button class="btn btn-sm btn-ghost btn-icon" type="submit" aria-label="Delete rule: @label"><i class="bi bi-trash3" aria-hidden="true"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<form method="post" asp-page-handler="Add" class="sb-pane sb-form-narrow">
+    <div class="sb-pane-header"><h2 class="sb-pane-title">Add a rule</h2></div>
+    <div class="sb-pane-body">
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert-danger" role="alert">@Model.Error</div>
+        }
+        <input type="hidden" name="ws" value="@Model.Workspace.Id">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" for="autKind">What must be true</label>
+                <select class="form-select" id="autKind" name="Kind">
+                    <option value="AllTasksCompleted" selected="@(Model.Kind == ClosureRuleKind.AllTasksCompleted)">All tasks are completed</option>
+                    <option value="PublicReplySent" selected="@(Model.Kind == ClosureRuleKind.PublicReplySent)">The requester got at least one reply</option>
+                    <option value="CategorySet" selected="@(Model.Kind == ClosureRuleKind.CategorySet)">A category is set</option>
+                    <option value="CustomFieldSet" selected="@(Model.Kind == ClosureRuleKind.CustomFieldSet)" disabled="@(Model.Fields.Count == 0)">A custom field is filled in</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="autAppliesTo">For</label>
+                <select class="form-select" id="autAppliesTo" name="AppliesTo">
+                    <option value="">Every ticket</option>
+                    <option value="Incident">Incidents only</option>
+                    <option value="ServiceRequest">Service requests only</option>
+                </select>
+            </div>
+            <div class="col-md-6" data-aut-show-when="autKind=CustomFieldSet">
+                <label class="form-label" for="autFieldKey">Field</label>
+                <select class="form-select" id="autFieldKey" name="FieldKey">
+                    @foreach (var f in Model.Fields)
+                    {
+                        <option value="@f.Key">@f.Label</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="autMessage">Message agents see (optional)</label>
+                <input class="form-control" id="autMessage" name="Message" maxlength="500" placeholder="Leave empty to use a clear default, like &quot;Set a category before resolving.&quot;">
+            </div>
+        </div>
+    </div>
+    <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Add rule</button></div>
+</form>

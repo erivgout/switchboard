@@ -1,0 +1,348 @@
+@page "/admin/service-levels/policies/{id}"
+@model Switchboard.Modules.ServiceLevels.Areas.ServiceLevels.Pages.Admin.PolicyModel
+@using Switchboard.Modules.ServiceLevels.Domain
+@using Switchboard.Modules.ServiceLevels.Areas.ServiceLevels.Pages.Admin
+@{
+    ViewData["Title"] = Model.Title;
+    var f = Model.Form;
+    var ws = Model.Workspaces.Count > 1 ? Model.Workspace.Key : null;
+    var allErrors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct().ToList();
+
+    void Choices(string name, string legend, List<PolicyModel.Option> options, List<Guid> selected, string empty)
+    {
+        <fieldset class="sla-field">
+            <legend class="form-label">@legend</legend>
+            @if (options.Count == 0)
+            {
+                <p class="form-text mb-0">@empty</p>
+            }
+            else
+            {
+                <div class="sla-choices">
+                    @foreach (var o in options)
+                    {
+                        var cid = $"{name.Replace('.', '_')}_{o.Id:N}";
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="@name" value="@o.Id" id="@cid" checked="@selected.Contains(o.Id)">
+                            <label class="form-check-label" for="@cid">@o.Name</label>
+                        </div>
+                    }
+                </div>
+            }
+        </fieldset>
+    }
+
+    async Task Notify(string prefix, PolicyForm.NotifyForm n, string label)
+    {
+        var key = prefix.Replace('.', '_').Replace('[', '_').Replace(']', '_');
+        <div class="sla-notify">
+            <p class="sb-section-label mb-1">@label</p>
+            <div class="sla-choices">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="@(prefix).Assignee" value="true" id="@(key)_assignee" checked="@n.Assignee">
+                    <input type="hidden" name="@(prefix).Assignee" value="false">
+                    <label class="form-check-label" for="@(key)_assignee">The assigned agent, or the group while unassigned</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="@(prefix).Manager" value="true" id="@(key)_manager" checked="@n.Manager">
+                    <input type="hidden" name="@(prefix).Manager" value="false">
+                    <label class="form-check-label" for="@(key)_manager">Their manager</label>
+                </div>
+                @foreach (var g in Model.Groups)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="@(prefix).Groups" value="@g.Id" id="@(key)_g_@g.Id.ToString("N")" checked="@n.Groups.Contains(g.Id)">
+                        <label class="form-check-label" for="@(key)_g_@g.Id.ToString("N")">Everyone in @g.Name</label>
+                    </div>
+                }
+            </div>
+            <label class="form-label mt-2" for="@(key)_users">Also notify these people</label>
+            <select class="form-select" multiple size="3" name="@(prefix).Users" id="@(key)_users">
+                @foreach (var a in Model.Agents)
+                {
+                    <option value="@a.Id" selected="@n.Users.Contains(a.Id)">@a.Name</option>
+                }
+            </select>
+        </div>
+    }
+
+    async Task Time(string name, int? value, string unit, string label, int min = 1)
+    {
+        var key = name.Replace('.', '_').Replace('[', '_').Replace(']', '_');
+        <div class="input-group input-group-sm sla-time">
+            <input class="form-control" type="number" min="@min" max="525600" step="1" name="@name" id="@key" value="@value" aria-label="@label" inputmode="numeric">
+            <select class="form-select" name="@(name)Unit" aria-label="@label, unit">
+                <option value="m" selected="@(unit == "m")">min</option>
+                <option value="h" selected="@(unit == "h")">hours</option>
+            </select>
+        </div>
+    }
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceLevels/css/service-levels.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceLevels/js/service-levels.js" asp-append-version="true"></script>
+}
+
+<sb-page-header title="@Model.Title" subtitle="@(Model.IsNew ? "Set which tickets this covers and how fast they need a response and a resolution." : "Changes apply to new tickets, and to tickets whose priority or matching fields change.")">
+    <a class="btn btn-ghost" href="@Model.WithWorkspace("/admin/service-levels/policies")">Back to policies</a>
+</sb-page-header>
+
+<form method="post" class="sb-form-narrow sla-editor" novalidate>
+    <input type="hidden" name="ws" value="@ws">
+    @if (allErrors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            <p class="fw-semibold mb-1">The policy wasn't saved. Fix these and save again:</p>
+            <ul class="mb-0">
+                @foreach (var e in allErrors)
+                {
+                    <li>@e</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <section class="sb-pane" aria-labelledby="slaAbout">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="slaAbout">About this policy</h2></div>
+        <div class="sb-pane-body">
+            <div class="mb-3">
+                <label class="form-label" asp-for="Form.Name">Name</label>
+                <input class="form-control @(Model.Errors("name").Any() ? "is-invalid" : "")" asp-for="Form.Name" maxlength="200" required>
+                @foreach (var e in Model.Errors("name"))
+                {
+                    <div class="invalid-feedback">@e</div>
+                }
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="Form.Description">Description <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea class="form-control" asp-for="Form.Description" rows="2" maxlength="1000"></textarea>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" asp-for="Form.IsActive">
+                <label class="form-check-label" asp-for="Form.IsActive">On: tickets can get this policy</label>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="slaWhich">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="slaWhich">Which tickets</h2></div>
+        <div class="sb-pane-body">
+            <p class="form-text mt-0">Leave a field empty to match any value. A ticket must match every field you fill in; within a field, any one choice will do.</p>
+            @foreach (var e in Model.Errors("conditions"))
+            {
+                <div class="alert alert-danger py-2">@e</div>
+            }
+            <fieldset class="sla-field">
+                <legend class="form-label">Type</legend>
+                <div class="sla-choices">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="Form.Types" value="incident" id="slaTypeIncident" checked="@f.Types.Contains("incident")">
+                        <label class="form-check-label" for="slaTypeIncident">Incident</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="Form.Types" value="request" id="slaTypeRequest" checked="@f.Types.Contains("request")">
+                        <label class="form-check-label" for="slaTypeRequest">Service request</label>
+                    </div>
+                </div>
+            </fieldset>
+            @{ Choices("Form.Groups", "Group", Model.Groups, f.Groups, "No agent groups yet."); }
+            <fieldset class="sla-field">
+                <legend class="form-label">Category</legend>
+                @if (Model.Categories.Count == 0)
+                {
+                    <p class="form-text mb-0">No categories yet.</p>
+                }
+                <div class="sla-categories">
+                    @foreach (var (cat, children) in Model.Categories)
+                    {
+                        <div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Form.Categories" value="@cat.Id" id="slaCat_@cat.Id.ToString("N")" checked="@f.Categories.Contains(cat.Id)">
+                                <label class="form-check-label fw-semibold" for="slaCat_@cat.Id.ToString("N")">@cat.Name</label>
+                            </div>
+                            @foreach (var sub in children)
+                            {
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input" type="checkbox" name="Form.Categories" value="@sub.Id" id="slaCat_@sub.Id.ToString("N")" checked="@f.Categories.Contains(sub.Id)">
+                                    <label class="form-check-label" for="slaCat_@sub.Id.ToString("N")">@sub.Name</label>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </fieldset>
+            @{ Choices("Form.Sources", "Source", Model.Sources, f.Sources, "No sources."); }
+            @{ Choices("Form.Departments", "Requester's department", Model.Departments, f.Departments, "No departments yet."); }
+            @{ Choices("Form.RequesterGroups", "Requester group", Model.RequesterGroups, f.RequesterGroups, "No requester groups yet."); }
+            <fieldset class="sla-field">
+                <legend class="form-label">Ticket field equals</legend>
+                @if (Model.CustomFields.Count == 0)
+                {
+                    <p class="form-text mb-0">No custom ticket fields yet. Add some in Fields and forms to match on them here.</p>
+                }
+                else
+                {
+                    @for (var i = 0; i < f.Custom.Count; i++)
+                    {
+                        <div class="sla-row mb-2">
+                            <label class="visually-hidden" for="slaCustomKey@i">Field</label>
+                            <select class="form-select form-select-sm w-auto" name="Form.Custom[@i].Key" id="slaCustomKey@i">
+                                <option value="">Choose a field</option>
+                                @foreach (var cf in Model.CustomFields)
+                                {
+                                    <option value="@cf.Key" selected="@(f.Custom[i].Key == cf.Key)">@cf.Name</option>
+                                }
+                            </select>
+                            <span>equals</span>
+                            <label class="visually-hidden" for="slaCustomValue@i">Value</label>
+                            <input class="form-control form-control-sm sla-grow" name="Form.Custom[@i].Value" id="slaCustomValue@i" value="@f.Custom[i].Value" maxlength="400" placeholder="Value, or several separated by commas">
+                        </div>
+                    }
+                }
+            </fieldset>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="slaTargets">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="slaTargets">Targets</h2></div>
+        <div class="sb-pane-body">
+            <div class="mb-3">
+                <label class="form-label" asp-for="Form.CalendarId">Business hours come from</label>
+                <select class="form-select @(Model.Errors("calendarId").Any() ? "is-invalid" : "")" asp-for="Form.CalendarId">
+                    <option value="">The ticket group's calendar, or the default calendar</option>
+                    @foreach (var c in Model.Calendars)
+                    {
+                        <option value="@c.Id" selected="@(f.CalendarId == c.Id)">@c.Name@(c.Key == "default" ? " (default)" : "")</option>
+                    }
+                </select>
+                @foreach (var e in Model.Errors("calendarId"))
+                {
+                    <div class="invalid-feedback">@e</div>
+                }
+            </div>
+            @foreach (var e in Model.Errors("targets"))
+            {
+                <div class="alert alert-danger py-2">@e</div>
+            }
+            <p class="form-text mt-0">Leave a box empty for no target. Next response is the time to answer each reply from the requester. Business hours follow the calendar; all hours count nights and weekends too.</p>
+            <div class="table-responsive">
+                <table class="table table-sm sla-target-table align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th scope="col">Priority</th>
+                        <th scope="col">First response</th>
+                        <th scope="col">Next response</th>
+                        <th scope="col">Resolution</th>
+                        <th scope="col">Hours</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @for (var i = 0; i < f.Targets.Count; i++)
+                    {
+                        var t = f.Targets[i];
+                        <tr>
+                            <th scope="row">
+                                <input type="hidden" name="Form.Targets[@i].Priority" value="@t.Priority">
+                                <sb-priority value="@t.Priority" />
+                            </th>
+                            <td>@{ await Time($"Form.Targets[{i}].FirstResponse", t.FirstResponse, t.FirstResponseUnit, $"{t.Priority} first response"); }</td>
+                            <td>@{ await Time($"Form.Targets[{i}].NextResponse", t.NextResponse, t.NextResponseUnit, $"{t.Priority} next response"); }</td>
+                            <td>@{ await Time($"Form.Targets[{i}].Resolution", t.Resolution, t.ResolutionUnit, $"{t.Priority} resolution"); }</td>
+                            <td>
+                                <select class="form-select form-select-sm" name="Form.Targets[@i].BusinessHours" aria-label="@t.Priority targets count business hours or all hours">
+                                    <option value="true" selected="@t.BusinessHours">Business</option>
+                                    <option value="false" selected="@(!t.BusinessHours)">All hours</option>
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="slaReminders">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="slaReminders">Reminders</h2></div>
+        <div class="sb-pane-body">
+            <p class="form-text mt-0">Reminders go to the assigned agent, or to everyone in the ticket's group while nobody is assigned. Leave a row empty to skip it.</p>
+            @foreach (var e in Model.Errors("reminders"))
+            {
+                <div class="alert alert-danger py-2">@e</div>
+            }
+            @for (var i = 0; i < f.Reminders.Count; i++)
+            {
+                var r = f.Reminders[i];
+                <div class="sla-row mb-2">
+                    <span>Remind</span>
+                    @{ await Time($"Form.Reminders[{i}].Before", r.Before, r.BeforeUnit, $"Reminder {i + 1}, time before the target"); }
+                    <span>before the</span>
+                    <select class="form-select form-select-sm w-auto" name="Form.Reminders[@i].Target" aria-label="Reminder @(i + 1), target">
+                        <option value="FirstResponse" selected="@(r.Target == SlaTargetKind.FirstResponse)">first response</option>
+                        <option value="NextResponse" selected="@(r.Target == SlaTargetKind.NextResponse)">next response</option>
+                        <option value="Resolution" selected="@(r.Target == SlaTargetKind.Resolution)">resolution</option>
+                    </select>
+                    <span>target</span>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="sb-pane" aria-labelledby="slaEscalations">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="slaEscalations">Escalations</h2></div>
+        <div class="sb-pane-body">
+            @foreach (var e in Model.Errors("escalations"))
+            {
+                <div class="alert alert-danger py-2">@e</div>
+            }
+            <fieldset class="sla-level">
+                <legend class="sla-level-title">When a first or next response is late</legend>
+                @{ await Notify("Form.Response", f.Response, "Tell"); }
+            </fieldset>
+            <p class="sb-section-label mt-4 mb-2">When resolution is late, escalate step by step</p>
+            @for (var i = 0; i < f.Levels.Count; i++)
+            {
+                var l = f.Levels[i];
+                <fieldset class="sla-level">
+                    <legend class="sla-level-title">
+                        <span class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" name="Form.Levels[@i].Enabled" value="true" id="slaLevel@(i)" checked="@l.Enabled" data-sla-level-toggle aria-controls="slaLevelBody@(i)">
+                            <input type="hidden" name="Form.Levels[@i].Enabled" value="false">
+                            <label class="form-check-label" for="slaLevel@(i)">Level @l.Level</label>
+                        </span>
+                    </legend>
+                    <input type="hidden" name="Form.Levels[@i].Level" value="@l.Level">
+                    <div id="slaLevelBody@(i)" hidden="@(!l.Enabled)">
+                        <div class="sla-row mb-2">
+                            @{ await Time($"Form.Levels[{i}].Delay", l.Delay ?? (l.Enabled ? 0 : null), l.DelayUnit, $"Level {l.Level}, delay after the target", min: 0); }
+                            <span>after the resolution target is missed</span>
+                        </div>
+                        @{ await Notify($"Form.Levels[{i}].Notify", l.Notify, "Tell"); }
+                    </div>
+                </fieldset>
+            }
+        </div>
+    </section>
+
+    <div class="sla-actions">
+        <button class="btn btn-primary" type="submit">@(Model.IsNew ? "Create policy" : "Save policy")</button>
+        <a class="btn btn-ghost" href="@Model.WithWorkspace("/admin/service-levels/policies")">Cancel</a>
+    </div>
+</form>
+
+@if (!Model.IsNew)
+{
+    <form method="post" asp-page-handler="Delete" class="sb-pane sb-form-narrow mt-4"
+          data-sb-confirm="Delete &ldquo;@Model.Title&rdquo;? New tickets stop getting it. Tickets that already have it keep their targets.">
+        <input type="hidden" name="ws" value="@ws">
+        <div class="sb-pane-body d-flex flex-wrap align-items-center gap-3">
+            <div class="flex-grow-1">
+                <h2 class="sb-pane-title">Delete this policy</h2>
+                <p class="form-text mb-0">Tickets that already have it keep their targets and history.</p>
+            </div>
+            <button class="btn btn-outline-secondary" type="submit">Delete policy</button>
+        </div>
+    </form>
+}

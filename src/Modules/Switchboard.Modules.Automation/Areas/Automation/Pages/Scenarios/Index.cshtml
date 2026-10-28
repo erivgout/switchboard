@@ -1,0 +1,59 @@
+@page "/automations/scenarios"
+@model Switchboard.Modules.Automation.Areas.Automation.Pages.Scenarios.IndexModel
+@{
+    ViewData["Title"] = "Scenarios";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Automation/css/automation.css" asp-append-version="true">
+}
+
+<sb-page-header title="Scenarios" subtitle="Bundles of steps you run on a ticket in one click, from the ticket's More menu.">
+    <a class="btn btn-primary" href="/automations/scenarios/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> New scenario</a>
+</sb-page-header>
+
+@foreach (var (title, rows, empty) in new[]
+{
+    ("Yours", Model.Mine, "You haven't made any scenarios. Make one for something you do the same way every time, like asking for more details and setting the ticket to Pending."),
+    ("Shared with you", Model.Shared, "Nobody has shared a scenario with you yet. Automation admins can share them with a group or everyone."),
+})
+{
+    <section class="mb-4" aria-labelledby="sec-@title.Replace(' ', '-')">
+        <h2 class="h5 mb-2" id="sec-@title.Replace(' ', '-')">@title</h2>
+        @if (rows.Count == 0)
+        {
+            <div class="sb-pane sb-pane-body text-muted">@empty</div>
+        }
+        else
+        {
+            <div class="sb-pane sb-queue-wrap">
+                <table class="sb-queue">
+                    <thead>
+                    <tr>
+                        <th scope="col">Scenario</th>
+                        <th scope="col" class="sb-hide-sm">Who can use it</th>
+                        <th scope="col"><span class="visually-hidden">Edit</span></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var row in rows)
+                    {
+                        <tr data-sb-href="@(row.CanEdit ? $"/automations/scenarios/{row.Scenario.Id}" : null)">
+                            <td>
+                                <span class="sb-subject">@row.Scenario.Name</span>
+                                <div class="aut-wf-summary">@row.Steps.</div>
+                            </td>
+                            <td class="sb-hide-sm">@row.Audience</td>
+                            <td class="text-end">
+                                @if (row.CanEdit)
+                                {
+                                    <a class="btn btn-sm btn-outline-secondary" href="/automations/scenarios/@row.Scenario.Id" aria-label="Edit @row.Scenario.Name">Edit</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}

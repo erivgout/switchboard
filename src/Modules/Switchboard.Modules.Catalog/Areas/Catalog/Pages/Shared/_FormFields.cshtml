@@ -1,0 +1,88 @@
+@using Switchboard.Modules.Approvals.Web
+@model FormRenderModel
+@foreach (var f in Model.Fields)
+{
+    var id = $"{Model.IdPrefix}-{f.Key}";
+    var name = CatalogForm.FieldPrefix + f.Key;
+    var error = Model.ErrorOf(f.Key);
+    var helpId = id + "-help";
+    var describedBy = f.HelpText is null && error is null ? null : helpId;
+    var invalid = error is null ? null : "is-invalid";
+    <div class="cat-q">
+        @switch (f.Type)
+        {
+            case CatFieldType.Checkbox:
+                <div class="form-check">
+                    <input class="form-check-input @invalid" type="checkbox" id="@id" name="@name" value="true" checked="@(Model.ValueOf(f.Key) is "true")"
+                           required="@(f.Required && !Model.Preview)" aria-describedby="@describedBy">
+                    <label class="form-check-label" for="@id">@f.Label@if (f.Required) {<span class="cat-required" aria-hidden="true">*</span>}</label>
+                </div>
+                break;
+            case CatFieldType.MultiSelect:
+                <fieldset aria-describedby="@describedBy">
+                    <legend>@f.Label@if (f.Required) {<span class="cat-required" aria-hidden="true">*</span><span class="visually-hidden"> (required)</span>}</legend>
+                    @for (var i = 0; i < f.Options.Count; i++)
+                    {
+                        var option = f.Options[i];
+                        <div class="form-check">
+                            <input class="form-check-input @invalid" type="checkbox" id="@id-@i" name="@name" value="@option" checked="@Model.ValuesOf(f.Key).Contains(option)">
+                            <label class="form-check-label" for="@id-@i">@option</label>
+                        </div>
+                    }
+                </fieldset>
+                break;
+            case CatFieldType.UserLookup:
+            {
+                var selected = Guid.TryParse(Model.ValueOf(f.Key), out var personId) && Model.People.TryGetValue(personId, out var personName)
+                    ? new List<PersonChoice> { new(personId, personName) }
+                    : [];
+                var picker = new PeoplePickerModel(name, id, f.Label, Selected: selected, Help: f.HelpText,
+                    Required: f.Required && !Model.Preview, Error: error);
+                <partial name="/Areas/Approvals/Pages/Shared/_PeoplePicker.cshtml" model="picker" />
+                break;
+            }
+            default:
+                <label class="form-label" for="@id">@f.Label@if (f.Required) {<span class="cat-required" aria-hidden="true">*</span>}</label>
+                @switch (f.Type)
+                {
+                    case CatFieldType.Paragraph:
+                        <textarea class="form-control @invalid" id="@id" name="@name" rows="3" maxlength="@CatalogForm.MaxParagraph" data-sb-autosize
+                                  required="@(f.Required && !Model.Preview)" aria-describedby="@describedBy">@Model.ValueOf(f.Key)</textarea>
+                        break;
+                    case CatFieldType.Number:
+                        <input class="form-control @invalid" style="max-width: 14rem" type="number" step="any" id="@id" name="@name" value="@Model.ValueOf(f.Key)"
+                               required="@(f.Required && !Model.Preview)" aria-describedby="@describedBy">
+                        break;
+                    case CatFieldType.Date:
+                        <input class="form-control @invalid" style="max-width: 14rem" type="date" id="@id" name="@name" value="@Model.ValueOf(f.Key)"
+                               required="@(f.Required && !Model.Preview)" aria-describedby="@describedBy">
+                        break;
+                    case CatFieldType.Dropdown:
+                        <select class="form-select @invalid" id="@id" name="@name" required="@(f.Required && !Model.Preview)" aria-describedby="@describedBy">
+                            <option value="">Choose one</option>
+                            @foreach (var option in f.Options)
+                            {
+                                <option value="@option" selected="@(Model.ValueOf(f.Key) == option)">@option</option>
+                            }
+                        </select>
+                        break;
+                    default:
+                        <input class="form-control @invalid" type="text" id="@id" name="@name" value="@Model.ValueOf(f.Key)" maxlength="@CatalogForm.MaxText"
+                               required="@(f.Required && !Model.Preview)" aria-describedby="@describedBy">
+                        break;
+                }
+                break;
+        }
+        @if (f.Type != CatFieldType.UserLookup)
+        {
+            @if (error is not null)
+            {
+                <div id="@helpId" class="invalid-feedback d-block">@error</div>
+            }
+            else if (f.HelpText is not null)
+            {
+                <div id="@helpId" class="form-text">@f.HelpText</div>
+            }
+        }
+    </div>
+}

@@ -1,0 +1,88 @@
+@page "/portal/requests"
+@model RequestsModel
+@{
+    ViewData["Title"] = "My requests";
+    var tabs = new List<(RequestTab Tab, string Label, int Count)>
+    {
+        (RequestTab.Mine, "Mine", Model.Counts.Mine),
+        (RequestTab.Shared, "Shared with me", Model.Counts.Shared),
+    };
+    if (Model.Counts.IsDepartmentLead)
+    {
+        tabs.Add((RequestTab.Department, "My department", Model.Counts.Department));
+    }
+    var states = new[] { (RequestState.Open, "Open"), (RequestState.Closed, "Closed"), (RequestState.All, "All") };
+    var word = Model.StateWord.Length == 0 ? "" : Model.StateWord + " ";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Portal/css/portal.css" asp-append-version="true">
+}
+
+<sb-page-header title="My requests" subtitle="Everything you've asked the service desk for, and what's happening with it.">
+    <a class="btn btn-primary" href="/portal/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> Report a problem</a>
+</sb-page-header>
+
+<div class="prt-toolbar">
+    <nav aria-label="Whose requests">
+        <ul class="nav nav-tabs prt-tabs">
+            @foreach (var t in tabs)
+            {
+                <li class="nav-item">
+                    <a class="nav-link @(t.Tab == Model.Tab ? "active" : null)" href="@Model.Link(t.Tab, page: 1)" aria-current="@(t.Tab == Model.Tab ? "page" : null)">
+                        @t.Label <span class="prt-count">@t.Count</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+    <nav class="prt-filter" aria-label="Show">
+        @foreach (var (state, label) in states)
+        {
+            <a class="btn btn-sm @(state == Model.State ? "btn-primary" : "btn-outline-secondary")" href="@Model.Link(state: state, page: 1)" aria-current="@(state == Model.State ? "page" : null)">@label</a>
+        }
+    </nav>
+</div>
+
+<div class="sb-pane prt-list-pane">
+    @if (Model.Results.Items.Count == 0)
+    {
+        @switch (Model.Tab)
+        {
+            case RequestTab.Shared:
+                <sb-empty icon="bi-people" title="@($"Nothing {word}has been shared with you")">
+                    <p class="sb-empty-text">When a colleague shares a request with you, it shows up here so you can follow it.</p>
+                </sb-empty>
+                break;
+            case RequestTab.Department:
+                <sb-empty icon="bi-building" title="@($"Your department has no {word}requests")">
+                    <p class="sb-empty-text">Requests from people in the departments you lead show up here.</p>
+                </sb-empty>
+                break;
+            default:
+                <sb-empty icon="bi-inbox" title="@($"You have no {word}requests")">
+                    <p class="sb-empty-text">When you report a problem or ask for something, you can follow it here.</p>
+                    <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/portal/new">Report a problem</a></div>
+                </sb-empty>
+                break;
+        }
+    }
+    else
+    {
+        <partial name="_RequestList" model="new RequestListModel(Model.Results.Items, ShowRequester: Model.Tab != RequestTab.Mine)" />
+    }
+</div>
+
+@if (Model.Results.HasPrevious || Model.Results.HasNext)
+{
+    <nav class="prt-pager" aria-label="Pages">
+        @if (Model.Results.HasPrevious)
+        {
+            <a class="btn btn-outline-secondary" href="@Model.Link(page: Model.Results.Page - 1)"><i class="bi bi-chevron-left" aria-hidden="true"></i> Newer</a>
+        }
+        <span class="prt-muted">Page @Model.Results.Page of @Math.Max(1, (int)Math.Ceiling(Model.Results.Total / (double)Model.Results.PageSize))</span>
+        @if (Model.Results.HasNext)
+        {
+            <a class="btn btn-outline-secondary" href="@Model.Link(page: Model.Results.Page + 1)">Older <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+        }
+    </nav>
+}

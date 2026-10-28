@@ -1,0 +1,119 @@
+@page "/search"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Search.IndexModel
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var r = Model.Result;
+    var tickets = r.Tickets;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+<sb-page-header title="Search" subtitle="@(r.Query.Length == 0 ? "Find tickets, people and articles. Type a ticket number like INC-1042 to jump straight to it." : null)" />
+
+<form class="sd-search-page" method="get" action="/search" role="search">
+    <label class="visually-hidden" for="sdSearchPage">Search</label>
+    <input class="form-control form-control-lg" id="sdSearchPage" type="search" name="q" value="@r.Query" placeholder="Search tickets, people and articles" autocomplete="off">
+    <button class="btn btn-primary" type="submit">Search</button>
+</form>
+
+@if (r.Query.Length > 0)
+{
+    <div class="sd-search-results">
+        <section class="sb-pane" aria-labelledby="sdSearchTickets">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="sdSearchTickets">Tickets</h2>
+                @if (tickets is { Total: > 0 })
+                {
+                    <span class="sb-meta">@tickets.Total.ToString("N0") found</span>
+                    <a class="btn btn-ghost btn-sm ms-auto" href="/tickets?q=@Uri.EscapeDataString(r.Query)&amp;sort=-updated">Open in the queue</a>
+                }
+            </div>
+            @if (r.TicketError is not null)
+            {
+                <p class="sd-pane-empty">@r.TicketError</p>
+            }
+            else if (tickets is null || tickets.Total == 0)
+            {
+                if (TicketReference.TryParse(r.Query, out _))
+                {
+                    <p class="sd-pane-empty">No ticket with that number is visible to you. It may not exist, or it may be in a group you can't see.</p>
+                }
+                else
+                {
+                    <p class="sd-pane-empty">No tickets match "@r.Query". Try fewer words, or search by the requester's email.</p>
+                }
+            }
+            else
+            {
+                <ul class="sd-search-list">
+                    @foreach (var t in tickets.Items)
+                    {
+                        <li>
+                            <sb-lamp lit="t.IsLampLit" />
+                            <span class="sb-stamp">@t.DisplayId</span>
+                            <div class="min-w-0">
+                                <a class="sd-search-title" href="/tickets/@t.Number">@t.Subject</a>
+                                <div class="sb-meta">@t.RequesterName, updated <sb-time value="t.UpdatedAt" />@(t.AgentName is null ? "" : $", assigned to {t.AgentName}")</div>
+                            </div>
+                            <sb-status name="@t.StatusName" category="@t.StatusCategory" />
+                        </li>
+                    }
+                </ul>
+                if (tickets.PageCount > 1)
+                {
+                    <nav class="sd-pager px-3 pb-3" aria-label="Ticket result pages">
+                        <span class="sd-pager-text">Page @tickets.Page of @tickets.PageCount</span>
+                        @if (tickets.Page > 1)
+                        {
+                            <a class="btn btn-outline-secondary btn-sm" href="/search?q=@Uri.EscapeDataString(r.Query)&amp;p=@(tickets.Page - 1)">Previous</a>
+                        }
+                        @if (tickets.HasMore)
+                        {
+                            <a class="btn btn-outline-secondary btn-sm" href="/search?q=@Uri.EscapeDataString(r.Query)&amp;p=@(tickets.Page + 1)">Next</a>
+                        }
+                    </nav>
+                }
+            }
+        </section>
+
+        @if (r.CanSeePeople)
+        {
+            <section class="sb-pane" aria-labelledby="sdSearchPeople">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="sdSearchPeople">People</h2></div>
+                @if (r.People.Count == 0)
+                {
+                    <p class="sd-pane-empty">Nobody matches "@r.Query".</p>
+                }
+                else
+                {
+                    <ul class="sd-search-list">
+                        @foreach (var p in r.People)
+                        {
+                            <li>
+                                <sb-avatar name="@p.Name" size="sm" />
+                                <div class="min-w-0">
+                                    <span class="fw-semibold">@p.Name</span>
+                                    @if (p.IsVip)
+                                    {
+                                        <span class="sb-vip ms-1">VIP</span>
+                                    }
+                                    @if (p.IsAgent)
+                                    {
+                                        <span class="sb-tag ms-1">Agent</span>
+                                    }
+                                    <div class="sb-meta text-truncate">@string.Join(", ", new[] { p.JobTitle, p.Department, p.Email }.Where(x => !string.IsNullOrEmpty(x)))</div>
+                                </div>
+                                @if (p.Email is not null)
+                                {
+                                    <a class="btn btn-ghost btn-sm ms-auto" href="/tickets?q=@Uri.EscapeDataString($"requester:{p.Email}")&amp;sort=-created">Their tickets</a>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        }
+
+        <sb-slot name="search.results" model="r.Query" />
+    </div>
+}

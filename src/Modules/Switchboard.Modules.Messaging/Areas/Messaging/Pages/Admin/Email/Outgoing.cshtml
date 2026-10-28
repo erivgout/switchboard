@@ -1,0 +1,173 @@
+@page "/admin/email/outgoing"
+@model OutgoingModel
+@using Switchboard.Modules.Messaging.Outbound
+@{
+    ViewData["Title"] = "Outgoing mail";
+    var e = Model.Effective;
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Messaging/css/messaging.css" asp-append-version="true">
+}
+<sb-page-header title="Email" subtitle="Email to your support addresses becomes tickets. Replies and notifications go out through your mail server." />
+
+<partial name="_EmailNav" model="@("outgoing")" />
+
+<div class="sb-split">
+    <form method="post" novalidate class="sb-msg-fill">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger" role="alert">Some settings need fixing. They're marked below.</div>
+        }
+        <section class="sb-pane" aria-labelledby="smtpTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="smtpTitle">Mail server</h2></div>
+            <div class="sb-pane-body">
+                @if (e.Source == MailSettingsSource.DevelopmentDefault)
+                {
+                    <p class="text-muted"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Nothing is saved yet, so this development instance sends to Mailpit on localhost:1025. Its inbox is at <a href="http://localhost:8025" target="_blank" rel="noopener">localhost:8025</a>.</p>
+                }
+                else if (e.Source == MailSettingsSource.Configuration)
+                {
+                    <p class="text-muted"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>The server configuration sets the mail server (@e.Host:@e.Port). Save a server here to use it instead.</p>
+                }
+                else if (e.Source == MailSettingsSource.None)
+                {
+                    <p class="text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Outgoing mail isn't set up. Until it is, replies and notifications are written to the log instead of sent.</p>
+                }
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label" asp-for="Input.Host">SMTP server</label>
+                        <input class="form-control" asp-for="Input.Host" placeholder="smtp.example.com" autocomplete="off">
+                        <span asp-validation-for="Input.Host" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Input.Port">Port</label>
+                        <input class="form-control tabular" asp-for="Input.Port" type="number" min="1" max="65535">
+                        <span asp-validation-for="Input.Port" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.Security">Connection security</label>
+                        <select class="form-select" asp-for="Input.Security">
+                            <option value="@SmtpSecurity.Auto">STARTTLS when offered</option>
+                            <option value="@SmtpSecurity.StartTls">STARTTLS required (usually port 587)</option>
+                            <option value="@SmtpSecurity.SslOnConnect">TLS (usually port 465)</option>
+                            <option value="@SmtpSecurity.None">None (not recommended)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.Username">Username</label>
+                        <input class="form-control" asp-for="Input.Username" autocomplete="off">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.Password">Password</label>
+                        <input class="form-control" asp-for="Input.Password" type="password" autocomplete="new-password"
+                               placeholder="@(Model.HasPassword ? "Saved. Type a new one to replace it." : "")">
+                        @if (Model.HasPassword)
+                        {
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" asp-for="Input.ClearPassword">
+                                <label class="form-check-label" asp-for="Input.ClearPassword">Remove the saved password</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="senderTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="senderTitle">Sender</h2></div>
+            <div class="sb-pane-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.FromName">From name</label>
+                        <input class="form-control" asp-for="Input.FromName" placeholder="IT Service Desk" maxlength="200">
+                        <span asp-validation-for="Input.FromName" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.FromAddress">From address</label>
+                        <input class="form-control" asp-for="Input.FromAddress" type="email" placeholder="help@example.com">
+                        <span asp-validation-for="Input.FromAddress" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" asp-for="Input.EnvelopeFrom">Bounce address</label>
+                        <input class="form-control" asp-for="Input.EnvelopeFrom" type="email" aria-describedby="envHelp">
+                        <div class="form-text" id="envHelp">Where delivery failures go (the envelope sender). Leave empty to use the From address.</div>
+                        <span asp-validation-for="Input.EnvelopeFrom" class="text-danger small"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="dkimTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="dkimTitle">DKIM signing</h2></div>
+            <div class="sb-pane-body">
+                <p class="text-muted">Only needed when Switchboard delivers straight to the internet. If your mail server signs messages, leave this empty.</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.DkimDomain">Domain</label>
+                        <input class="form-control" asp-for="Input.DkimDomain" placeholder="example.com" autocomplete="off">
+                        <span asp-validation-for="Input.DkimDomain" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.DkimSelector">Selector</label>
+                        <input class="form-control" asp-for="Input.DkimSelector" placeholder="switchboard" autocomplete="off">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" asp-for="Input.DkimPrivateKey">Private key</label>
+                        <textarea class="form-control tabular" asp-for="Input.DkimPrivateKey" rows="3" autocomplete="off" spellcheck="false"
+                                  placeholder="@(Model.HasDkimKey ? "A key is saved. Paste a new one to replace it." : "-----BEGIN PRIVATE KEY-----")"></textarea>
+                        <span asp-validation-for="Input.DkimPrivateKey" class="text-danger small"></span>
+                        @if (Model.HasDkimKey)
+                        {
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" asp-for="Input.ClearDkimKey">
+                                <label class="form-check-label" asp-for="Input.ClearDkimKey">Remove the saved key</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="nonprodTitle">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="nonprodTitle">Test instances</h2>
+                <span class="ms-auto small text-muted">@(Model.NonProduction ? "This instance is non-production" : "This instance is production")</span>
+            </div>
+            <div class="sb-pane-body">
+                <p class="text-muted">On a non-production instance, mail goes to the capture address instead of real people, unless they're on the allowlist.</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.CaptureAddress">Capture address</label>
+                        <input class="form-control" asp-for="Input.CaptureAddress" type="email" placeholder="test-inbox@example.com" aria-describedby="captureHelp">
+                        <div class="form-text" id="captureHelp">Leave empty to write mail to the log instead.</div>
+                        <span asp-validation-for="Input.CaptureAddress" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" asp-for="Input.NonProductionAllowlist">Still send to</label>
+                        <input class="form-control" asp-for="Input.NonProductionAllowlist" placeholder="qa@example.com, test.example.com" aria-describedby="allowHelp">
+                        <div class="form-text" id="allowHelp">Addresses or domains, separated by commas.</div>
+                        <span asp-validation-for="Input.NonProductionAllowlist" class="text-danger small"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="d-flex gap-2 mb-4">
+            <button class="btn btn-primary" type="submit">Save outgoing mail</button>
+            <a class="btn btn-outline-secondary" href="/admin/email">Cancel</a>
+        </div>
+    </form>
+
+    <aside class="sb-sticky" aria-labelledby="testTitle">
+        <section class="sb-pane">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="testTitle">Send a test email</h2></div>
+            <form method="post" asp-page-handler="Test" class="sb-pane-body" novalidate>
+                <p class="small text-muted">Sends a short message now with the saved settings, so you can see it arrive.</p>
+                <label class="form-label" for="TestAddress">Send to</label>
+                <input class="form-control mb-2" id="TestAddress" name="TestAddress" type="email" value="@Model.TestAddress" autocomplete="email">
+                <span asp-validation-for="TestAddress" class="text-danger small d-block mb-2"></span>
+                <button class="btn btn-outline-secondary w-100" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Send test email</button>
+            </form>
+        </section>
+    </aside>
+</div>

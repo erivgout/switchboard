@@ -1,0 +1,74 @@
+/* Service levels admin and report pages. Tokens only; see docs/DESIGN_SYSTEM.md. */
+
+/* ---------------------------------------------------------------- policy list */
+.sla-policies .sla-col-order { width: 3.5rem; white-space: nowrap; padding-right: 0; }
+.sla-handle { color: var(--sb-ink-faint); cursor: grab; margin-right: 0.25rem; }
+.sla-order { color: var(--sb-ink-muted); font-weight: 600; }
+.sla-policies tr.is-dragging td { background: var(--sb-cord-tint); }
+.sla-policies tr.is-off .sb-subject { color: var(--sb-ink-muted); }
+.sla-applies { max-width: 22rem; color: var(--sb-ink-muted); font-size: 0.875rem; }
+
+.sla-targets { margin: 0; display: grid; grid-template-columns: auto auto; gap: 0 0.75rem; font-size: 0.875rem; }
+.sla-targets > div { display: contents; }
+.sla-targets dt { font-weight: 600; color: var(--sb-ink-muted); }
+.sla-targets dd { margin: 0; }
+
+.sla-state { display: inline-flex; align-items: center; gap: 0.3125rem; font-weight: 600; font-size: 0.875rem; color: var(--sb-ink-muted); margin-right: 0.25rem; }
+.sla-state.is-on { color: var(--sb-success); }
+
+/* ---------------------------------------------------------------- editors */
+.sla-editor .sb-pane + .sb-pane { margin-top: 1rem; }
+.sla-field { margin: 0 0 1.25rem; }
+.sla-field:last-child { margin-bottom: 0; }
+.sla-field > legend { font-size: 0.875rem; }
+.sla-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: 0.125rem 1rem; }
+.sla-categories { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0.75rem 1rem; }
+
+.sla-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.sla-grow { flex: 1 1 14rem; }
+.sla-time { width: 9.5rem; flex-wrap: nowrap; }
+.sla-time .form-control { flex: 0 0 3.5rem; width: 3.5rem; padding-left: 0.5rem; padding-right: 0.25rem; }
+.sla-time .form-select { flex: 1 1 auto; padding-left: 0.5rem; }
+
+.sla-target-table th, .sla-target-table td { background: transparent; white-space: nowrap; }
+.sla-target-table thead th { font-size: 0.8125rem; font-weight: 600; color: var(--sb-ink-muted); }
+
+.sla-level { border-top: 1px solid var(--sb-rule); padding-top: 1rem; margin-top: 1rem; }
+.sla-level:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.sla-level-title { float: none; font-size: 0.9375rem; font-weight: 650; margin-bottom: 0.5rem; }
+.sla-notify .form-select[multiple] { max-width: 24rem; }
+
+.sla-actions { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+
+.sla-hours-table th, .sla-hours-table td { background: transparent; }
+.sla-hours-table td { min-width: 7rem; }
+.sla-hours-table tr.is-closed td input { opacity: 0.45; }
+.sla-holiday-table td, .sla-holiday-table th { background: transparent; padding-left: 1rem; padding-right: 1rem; }
+
+/* ---------------------------------------------------------------- report */
+.sla-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem 1rem; margin-bottom: 1rem; }
+.sla-filters .form-label { font-size: 0.8125rem; margin-bottom: 0.25rem; }
+.sla-meter { display: inline-grid; grid-template-columns: 3.25rem 5rem; align-items: center; gap: 0.5rem; }
+.sla-meter-track { height: 6px; border-radius: 3px; background: var(--sb-surface-2); box-shadow: inset 0 0 0 1px var(--sb-rule); overflow: hidden; }
+.sla-meter-fill { display: block; height: 100%; border-radius: 3px; background: var(--sb-cord); }
+.sla-outcome { display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap; font-weight: 600; font-size: 0.8125rem; }
+.sla-outcome.is-met { color: var(--sb-success); }
+.sla-outcome.is-missed { color: var(--sb-danger); }
+.sla-outcome.is-pending { color: var(--sb-ink-muted); }
+.sla-report-table td, .sla-report-table th { white-space: nowrap; }
+.sla-report-table td.sla-wrap { white-space: normal; min-width: 14rem; }
+
+@media (max-width: 575.98px) {
+  .sla-meter { grid-template-columns: auto; }
+  .sla-meter-track { display: none; }
+  .sla-report-table th { white-space: normal; }
+  .sla-report-table td.sla-wrap { min-width: 0; }
+}
+
+/* sb-metrics fits two tiles across at phone width; rule them as a 2-column grid. */
+@media (max-width: 575.98px) {
+  .sla-metrics { grid-template-columns: 1fr 1fr; }
+  .sla-metrics .sb-metric { border-left: 0; border-top: 1px solid var(--sb-rule); }
+  .sla-metrics .sb-metric:nth-child(-n+2) { border-top: 0; }
+  .sla-metrics .sb-metric:nth-child(even) { border-left: 1px solid var(--sb-rule); }
+}

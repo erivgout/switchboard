@@ -1,0 +1,38 @@
+@model KbArticleListModel
+@{
+    var href = Model.Portal ? $"/portal/kb?q={Uri.EscapeDataString(Model.Query)}" : $"/kb?q={Uri.EscapeDataString(Model.Query)}";
+}
+<link rel="stylesheet" href="@Url.Content(KbUi.Css)" asp-append-version="true">
+<section class="sb-pane kb-search-slot mb-3" aria-labelledby="kbSearchSlotTitle">
+    <div class="sb-pane-header">
+        <h2 class="sb-pane-title" id="kbSearchSlotTitle">Articles</h2>
+        @if (Model.Total > Model.Items.Count)
+        {
+            <a class="btn btn-sm btn-ghost ms-auto" href="@href">See all @Model.Total articles</a>
+        }
+    </div>
+    @if (Model.Items.Count == 0)
+    {
+        <p class="sb-pane-body sb-meta mb-0">No articles mention “@Model.Query”.</p>
+    }
+    else
+    {
+        <ul class="kb-slot-list">
+            @foreach (var item in Model.Items)
+            {
+                <li>
+                    <a class="kb-slot-title" href="@(Model.Portal ? $"/portal/kb/{item.Id}" : $"/kb/{item.Id}")">@item.Title</a>
+                    <p class="kb-snippet">@item.Snippet</p>
+                    <div class="kb-slot-meta">
+                        @if (!Model.Portal)
+                        {
+                            <span class="sb-stamp">@item.DisplayId</span>
+                            @KbUi.State(item.Status, item.PendingChanges)
+                        }
+                        <span>@item.FolderPath</span>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</section>

@@ -1,0 +1,233 @@
+@page "/tickets"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.IndexModel
+@using Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets
+@using Switchboard.Modules.ServiceDesk.Services
+@using Switchboard.Core.Tickets
+@{
+    var q = Model.Queue;
+    var state = q.State;
+    var total = Model.Results.Result?.Total ?? Model.Results.BoardTotal;
+    bool Has(string term) => q.Query.Contains(term, StringComparison.OrdinalIgnoreCase);
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+
+<sb-page-header title="@q.Title" subtitle="@q.Description">
+    <div class="btn-group" role="group" aria-label="Layout">
+        <a class="btn btn-outline-secondary @(q.IsBoard ? "" : "active")" aria-current="@(q.IsBoard ? null : "true")" href="@((state with { Layout = "table", Page = 1 }).ToUrl())">
+            <i class="bi bi-list-ul" aria-hidden="true"></i> Table
+        </a>
+        <a class="btn btn-outline-secondary @(q.IsBoard ? "active" : "")" aria-current="@(q.IsBoard ? "true" : null)" href="@((state with { Layout = "board", Page = 1 }).ToUrl())">
+            <i class="bi bi-kanban" aria-hidden="true"></i> Board
+        </a>
+    </div>
+    @if (q.CanExport)
+    {
+        <a class="btn btn-outline-secondary" href="@state.ToUrl("Export")"><i class="bi bi-download" aria-hidden="true"></i> Export CSV</a>
+    }
+</sb-page-header>
+
+<div class="sd-queue" data-sd-queue data-sd-me="@Model.MeId" data-sd-rows-url="@state.ToUrl("Rows")" data-sd-counts-url="@state.ToUrl("Counts")">
+    <aside class="sd-queue-nav" aria-label="Ticket views" id="sdViewsNav">
+        <partial name="_ViewsNav" model="Model" />
+    </aside>
+
+    <div class="sd-queue-main">
+        <form class="sb-pane sd-filter" method="get" action="/tickets" role="search" aria-label="Filter tickets" data-sd-filter>
+            @if (state.Layout == "board")
+            {
+                <input type="hidden" name="layout" value="board">
+                <input type="hidden" name="by" value="@state.By">
+            }
+            @if (state.Cols is not null)
+            {
+                <input type="hidden" name="cols" value="@state.Cols">
+            }
+            <div class="sd-filter-row">
+                <label class="visually-hidden" for="sdQuery">Filter</label>
+                <div class="sd-filter-input">
+                    <i class="bi bi-funnel" aria-hidden="true"></i>
+                    <input id="sdQuery" class="form-control" name="q" value="@q.Query" autocomplete="off" spellcheck="false"
+                           placeholder="Filter, e.g. priority>=high group:mine &quot;vpn&quot;" aria-describedby="sdFilterHint" data-sd-query>
+                    <button class="btn btn-ghost btn-icon" type="button" data-bs-toggle="collapse" data-bs-target="#sdFilterHelp" aria-expanded="false" aria-controls="sdFilterHelp" aria-label="Filter help">
+                        <i class="bi bi-question-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Status</button>
+                    <ul class="dropdown-menu sd-qf-menu">
+                        <li><button class="dropdown-item" type="button" data-sd-field="status state" data-sd-term="state:unresolved" aria-pressed="@(Has("state:unresolved") ? "true" : "false")">Any unresolved</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        @foreach (var name in Model.StatusNames)
+                        {
+                            var term = IndexModel.Term("status", name);
+                            <li><button class="dropdown-item" type="button" data-sd-field="status state" data-sd-term="@term" aria-pressed="@(Has(term) ? "true" : "false")">@name</button></li>
+                        }
+                    </ul>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Priority</button>
+                    <ul class="dropdown-menu sd-qf-menu">
+                        @foreach (var p in Enum.GetValues<Switchboard.Core.Domain.Priority>().Reverse())
+                        {
+                            var term = $"priority:{p.ToString().ToLowerInvariant()}";
+                            <li><button class="dropdown-item" type="button" data-sd-field="priority" data-sd-term="@term" aria-pressed="@(Has(term) ? "true" : "false")"><sb-priority value="@p" /></button></li>
+                        }
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button class="dropdown-item" type="button" data-sd-field="priority" data-sd-term="priority>=high" aria-pressed="@(Has("priority>=high") ? "true" : "false")">High or urgent</button></li>
+                    </ul>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Group</button>
+                    <ul class="dropdown-menu sd-qf-menu">
+                        <li><button class="dropdown-item" type="button" data-sd-field="group" data-sd-term="group:mine" aria-pressed="@(Has("group:mine") ? "true" : "false")">My groups</button></li>
+                        <li><button class="dropdown-item" type="button" data-sd-field="group" data-sd-term="group:none" aria-pressed="@(Has("group:none") ? "true" : "false")">No group</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        @foreach (var g in Model.Groups)
+                        {
+                            var term = IndexModel.Term("group", g.Name);
+                            <li><button class="dropdown-item" type="button" data-sd-field="group" data-sd-term="@term" aria-pressed="@(Has(term) ? "true" : "false")">@g.Name</button></li>
+                        }
+                    </ul>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Agent</button>
+                    <ul class="dropdown-menu sd-qf-menu">
+                        <li><button class="dropdown-item" type="button" data-sd-field="agent" data-sd-term="agent:me" aria-pressed="@(Has("agent:me") ? "true" : "false")">Me</button></li>
+                        <li><button class="dropdown-item" type="button" data-sd-field="agent" data-sd-term="agent:none" aria-pressed="@(Has("agent:none") ? "true" : "false")">Unassigned</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        @foreach (var a in Model.Agents.Where(a => a.Email is not null && a.Id != Model.MeId))
+                        {
+                            var term = $"agent:{a.Email}";
+                            <li><button class="dropdown-item" type="button" data-sd-field="agent" data-sd-term="@term" aria-pressed="@(Has(term) ? "true" : "false")">@a.Name</button></li>
+                        }
+                    </ul>
+                </div>
+
+                <label class="visually-hidden" for="sdSort">Sort</label>
+                <select id="sdSort" class="form-select sd-sort" name="sort" data-sd-autosubmit>
+                    @foreach (var (value, label) in QueueViews.Sorts)
+                    {
+                        <option value="@value" selected="@(q.Sort == value)">@label</option>
+                    }
+                </select>
+
+                <div class="sd-filter-end">
+                    @if (!q.IsBoard)
+                    {
+                        <div class="dropdown">
+                            <button class="btn btn-ghost btn-icon" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Choose columns">
+                                <i class="bi bi-layout-three-columns" aria-hidden="true"></i>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end p-2 sd-cols-menu" data-sd-cols data-sd-cols-url="@((state with { Cols = null, Page = 1 }).ToUrl())">
+                                <p class="sb-section-label px-1">Columns</p>
+                                @foreach (var (key, label) in QueueColumns.All)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="col-@key" value="@key" checked="@q.Shows(key)">
+                                        <label class="form-check-label" for="col-@key">@label</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="visually-hidden" for="sdBy">Group the board by</label>
+                        <select id="sdBy" class="form-select sd-sort" data-sd-board-by data-sd-board-url="@((state with { By = "status" }).ToUrl())">
+                            @foreach (var (key, label) in QueueState.BoardGroupings)
+                            {
+                                <option value="@key" selected="@(state.By == key)">By @label.ToLowerInvariant()</option>
+                            }
+                        </select>
+                    }
+                    <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#sdSaveView">
+                        <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Save view
+                    </button>
+                </div>
+            </div>
+            <div class="collapse" id="sdFilterHelp">
+                <div class="sd-filter-help">
+                    <p id="sdFilterHint" class="mb-2">Combine filters with spaces (AND), <span class="sb-kbd">OR</span> and <span class="sb-kbd">-</span> to exclude. Words and "quoted phrases" search the subject and description. Select a field to add it.</p>
+                    <dl class="sd-field-help">
+                        @foreach (var (field, help) in TicketQueryLanguage.Fields)
+                        {
+                            <div>
+                                <dt><button class="btn btn-link btn-sm p-0" type="button" data-sd-insert="@(field):">@field</button></dt>
+                                <dd>@help</dd>
+                            </div>
+                        }
+                    </dl>
+                </div>
+            </div>
+        </form>
+
+        <div class="sd-live" id="sdLive" hidden>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-sd-show-updates>
+                <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> <span data-sd-live-text>New updates</span>
+            </button>
+        </div>
+
+        @if (q.CanBulk && !q.IsBoard)
+        {
+            <div class="sd-bulkbar" id="sdBulkBar" hidden role="region" aria-label="Bulk actions">
+                <strong data-sb-selected-count>0 selected</strong>
+                <button class="btn btn-link btn-sm p-0" type="button" data-sd-select-matching hidden>Select all <span data-sd-total>@total</span> that match</button>
+                <div class="sd-bulkbar-actions">
+                    @if (q.IsTrash)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="restore">Restore</button>
+                        @if (q.CanPurge)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" type="button" data-sd-bulk="purge">Delete permanently</button>
+                        }
+                    }
+                    else if (q.IsSpam)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="not_spam">Not spam</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="trash">Move to trash</button>
+                        @if (q.CanPurge)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" type="button" data-sd-bulk="purge">Delete permanently</button>
+                        }
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="assign">Assign</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="status">Status</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="priority">Priority</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="tags">Add tags</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="merge">Merge</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="spam">Spam</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-sd-bulk="trash">Move to trash</button>
+                    }
+                </div>
+                <button class="btn btn-ghost btn-sm ms-auto" type="button" data-sd-clear-selection>Clear</button>
+            </div>
+        }
+
+        <div id="sdResults">
+            <partial name="_QueueResults" model="Model.Results" />
+        </div>
+        <p class="sd-kbd-hint d-none d-lg-block">
+            <span class="sb-kbd">j</span> <span class="sb-kbd">k</span> move,
+            @if (q.CanBulk && !q.IsBoard)
+            {
+                <span><span class="sb-kbd">x</span> select,</span>
+            }
+            <span class="sb-kbd">Enter</span> open
+        </p>
+    </div>
+</div>
+
+@if (q.CanBulk && !q.IsBoard)
+{
+    <partial name="_BulkDialog" model="Model" />
+}
+<partial name="_SaveViewDialog" model="Model" />
+
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.ServiceDesk/js/queue.js" asp-append-version="true"></script>
+}

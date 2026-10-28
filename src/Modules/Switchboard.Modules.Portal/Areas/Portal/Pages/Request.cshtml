@@ -1,0 +1,128 @@
+@page "/portal/requests/{number:int}"
+@model RequestModel
+@{
+    var v = Model.View;
+    ViewData["Title"] = $"{v.DisplayId} {v.Subject}";
+    var opened = v.Relation switch
+    {
+        ViewerRelation.Requester => "You opened this",
+        ViewerRelation.RequestedFor => $"{v.RequesterName} opened this for you",
+        ViewerRelation.Shared => $"{v.RequesterName} opened this and shared it with you",
+        _ => $"{v.RequesterName} from your department opened this",
+    };
+    var replyTitle = v.ReplyCreatesFollowUp ? "Need more help?" : v.ReplyReopens ? "Still need help?" : "Reply";
+    var replyButton = v.ReplyCreatesFollowUp ? "Send and open a follow-up" : v.ReplyReopens ? "Reopen request" : "Send reply";
+    var replyPlaceholder = v.ReplyCreatesFollowUp ? "Tell us what you still need help with"
+        : v.ReplyReopens ? "Tell us what's still not working"
+        : "Write a reply to the service desk";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Portal/css/portal.css" asp-append-version="true">
+}
+
+<a class="prt-back" href="/portal/requests"><i class="bi bi-arrow-left" aria-hidden="true"></i>My requests</a>
+
+<header class="prt-request-head">
+    <p class="prt-request-id"><span class="sb-stamp">@v.DisplayId</span></p>
+    <h1 class="prt-request-title">@v.Subject</h1>
+    <p class="prt-request-sub">@opened <sb-time value="@v.CreatedAt" /></p>
+</header>
+
+<div class="sb-split prt-request" data-prt-ticket="@v.Id" data-prt-me="@Model.ViewerId" data-prt-reply-mode="@v.ReplyMode">
+    <div class="prt-request-main">
+        <partial name="_RequestLive" model="v" />
+
+        @if (v.CanReply)
+        {
+            <section id="reply" class="prt-reply" aria-labelledby="prtReplyTitle">
+                <h2 class="prt-section-title" id="prtReplyTitle">@replyTitle</h2>
+                <partial name="_ErrorSummary" />
+                <form method="post" asp-page-handler="Reply" asp-route-number="@v.Number" class="sb-composer" novalidate>
+                    <label class="visually-hidden" for="prtBody">Your message</label>
+                    <textarea id="prtBody" name="Body" rows="4" maxlength="20000" required data-sb-autosize placeholder="@replyPlaceholder">@Model.Body</textarea>
+                    <div class="sb-composer-foot">
+                        <partial name="_Uploader" model="@(new UploaderModel("prtReplyFiles", "Attach files", Model.Uploaded))" />
+                        <button class="btn btn-primary ms-auto" type="submit">@replyButton</button>
+                    </div>
+                </form>
+            </section>
+        }
+    </div>
+
+    <aside class="prt-request-aside" aria-label="About this request">
+        <section class="sb-pane" aria-labelledby="prtDetailsTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="prtDetailsTitle">Details</h2></div>
+            <dl class="sb-props sb-pane-body prt-props">
+                <div><dt>Type</dt><dd>@(v.Type == TicketType.Incident ? "Problem" : "Request")</dd></div>
+                <div><dt>Opened</dt><dd><sb-time value="@v.CreatedAt" mode="datetime" /></dd></div>
+                <div><dt>Last update</dt><dd><sb-time value="@v.UpdatedAt" /></dd></div>
+                @if (v.Category is not null)
+                {
+                    <div><dt>Topic</dt><dd>@v.Category</dd></div>
+                }
+                @if (v.Relation != ViewerRelation.Requester)
+                {
+                    <div><dt>Requested by</dt><dd>@v.RequesterName</dd></div>
+                }
+                @if (v.RequestedForName is not null)
+                {
+                    <div><dt>Requested for</dt><dd>@(v.Relation == ViewerRelation.RequestedFor ? "You" : v.RequestedForName)</dd></div>
+                }
+                @if (v.HandledBy is not null)
+                {
+                    <div><dt>Handled by</dt><dd><span class="d-inline-flex gap-2 align-items-center"><sb-avatar name="@v.HandledBy" size="sm" />@v.HandledBy</span></dd></div>
+                }
+                @if (v.CcEmails.Count > 0)
+                {
+                    <div><dt>Copied</dt><dd>@foreach (var cc in v.CcEmails) { <span class="d-block text-break">@cc</span> }</dd></div>
+                }
+                @foreach (var f in v.Fields)
+                {
+                    <div><dt>@f.Label</dt><dd>@if (f.Time is { } when) { <sb-time value="@when" mode="datetime" /> } else { @f.Text }</dd></div>
+                }
+            </dl>
+        </section>
+
+        @if (v.IsOwn)
+        {
+            <section class="sb-pane" id="people" aria-labelledby="prtPeopleTitle">
+                <div class="sb-pane-header"><h2 class="sb-pane-title" id="prtPeopleTitle">Shared with</h2></div>
+                <div class="sb-pane-body">
+                    @if (v.SharedWith.Count == 0)
+                    {
+                        <p class="prt-muted">Not shared with anyone yet. Colleagues you share it with can follow along and reply.</p>
+                    }
+                    else
+                    {
+                        <ul class="prt-people-list">
+                            @foreach (var p in v.SharedWith)
+                            {
+                                <li>
+                                    <sb-avatar name="@p.Name" size="sm" />
+                                    <span class="prt-person"><span class="prt-person-name">@p.Name</span><span class="prt-person-email">@p.Email</span></span>
+                                    <form method="post" asp-page-handler="Unshare" asp-route-number="@v.Number">
+                                        <input type="hidden" name="userId" value="@p.Id">
+                                        <button class="btn btn-ghost btn-sm" type="submit" aria-label="Stop sharing with @p.Name">Remove</button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    @if (v.CanShare)
+                    {
+                        <form method="post" asp-page-handler="Share" asp-route-number="@v.Number" class="prt-share-form">
+                            <partial name="_PeoplePicker" model="@(new PeoplePickerModel("prtShare", "", "email", "Share with a colleague", "", [], null, Multiple: false, Optional: false))" />
+                            <button class="btn btn-outline-secondary" type="submit">Share</button>
+                        </form>
+                    }
+                </div>
+            </section>
+        }
+
+        <sb-slot name="portal.ticket" model="Model.Ticket" />
+    </aside>
+</div>
+
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Portal/js/portal.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,88 @@
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Tickets.CustomFieldPropModel
+@using Switchboard.Modules.ServiceDesk.Services
+@{
+    var def = Model.Definition;
+    var id = "cf-" + def.Key;
+    var values = CustomFieldForm.ToForm(def, Model.Value);
+    var current = values.FirstOrDefault();
+    var editable = Model.Editable && CustomFieldForm.IsEditable(def);
+    var hx = $"{{\"Field\":\"{CustomFieldForm.InputPrefix}{def.Key}\"}}";
+}
+@if (def.FieldType == CustomFieldType.Content)
+{
+    <div class="sd-prop-content"><dd class="text-muted">@def.HelpText</dd></div>
+}
+else
+{
+    <div>
+        <dt>
+            @if (def.FieldType == CustomFieldType.Checkbox)
+            {
+                <span id="@id-label">@def.Label</span>
+            }
+            else
+            {
+                <label for="@id">@def.Label</label>
+            }
+        </dt>
+        <dd>
+            @if (!editable)
+            {
+                <span>@(CustomFieldForm.Display(def, Model.Value) ?? "–")</span>
+            }
+            else
+            {
+                switch (def.FieldType)
+                {
+                    case CustomFieldType.Dropdown:
+                    case CustomFieldType.DependentDropdown:
+                        <select class="form-select form-select-sm" id="@id" name="Value" hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx">
+                            <option value="">None</option>
+                            @foreach (var choice in CustomFieldForm.Choices(def))
+                            {
+                                <option value="@choice.Value" selected="@(choice.Value == current)">@choice.Label</option>
+                            }
+                        </select>
+                        break;
+                    case CustomFieldType.MultiSelect:
+                        <select class="form-select form-select-sm" id="@id" name="Value" multiple size="3" hx-post="@Model.Url" hx-trigger="change delay:600ms" hx-vals="@hx">
+                            @foreach (var choice in CustomFieldForm.Choices(def))
+                            {
+                                <option value="@choice.Value" selected="@values.Contains(choice.Value)">@choice.Label</option>
+                            }
+                        </select>
+                        break;
+                    case CustomFieldType.Checkbox:
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="@id" name="Value" value="true" checked="@(current == "true")" aria-labelledby="@id-label"
+                                   hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx">
+                        </div>
+                        break;
+                    case CustomFieldType.Paragraph:
+                        <textarea class="form-control form-control-sm" id="@id" name="Value" rows="2" hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx">@current</textarea>
+                        break;
+                    case CustomFieldType.Number:
+                        <input class="form-control form-control-sm" id="@id" name="Value" type="number" step="1" value="@current" hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx">
+                        break;
+                    case CustomFieldType.Decimal:
+                        <input class="form-control form-control-sm" id="@id" name="Value" type="number" step="any" value="@current" hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx">
+                        break;
+                    case CustomFieldType.Date:
+                        <input class="form-control form-control-sm" id="@id" name="Value" type="date" value="@current" hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx">
+                        break;
+                    case CustomFieldType.DateTime:
+                        <input class="form-control form-control-sm" id="@id" name="Value" type="datetime-local" value="@current" hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx" aria-describedby="@id-tz">
+                        <span class="sd-prop-hint" id="@id-tz">UTC</span>
+                        break;
+                    default:
+                        <input class="form-control form-control-sm" id="@id" name="Value" value="@current" maxlength="500" hx-post="@Model.Url" hx-trigger="change" hx-vals="@hx">
+                        break;
+                }
+            }
+            @if (!string.IsNullOrWhiteSpace(def.HelpText) && editable)
+            {
+                <div class="sd-prop-hint">@def.HelpText</div>
+            }
+        </dd>
+    </div>
+}

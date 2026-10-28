@@ -1,0 +1,108 @@
+@page "/admin/organization"
+@model Switchboard.Modules.Admin.Pages.Settings.OrganizationModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Organization";
+    var sample = new DateTime(2026, 3, 9);
+    var days = new[] { DayOfWeek.Monday, DayOfWeek.Sunday, DayOfWeek.Saturday };
+}
+<sb-page-header title="Organization" subtitle="Your organization's name and the defaults everyone starts with. People can still pick their own time zone." />
+
+<div class="sb-form-narrow">
+    <partial name="_Errors" />
+    <form method="post" class="sb-pane" novalidate>
+        <div class="sb-pane-header"><h2 class="sb-pane-title">Details</h2></div>
+        <div class="sb-pane-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.Name">Organization name</label>
+                    <input class="form-control" asp-for="Input.Name" maxlength="200" required>
+                    <partial name="_FieldError" model="@("Input.Name")" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label" asp-for="Input.BaseUrl">Web address</label>
+                    <input class="form-control" asp-for="Input.BaseUrl" type="url" placeholder="https://help.example.com" aria-describedby="urlHelp" spellcheck="false">
+                    <div class="form-text" id="urlHelp">Used in links in emails, like invitations. Leave empty to use the address the server was set up with.</div>
+                    <partial name="_FieldError" model="@("Input.BaseUrl")" />
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" asp-for="Input.TimeZone">Default time zone</label>
+                    <select class="form-select" asp-for="Input.TimeZone" asp-items='AdminSelects.TimeZones(Model.Input.TimeZone).Skip(1)'></select>
+                    <partial name="_FieldError" model="@("Input.TimeZone")" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.Language">Default language</label>
+                    <select class="form-select" asp-for="Input.Language">
+                        @foreach (var (code, name) in AdminSettingsService.Languages)
+                        {
+                            <option value="@code">@name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Input.DateFormat">Date format</label>
+                    <select class="form-select" asp-for="Input.DateFormat">
+                        @foreach (var f in AdminSettingsService.DateFormats)
+                        {
+                            <option value="@f">@sample.ToString(f, CultureInfo.InvariantCulture)</option>
+                        }
+                    </select>
+                    <partial name="_FieldError" model="@("Input.DateFormat")" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.Currency">Currency</label>
+                    <select class="form-select" asp-for="Input.Currency">
+                        @foreach (var c in AdminSettingsService.Currencies)
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </select>
+                    <partial name="_FieldError" model="@("Input.Currency")" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.FirstDayOfWeek">Weeks start on</label>
+                    <select class="form-select" asp-for="Input.FirstDayOfWeek">
+                        @foreach (var d in days)
+                        {
+                            <option value="@d">@d</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="sb-pane-footer"><button class="btn btn-primary" type="submit">Save settings</button></div>
+    </form>
+
+    <section class="sb-pane" aria-labelledby="logoTitle">
+        <div class="sb-pane-header"><h2 class="sb-pane-title" id="logoTitle">Logo</h2></div>
+        <div class="sb-pane-body d-flex flex-wrap gap-4 align-items-start">
+            <div class="sb-logo-preview">
+                @if (Model.Organization.LogoUrl is { } logo)
+                {
+                    <img src="@logo" alt="Current logo">
+                }
+                else
+                {
+                    <span class="small">No logo</span>
+                }
+            </div>
+            <div class="flex-grow-1">
+                <form method="post" asp-page-handler="Logo" enctype="multipart/form-data">
+                    <label class="form-label" for="logoFile">Upload a logo</label>
+                    <input class="form-control" id="logoFile" type="file" name="Logo" accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="logoHelp">
+                    <div class="form-text" id="logoHelp">PNG, JPEG, GIF or WebP, under 1 MB. A wide image on a transparent background works best.</div>
+                    <partial name="_FieldError" model="@("Logo")" />
+                    <div class="d-flex gap-2 mt-2">
+                        <button class="btn btn-outline-secondary" type="submit">Upload logo</button>
+                    </div>
+                </form>
+                @if (Model.Organization.LogoUrl is not null)
+                {
+                    <form method="post" asp-page-handler="RemoveLogo" class="mt-2">
+                        <button class="btn btn-ghost" type="submit" data-sb-confirm="Remove the logo?">Remove logo</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </section>
+</div>

@@ -1,0 +1,20 @@
+@model TicketCatalogView
+<link rel="stylesheet" href="~/_content/Switchboard.Modules.Catalog/css/catalog.css" asp-append-version="true">
+<section class="sb-pane" aria-labelledby="catMine-@Model.TicketId">
+    <div class="sb-pane-header"><h2 class="sb-pane-title" id="catMine-@Model.TicketId">What you asked for</h2></div>
+    <div class="sb-pane-body">
+        @if (Model.RejectionReason is not null)
+        {
+            <div class="alert alert-warning small">
+                <p class="mb-1"><strong>Not approved.</strong> @Model.RejectedBy said:</p>
+                <p class="mb-2" style="white-space: pre-line">@Model.RejectionReason</p>
+                @if (Model.CanResubmit)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" href="/portal/catalog/requests/@Model.TicketNumber/edit">Change and send again</a>
+                }
+            </div>
+        }
+        <partial name="/Areas/Catalog/Pages/Shared/_RequestedItems.cshtml" model="new RequestedItemsModel(Model, true, false)" />
+        <p class="small mt-3 mb-0"><a href="/portal/catalog/requests/@Model.TicketNumber">Request details</a></p>
+    </div>
+</section>

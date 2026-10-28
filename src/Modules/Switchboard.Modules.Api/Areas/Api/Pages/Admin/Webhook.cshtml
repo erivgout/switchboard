@@ -1,0 +1,151 @@
+@page "/admin/webhooks/{id:guid}"
+@model Switchboard.Modules.Api.Areas.Api.Pages.Admin.WebhookModel
+@{
+    var hook = Model.Hook;
+    ViewData["Title"] = hook.Name;
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.Api/css/api.css" asp-append-version="true">
+}
+@section Scripts {
+    <script src="~/_content/Switchboard.Modules.Api/js/api.js" asp-append-version="true"></script>
+}
+<sb-page-header title="@hook.Name" subtitle="@hook.Url">
+    <a class="btn btn-ghost" href="/admin/webhooks">All webhooks</a>
+</sb-page-header>
+
+<div class="sb-split">
+    <div class="min-w-0">
+        @if (Model.NewSecret is { } secret)
+        {
+            <partial name="/Areas/Api/Pages/Shared/_SecretReveal.cshtml"
+                     model="@(new SecretRevealModel("hookSecret", "New signing secret. Copy it now. It won't be shown again.", secret, "Calls are signed with this secret from now on. Update the receiver before its next delivery."))" />
+        }
+
+        <section class="sb-pane" aria-labelledby="settingsTitle">
+            <div class="sb-pane-header">
+                <h2 class="sb-pane-title" id="settingsTitle">Settings</h2>
+                @if (!hook.IsActive)
+                {
+                    <span class="sb-status sb-status--closed ms-auto">Paused</span>
+                }
+            </div>
+            <form method="post" asp-page-handler="Save" asp-route-id="@hook.Id" class="sb-pane-body" novalidate>
+                <partial name="@WebhookUi.FormView" model="Model.FormModel" />
+            </form>
+        </section>
+
+        <section class="mt-4" aria-labelledby="logTitle">
+            <h2 class="h6 mb-2" id="logTitle">Deliveries</h2>
+            <ul class="nav nav-tabs mb-3" aria-label="Filter deliveries">
+                <li class="nav-item"><a class="nav-link @(Model.Show == "all" ? "active" : null)" href="?show=all" aria-current="@(Model.Show == "all" ? "page" : null)">All</a></li>
+                <li class="nav-item"><a class="nav-link @(Model.Show == "failed" ? "active" : null)" href="?show=failed" aria-current="@(Model.Show == "failed" ? "page" : null)">Not delivered</a></li>
+            </ul>
+            @if (Model.Deliveries.Count == 0)
+            {
+                <div class="sb-pane">
+                    <sb-empty icon="bi-send" title="@(Model.Show == "failed" ? "Everything was delivered" : "Nothing sent yet")">
+                        <p class="sb-empty-text">@(Model.Show == "failed" ? "Deliveries that fail show here while they retry, and after they give up." : "Send a test delivery to check the receiver, or wait for the next ticket event.")</p>
+                    </sb-empty>
+                </div>
+            }
+            else
+            {
+                <div class="sb-pane sb-queue-wrap">
+                    <table class="sb-queue">
+                        <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Result</th>
+                            <th class="sb-hide-sm">Sent</th>
+                            <th><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var d in Model.Deliveries)
+                        {
+                            var (icon, label, tone) = WebhookUi.State(d.Status, d.Attempts);
+                            <tr>
+                                <td>
+                                    @WebhookEvents.Title(d.EventType)
+                                    <details class="mt-1">
+                                        <summary class="sb-meta">Payload and response</summary>
+                                        <pre class="sb-hook-payload">@WebhookUi.Pretty(d.PayloadJson)</pre>
+                                        @if (d.ResponseSnippet is { Length: > 0 } response)
+                                        {
+                                            <p class="sb-meta mt-2 mb-0">The receiver answered @(d.LastStatusCode)@(d.DurationMs is { } ms ? $" in {ms} ms" : ""):</p>
+                                            <pre class="sb-hook-payload">@response</pre>
+                                        }
+                                    </details>
+                                </td>
+                                <td>
+                                    <span class="sb-hook-state sb-hook-state--@tone"><i class="bi @icon" aria-hidden="true"></i> @label</span>
+                                    @if (d.Status != WebhookDeliveryStatus.Succeeded && (d.LastError ?? (d.LastStatusCode is { } code ? $"The receiver answered {code}." : null)) is { } why)
+                                    {
+                                        <div class="sb-meta">@why</div>
+                                    }
+                                    @if (d.Status == WebhookDeliveryStatus.Retrying)
+                                    {
+                                        <div class="sb-meta">Next try <sb-time value="@d.NextAttemptAt" mode="datetime" /></div>
+                                    }
+                                </td>
+                                <td class="sb-hide-sm"><sb-time value="@(d.LastAttemptAt ?? d.CreatedAt)" /></td>
+                                <td class="text-end">
+                                    @if (d.Status == WebhookDeliveryStatus.Dead)
+                                    {
+                                        <form method="post" asp-page-handler="Replay" asp-route-id="@hook.Id" asp-route-show="@Model.Show">
+                                            <input type="hidden" name="deliveryId" value="@d.Id">
+                                            <button class="btn btn-outline-secondary btn-sm" type="submit">Send again</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+
+    <aside class="sb-sticky">
+        <section class="sb-pane" aria-labelledby="secretTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="secretTitle">Signing secret</h2></div>
+            <div class="sb-pane-body">
+                <p>Ends in <span class="sb-api-prefix fw-semibold">@hook.SecretHint</span>. Each call carries a timestamp and a signature made with it:</p>
+                <pre class="sb-hook-payload mb-3">X-Switchboard-Timestamp: 1793180400
+X-Switchboard-Signature: v1=HMAC-SHA256(secret, timestamp + "." + body)</pre>
+                <p class="sb-meta">Recompute the signature from the raw body, compare in constant time, and refuse timestamps more than five minutes old.</p>
+                <form method="post" asp-page-handler="Rotate" asp-route-id="@hook.Id"
+                      data-sb-confirm="Make a new signing secret? The receiver rejects calls until you give it the new one.">
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">Make a new secret</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="testTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="testTitle">Test</h2></div>
+            <div class="sb-pane-body">
+                <p>Sends a signed webhook.ping event to the receiver now.</p>
+                <form method="post" asp-page-handler="Ping" asp-route-id="@hook.Id">
+                    <button class="btn btn-outline-secondary btn-sm" type="submit" disabled="@(!hook.IsActive)">Send a test delivery</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="sb-pane" aria-labelledby="manageTitle">
+            <div class="sb-pane-header"><h2 class="sb-pane-title" id="manageTitle">Pause or delete</h2></div>
+            <div class="sb-pane-body d-flex flex-wrap gap-2">
+                <form method="post" asp-page-handler="Pause" asp-route-id="@hook.Id">
+                    <input type="hidden" name="active" value="@(hook.IsActive ? "false" : "true")">
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">@(hook.IsActive ? "Pause" : "Resume")</button>
+                </form>
+                <form method="post" asp-page-handler="Delete" asp-route-id="@hook.Id"
+                      data-sb-confirm="Delete @hook.Name and its delivery log? This can't be undone.">
+                    <button class="btn btn-outline-danger btn-sm" type="submit">Delete webhook</button>
+                </form>
+            </div>
+        </section>
+    </aside>
+</div>

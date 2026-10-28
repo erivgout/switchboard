@@ -1,0 +1,42 @@
+@page "/account/login"
+@model Switchboard.Web.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+    Layout = "_AuthLayout";
+}
+<h1>Sign in</h1>
+<p class="text-muted mb-4">Use your work email and password.</p>
+
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-danger" role="alert">@Model.Error</div>
+}
+
+<form method="post" novalidate>
+    <input type="hidden" asp-for="ReturnUrl">
+    <div class="mb-3">
+        <label class="form-label" asp-for="Email">Email</label>
+        <input class="form-control" asp-for="Email" type="email" autocomplete="username" autofocus required>
+    </div>
+    <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-baseline">
+            <label class="form-label" asp-for="Password">Password</label>
+            <a class="small" href="/account/forgot-password">Forgot your password?</a>
+        </div>
+        <input class="form-control" asp-for="Password" type="password" autocomplete="current-password" required>
+    </div>
+    <div class="form-check mb-4">
+        <input class="form-check-input" asp-for="RememberMe">
+        <label class="form-check-label" asp-for="RememberMe">Keep me signed in on this device</label>
+    </div>
+    <button class="btn btn-primary w-100" type="submit">Sign in</button>
+</form>
+
+@if (Model.ShowDemoHint)
+{
+    <div class="mt-4 small text-muted border rounded p-3">
+        <div class="fw-semibold text-body mb-1">Demo accounts</div>
+        Admin <code>admin@switchboard.local</code>, agent <code>sam@switchboard.local</code>,
+        requester <code>dana@switchboard.local</code>. Password <code>Switchboard!2026</code>.
+    </div>
+}

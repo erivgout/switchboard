@@ -1,0 +1,61 @@
+@page "/admin/ticket-templates"
+@model Switchboard.Modules.ServiceDesk.Areas.ServiceDesk.Pages.Admin.TicketTemplatesModel
+@{
+    Layout = "_AdminLayout";
+}
+@section Head {
+    <link rel="stylesheet" href="~/_content/Switchboard.Modules.ServiceDesk/css/servicedesk.css" asp-append-version="true">
+}
+<sb-page-header title="Ticket templates" subtitle="Pre-filled forms for issues that come up again and again. Agents pick one when they create a ticket.">
+    <a class="btn btn-primary" href="/admin/ticket-templates/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> New template</a>
+</sb-page-header>
+
+@if (Model.Templates.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-file-earmark-text" title="No templates yet">
+            <p class="sb-empty-text">Create one for a request your team logs often, like a password reset, so agents fill in less.</p>
+            <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/ticket-templates/new">Create a template</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Type</th>
+                <th scope="col" class="sb-hide-sm">Category</th>
+                <th scope="col" class="sb-hide-sm">Group</th>
+                <th scope="col">Status</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var t in Model.Templates)
+            {
+                <tr>
+                    <td>
+                        <a class="sb-subject" href="/admin/ticket-templates/@t.Id">@t.Name</a>
+                        @if (!string.IsNullOrWhiteSpace(t.Description))
+                        {
+                            <div class="sb-meta">@t.Description</div>
+                        }
+                    </td>
+                    <td>@(t.Type == TicketType.Incident ? "Incident" : "Service request")</td>
+                    <td class="sb-hide-sm">@(t.CategoryId is { } c && Model.Categories.TryGetValue(c, out var cn) ? cn : "–")</td>
+                    <td class="sb-hide-sm">@(t.GroupId is { } g && Model.Groups.TryGetValue(g, out var gn) ? gn : "–")</td>
+                    <td>@(t.IsActive ? "In use" : "Hidden from agents")</td>
+                    <td class="text-end">
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@t.Id" data-sb-confirm="Delete the template &quot;@t.Name&quot;? Tickets created from it aren't affected.">
+                            <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,25 @@
+@model NotificationMenuModel
+<div class="sb-bell-head">
+    <p class="sb-bell-title">Notifications</p>
+    @if (Model.Unread > 0)
+    {
+        <button class="btn btn-ghost btn-sm" type="button" hx-post="/notifications?handler=MarkAllRead" hx-target="#sbBellMenu" hx-swap="innerHTML">Mark all as read</button>
+    }
+</div>
+@if (Model.Items.Count == 0)
+{
+    <div class="sb-bell-empty">
+        <i class="bi bi-bell-slash" aria-hidden="true"></i>
+        <p class="mb-0">Nothing yet. Assignments, replies on your tickets and mentions will show up here.</p>
+    </div>
+}
+else
+{
+    <ul class="sb-notif-list">
+        @foreach (var item in Model.Items)
+        {
+            <partial name="_NotificationItem" model="new NotificationItemModel(item, false)" />
+        }
+    </ul>
+}
+<a class="sb-bell-foot" href="/notifications">See all notifications</a>

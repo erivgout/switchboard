@@ -1,0 +1,53 @@
+@page "/admin/groups"
+@model Switchboard.Modules.Admin.Pages.Groups.IndexModel
+@{
+    ViewData["Title"] = "Agent groups";
+}
+<sb-page-header title="Agent groups" subtitle="Teams that share a queue. Each group decides how its new tickets are assigned.">
+    <a class="btn btn-primary" href="/admin/groups/new?ws=@Model.Workspace.Key"><i class="bi bi-plus-lg" aria-hidden="true"></i> New group</a>
+</sb-page-header>
+<partial name="_WorkspacePicker" model="new WorkspacePickerModel(Model.Workspace, Model.Workspaces, [])" />
+
+@if (Model.Groups.Count == 0)
+{
+    <div class="sb-pane">
+        <sb-empty icon="bi-diagram-3" title="No groups yet">
+            <p class="sb-empty-text">Create a group for each team that works tickets, like Service Desk or Network.</p>
+            <div class="sb-empty-actions"><a class="btn btn-outline-secondary" href="/admin/groups/new?ws=@Model.Workspace.Key">New group</a></div>
+        </sb-empty>
+    </div>
+}
+else
+{
+    <div class="sb-pane sb-queue-wrap">
+        <table class="sb-queue">
+            <thead>
+                <tr>
+                    <th scope="col">Group</th>
+                    <th scope="col">New tickets</th>
+                    <th scope="col" class="sb-num-cell">Members</th>
+                    <th scope="col" class="sb-num-cell sb-hide-sm">Observers</th>
+                    <th scope="col" class="sb-num-cell sb-hide-sm">Open tickets</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var g in Model.Groups)
+                {
+                    <tr data-sb-href="/admin/groups/@g.Id">
+                        <td>
+                            <a class="sb-subject" href="/admin/groups/@g.Id">@g.Name</a>
+                            @if (g.Description is not null)
+                            {
+                                <div class="sb-meta">@g.Description</div>
+                            }
+                        </td>
+                        <td>@AdminPageModel.ModeLabel(g.Mode)</td>
+                        <td class="sb-num-cell tabular">@g.Members</td>
+                        <td class="sb-num-cell tabular sb-hide-sm">@g.Observers</td>
+                        <td class="sb-num-cell tabular sb-hide-sm">@g.OpenTickets</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
