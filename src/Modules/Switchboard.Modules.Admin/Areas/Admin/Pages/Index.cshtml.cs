@@ -20,10 +20,8 @@ public sealed class IndexModel(IShellContext shell) : PageModel
         {
             return Forbid();
         }
-        Groups = model.AdminNav
-            .OrderBy(g => AdminGroups.Rank(g.Key))
-            .ThenBy(g => g.Key, StringComparer.Ordinal)
-            .ToList();
+        // The shell already orders groups by outcome, so the home matches the admin menu.
+        Groups = model.AdminNav;
         return Page();
     }
 }

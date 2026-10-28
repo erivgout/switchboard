@@ -8,22 +8,16 @@ using Switchboard.Modules.Admin.Services;
 
 namespace Switchboard.Modules.Admin;
 
-/// <summary>Admin nav group names (FR-ADM-1). Other modules add their own groups.</summary>
+/// <summary>
+/// Admin nav group names (FR-ADM-1). Other modules add their own groups; the shell
+/// (<c>ShellContext</c>) puts all groups in one outcome order for both the admin menu and this home.
+/// </summary>
 public static class AdminGroups
 {
     public const string Organization = "Organization";
     public const string UsersAndAccess = "Users and access";
     public const string ServiceDesk = "Service desk";
     public const string DataAndSecurity = "Data and security";
-
-    /// <summary>Outcome order of the admin console (FR-ADM-1); groups not listed sort after these.</summary>
-    private static readonly string[] Order =
-    [
-        Organization, UsersAndAccess, "Channels", ServiceDesk, "Service management", "Assets", "Operations",
-        "Automation", "Knowledge", "Portals", "AI", "MCP", "Integrations and plugins", DataAndSecurity, "System",
-    ];
-
-    public static int Rank(string group) => Array.IndexOf(Order, group) is var i and >= 0 ? i : int.MaxValue;
 }
 
 /// <summary>
